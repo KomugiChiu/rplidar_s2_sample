@@ -138,6 +138,16 @@ rviz2
 
 > 注意：Python timer 設 0.1s 發佈，若回調偶爾超時會有抖動；實測本機 std 1.0ms vs 0.9ms，同一量級。
 
+## 8. TODO：接 SLAM（待執行）
+
+- [ ] 裝：`sudo apt install ros-jazzy-slam-toolbox ros-jazzy-nav2-map-server`（apt 有 slam-toolbox 2.8.5）
+- [ ] 補 tf 鏈 `map→odom→base_footprint→laser`：`map→odom` 由 toolbox 發；
+  `odom→base_footprint`、`base_footprint→laser`（雷達安裝高度）用 static_transform_publisher 補
+- [ ] 寫三合一 launch：rplidar node＋static tf＋`async_slam_toolbox_node`（沿用
+  `~/Downloads/komugi/ros2_slam/slam_example` 的 yaml）＋rviz
+- [ ] 實機建圖：抱雷達慢走；`map_saver_cli -f map` 存圖；`ros2 bag record /scan /tf /tf_static` 留包
+- [ ] 待確認：odom 來源（無→純雷射匹配手持版；有輪速計/IMU→加 `robot_localization` 融合版）
+
 ## 7. 可能的瓶頸
 
 1. **baud 用錯**：S2 serial 固定 `1000000`；套 A1/A2/S1 範例的 115200/256000 會連上無數據。本包三處預設皆已是 1000000。
