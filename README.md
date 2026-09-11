@@ -106,6 +106,27 @@ python3 -m venv .venv && .venv/bin/pip install -r arm64_simple/requirements.txt
 
 詳見 `arm64_simple/README.md`。本機已驗：兩支 `.py` 經 `py_compile`，`requirements` 版號與 aarch64 wheel 存在性。
 
+### 板上起 node，NB 開 rviz 看（跨機）
+
+```bash
+# 板上 (headless)：只起 node
+source ~/lidar_ws_arm64/install/setup.bash  # 或 ~/ros2_ws/install/setup.bash
+ros2 launch rplidar_ros rplidar_s2_launch.py
+# NB (x86)：只開 rviz，加 LaserScan display 訂 /scan，Fixed Frame 選 laser
+rviz2
+```
+
+前提（缺一即看不到）：
+1. 兩邊同網段、multicast 通（多數家用 AP 可；公司網/VPN 常擋——見下）。
+2. `ROS_DOMAIN_ID` 一致（預設都是 0，不動最省事；`echo $ROS_DOMAIN_ID` 兩邊對）。
+3. 同 Jazzy、同 RMW（預設 Fast DDS，兩邊都不改）。
+4. 防火牆放行：`sudo ufw allow in on <網卡>` 或先 `sudo ufw disable` 試。
+5. NB 驗：`ros2 topic list | grep scan`、`ros2 topic hz /scan` 看到 ~10Hz 即通。
+
+若 multicast 被擋（跨網段/特定 WiFi）：改用 Discovery Server——板上起
+`fastdds discovery -i 0 -p 11811`，兩邊 export
+`ROS_DISCOVERY_SERVER="<server-ip>:11811"`；或換 CycloneDDS 配 `CYCLONEXML` 單播 peers。
+
 ## 6. Python node vs C++ node 效能實測 (本機 x86, S2 DenseBoost 10Hz)
 
 | | Python (`s2_laserscan_node.py`) | C++ (`rplidar_node`) |
