@@ -24,6 +24,8 @@ lidar/
     └── README.md              板上步驟 + ARM 差異
 └── arm64_ros2/                ARM64 ROS2 cross 版 (x86 host 上編)
     ├── cross_build_rplidar.sh toolchain-aarch64-ros2.cmake  編出 arm64 rplidar_node
+└── arm64_slam/                ARM64 純板建圖 (console only，免 x86)
+    └── README.md              板上全流程：裝包→node→tf→toolbox→盲走建圖→存圖
 └── upstream/                  上游快照 (免重抓，見 VERSION.md)
     └── rplidar_ros/           Slamtec/rplidar_ros ros2 branch (node+sdk+launch 全套)
 ```
