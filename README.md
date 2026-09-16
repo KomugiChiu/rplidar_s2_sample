@@ -161,13 +161,53 @@ rviz2
 前提（缺一即看不到）：
 1. 兩邊同網段、multicast 通（多數家用 AP 可；公司網/VPN 常擋——見下）。
 2. `ROS_DOMAIN_ID` 一致（預設都是 0，不動最省事；`echo $ROS_DOMAIN_ID` 兩邊對）。
-3. 同 Jazzy、同 RMW（預設 Fast DDS，兩邊都不改）。
+3. 同 Jazzy、同 RMW（預設 Fast DDS，兩邊都不改；**兩邊都不要設 `ROS_DISCOVERY_SERVER`**，混用 multicast 會互相看不到）。
 4. 防火牆放行：`sudo ufw allow in on <網卡>` 或先 `sudo ufw disable` 試。
 5. NB 驗：`ros2 topic list | grep scan`、`ros2 topic hz /scan` 看到 ~10Hz 即通。
 
+先驗 multicast 通不通（免 sudo，port 不通直接走下一步）：
+
+```bash
+# NB：先聽
+ros2 multicast receive
+# 板上：另開終端送
+ros2 multicast send
+# NB 印出 Received from <board-ip> 即通；沒印就是 AP 擋 multicast
+```
+
 若 multicast 被擋（跨網段/特定 WiFi）：改用 Discovery Server——板上起
 `fastdds discovery -i 0 -p 11811`，兩邊 export
-`ROS_DISCOVERY_SERVER="<server-ip>:11811"`；或換 CycloneDDS 配 `CYCLONEXML` 單播 peers。
+`ROS_DISCOVERY_SERVER="<server-ip>:11811"` 後**重起 node**（env 要在起 node 前生效）；
+或換 CycloneDDS 配 `CYCLONEXML` 單播 peers。
+
+### 4.4 實戰記錄 (2026-09-16，板上 node + NB rviz，已通)
+
+環境：板 `NT98635-Ubuntu` (`192.168.50.239` + `.240`，SSH 用 `.240`)，
+node 在 `~/test/rplidar_ros/` (install 前綴，ARM aarch64)；NB 本機 `192.168.50.106`。
+
+```bash
+# [板] 串口權限：komugi 不在 dialout 會開不了 /dev/ttyUSB0 (crw-rw---- root dialout)
+sudo chmod 666 /dev/ttyUSB0              # 立即生效
+sudo usermod -aG dialout komugi          # 永久，重登後生效
+# [板] 起 node (multicast 模式，不設 ROS_DISCOVERY_SERVER)
+source /opt/ros/jazzy/setup.bash; source ~/test/rplidar_ros/setup.bash
+ros2 launch rplidar_ros rplidar_s2_launch.py
+# [板] 自驗：ros2 topic list 見 /scan
+# [NB] 驗：ros2 topic list 見 /scan；ros2 topic hz /scan 約 10Hz
+# [NB] 開 rviz（上游配置自帶 LaserScan display）
+rviz2 -d upstream/rplidar_ros/rviz/rplidar_ros.rviz
+```
+
+踩雷記錄：
+* NB 一度看不到 `/scan`，兇手是**板上 node 根本沒在跑**（`ps` 是空的），不是網路問題；
+  另一次是 NB/板混用了 discovery client + multicast，兩邊機制不同互相看不到。
+* Discovery Server 在此環境有坑：server (`fast-discovery-server`，注意 process 名不是
+  `fastdds`，`ps | grep fastdds` 找不到；且它**只聽 UDP**，`ss -tln` 看不到，要用
+  `ss -uln | grep 11811`) 明明在聽，但掛 `ROS_DISCOVERY_SERVER` 的 node 連板子自己都
+  看不到 `/scan`。multicast 確認通的話就別用 server，直連最省事。
+* 板上曾有新舊兩個 server 搶 `11811`（ttyS0 手動起的 + 後台起的），亂了就全殺掉
+  (`pkill -f fast-discovery-server`，注意別用 `pkill -f fastdds` 會殺掉自己的 ssh shell)
+  只留一個；`.240`/`.239` 雙 IP，SSH/Discovery 認準當下會通的那個。
 
 ## 6. Python node vs C++ node 效能實測 (本機 x86, S2 DenseBoost 10Hz)
 
