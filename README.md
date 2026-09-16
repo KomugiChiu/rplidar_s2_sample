@@ -97,6 +97,8 @@ source /opt/ros/jazzy/setup.bash
 
 ## 4. ARM64 執行方式 (板上，Ubuntu 24.04 + Jazzy)
 
+### 4.1 簡單驗證版 (免 ROS，純 Python)
+
 ```bash
 ls -l /dev/ttyUSB*; lsusb -d 10c4:ea60     # 先看到裝置
 python3 arm64_simple/s2_info_check.py --port /dev/ttyUSB0
@@ -106,7 +108,47 @@ python3 -m venv .venv && .venv/bin/pip install -r arm64_simple/requirements.txt
 
 詳見 `arm64_simple/README.md`。本機已驗：兩支 `.py` 經 `py_compile`，`requirements` 版號與 aarch64 wheel 存在性。
 
-### 板上起 node，NB 開 rviz 看（跨機）
+### 4.2 ROS2 版 (x86 host cross 編 → 板上執行)
+
+host 上編完 (`arm64_ros2/cross_build_rplidar.sh`，產出 `~/lidar_ws_arm64/install/`)，
+那是 ARM 二進位，x86 上不能直接跑，要傳到板子上起。注意源碼必須用 `-b ros2`
+branch，不能用 tags `2.1.x` tarball (那是 ROS1 catkin，編譯會報需要 catkin)。
+
+```bash
+# [host] 驗產物是 ARM 再傳
+file ~/lidar_ws_arm64/install/rplidar_ros/lib/rplidar_ros/rplidar_node
+# 期待: ELF 64-bit LSB executable, ARM aarch64 ...
+scp -r ~/lidar_ws_arm64/install <board>:~/
+
+# [board] runtime 依賴 (與 cross_build 下的那四包同名)
+sudo apt install ros-jazzy-rclcpp ros-jazzy-sensor-msgs ros-jazzy-std-srvs ros-jazzy-rclcpp-components
+ls -l /dev/ttyUSB*; lsusb -d 10c4:ea60     # 先看到 CP2102N
+source /opt/ros/jazzy/setup.bash
+source ~/lidar_ws_arm64/install/setup.bash  # 你 scp 的位置
+
+# [board] 起 headless node (預設即 serial /dev/ttyUSB0 / 1000000 / DenseBoost，見 rplidar_s2_launch.py)
+ros2 launch rplidar_ros rplidar_s2_launch.py
+# 期待: current scan mode: DenseBoost, sample rate: 32 Khz, max_distance: 30.0 m, scan frequency: 10.0 Hz
+```
+
+改參數範例：
+
+```bash
+ros2 launch rplidar_ros rplidar_s2_launch.py serial_port:=/dev/ttyUSB1 angle_compensate:=false
+```
+
+同機驗證 (板上另開終端)：
+
+```bash
+source /opt/ros/jazzy/setup.bash; source ~/lidar_ws_arm64/install/setup.bash
+ros2 topic echo /scan --once | head -n 20  # frame laser, range 0.15~30m，對照 x86_ros2/scan_once_sample.yaml
+ros2 topic hz /scan                         # 期待 ~10.0Hz
+```
+
+替代方案：板子有網路且力夠的話，不用 cross，直接把 `x86_ros2/install_driver.sh`
+拿去板上跑原生編譯即可 (步驟與 x86 同)。
+
+### 4.3 板上起 node，NB 開 rviz 看（跨機）
 
 ```bash
 # 板上 (headless)：只起 node
