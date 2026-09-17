@@ -29,7 +29,22 @@ scp ~/Downloads/komugi/ros2_slam/slam_example/config/slam_toolbox.yaml <board>:~
 > 切回預設 multicast 即正常。若之前設過：`unset ROS_DISCOVERY_SERVER` +
 > `ros2 daemon stop` (daemon 會記住舊設定，不重起不生效)。
 
-## 1. 建圖流程 (板上 4 個終端)
+## 1. 建圖流程 (板上 1 個終端)
+
+> 推一鍵版：`slam_s2_headless.launch.py` (本目錄，= 下面 4 行合一，板上實測通)。
+> 4 終端手動版留作排錯用。
+
+```bash
+# [x86] 傳上板 (只需此一檔 + slam_toolbox.yaml)
+scp arm64_slam/slam_s2_headless.launch.py <board>:~/
+# [板] 一鍵起 (rplidar S2 + 2x static tf + toolbox async，autostart 自動 activate)
+source /opt/ros/jazzy/setup.bash; source ~/test/rplidar_ros/setup.bash
+ros2 launch ~/slam_s2_headless.launch.py
+# 改參數：serial_port:=/dev/ttyUSB1 angle_compensate:=false laser_height:=0.15 slam_params_file:=~/my.yaml
+# 期待：health OK + DenseBoost 10.0 Hz + Slamtoolbox activating (見 §2 驗)
+```
+
+<details><summary>手動版 (4 終端，排錯用)</summary>
 
 ```bash
 # 終端 1：雷達 (headless，預設 serial /dev/ttyUSB0 / 1000000 / DenseBoost 10Hz)
@@ -53,6 +68,8 @@ ros2 launch slam_toolbox online_async_launch.py \
 # ros2 lifecycle set /slam_toolbox configure && ros2 lifecycle set /slam_toolbox activate
 # 期待：lifecycle get 顯示 active [3]
 ```
+
+</details>
 
 ## 2. 無螢幕驗證 (板上)
 
