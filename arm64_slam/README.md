@@ -43,21 +43,27 @@ ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 odom base_footprint
 ros2 run tf2_ros static_transform_publisher 0 0 0.2 0 0 0 base_footprint laser
 # 第二個 0.2 = 雷達手持高度 (m)，實際幾公分改多少
 
-# 終端 4：SLAM (async 版一起來就開工，不用 activate)
+# 終端 4：SLAM (Jazzy 這版 async 也是 lifecycle，起來是 unconfigured，要手動開工)
 source /opt/ros/jazzy/setup.bash
 ros2 run slam_toolbox async_slam_toolbox_node --ros-args \
   --params-file ~/slam_toolbox.yaml
+# 另開終端 (或同終端 Ctrl+Z 背景後) 下兩行，重開 node 就要重做：
+ros2 lifecycle set /slam_toolbox configure
+ros2 lifecycle set /slam_toolbox activate
+# 期待：兩次都 Transitioning successful，最後 lifecycle get 顯示 active [3]
 ```
 
 ## 2. 無螢幕驗證 (板上)
 
 ```bash
 ros2 topic hz /scan                        # 期待 ~10Hz (雷達層通了)
-ros2 node info /slam_toolbox | grep -A5 SUBSCRIPTIONS
-# 期待看到 /scan + /tf + /tf_static (toolbox 有在收才會往下做)
-ros2 topic hz /map                         # 有頻率＝有在出圖
-ros2 topic echo /map/info --once           # width/height 變大＝圖在長大
+ros2 lifecycle get /slam_toolbox           # 期待 active [3]；unconfigured/inactive＝還沒開工
+ros2 node info /slam_toolbox | grep -A8 -E 'Subscribers|Publishers'
+# 期待 SUBSCRIPTIONS 有 /scan，PUBLISHERS 有 /map + /tf (active 後才有)
+ros2 topic list | grep -E '/map|/tf'       # 期待 /map + /tf + /tf_static 都在
+ros2 topic echo /map --once                # ROS2 沒有 /map/info，看 /map 裡的 .info.width/.height，變大＝圖在長大
 ros2 run tf2_ros tf2_echo map laser        # tf 樹完整才印得出換算值
+# 靜止時 /map 沒頻率是正常的 (minimum_travel_distance: 0.5，走半米才更新一次)
 ```
 
 ## 3. tf 說明：高度固定＝固定值
@@ -110,3 +116,5 @@ scp <board>:~/map_s2_01.* .    # pgm 直接用看圖軟體開
    `angle_compensate` 是小板上最吃 CPU 的地方。
 4. **串口被搶**：`ModemManager` 佔用時 `sudo systemctl disable --now ModemManager`。
 5. **供電**：板載 USB 弱，帶電源 hub 或外供，否則轉速上不去、點數亂跳。
+6. **toolbox 沒訂 `/scan`、沒發 `/map`**：`node info` 只有 `/parameter_events` 就是
+   `unconfigured`，`lifecycle get` 確認後補 `set ... configure` + `set ... activate`。
