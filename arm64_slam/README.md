@@ -43,14 +43,15 @@ ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 odom base_footprint
 ros2 run tf2_ros static_transform_publisher 0 0 0.2 0 0 0 base_footprint laser
 # 第二個 0.2 = 雷達手持高度 (m)，實際幾公分改多少
 
-# 終端 4：SLAM (Jazzy 這版 async 也是 lifecycle，起來是 unconfigured，要手動開工)
+# 終端 4：SLAM (推 launch 版，autostart 自動 activate；run 版要手動兩行)
 source /opt/ros/jazzy/setup.bash
-ros2 run slam_toolbox async_slam_toolbox_node --ros-args \
-  --params-file ~/slam_toolbox.yaml
-# 另開終端 (或同終端 Ctrl+Z 背景後) 下兩行，重開 node 就要重做：
-ros2 lifecycle set /slam_toolbox configure
-ros2 lifecycle set /slam_toolbox activate
-# 期待：兩次都 Transitioning successful，最後 lifecycle get 顯示 active [3]
+ros2 launch slam_toolbox online_async_launch.py \
+  slam_params_file:=~/slam_toolbox.yaml use_sim_time:=false
+# 兩個參數都要：不指 slam_params_file 就用官方預設檔；實機 use_sim_time 必須 false
+# 備選 (效果同上，只是要手動開工，重開就要重做)：
+# ros2 run slam_toolbox async_slam_toolbox_node --ros-args --params-file ~/slam_toolbox.yaml
+# ros2 lifecycle set /slam_toolbox configure && ros2 lifecycle set /slam_toolbox activate
+# 期待：lifecycle get 顯示 active [3]
 ```
 
 ## 2. 無螢幕驗證 (板上)
@@ -117,4 +118,5 @@ scp <board>:~/map_s2_01.* .    # pgm 直接用看圖軟體開
 4. **串口被搶**：`ModemManager` 佔用時 `sudo systemctl disable --now ModemManager`。
 5. **供電**：板載 USB 弱，帶電源 hub 或外供，否則轉速上不去、點數亂跳。
 6. **toolbox 沒訂 `/scan`、沒發 `/map`**：`node info` 只有 `/parameter_events` 就是
-   `unconfigured`，`lifecycle get` 確認後補 `set ... configure` + `set ... activate`。
+   `unconfigured` (`ros2 run` 版通病，改用 `online_async_launch.py` 自動解，或手動
+   `lifecycle set ... configure` + `activate`)。
