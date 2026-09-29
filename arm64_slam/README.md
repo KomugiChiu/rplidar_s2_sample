@@ -40,7 +40,7 @@ scp arm64_slam/slam_s2_headless.launch.py <board>:~/
 # [板] 一鍵起 (rplidar S2 + 2x static tf + toolbox async，autostart 自動 activate)
 source /opt/ros/jazzy/setup.bash; source ~/test/rplidar_ros/setup.bash
 ros2 launch ~/slam_s2_headless.launch.py
-# 改參數：serial_port:=/dev/ttyUSB1 angle_compensate:=false laser_height:=0.15 slam_params_file:=~/my.yaml
+# 改參數：serial_port:=/dev/ttyUSB1 angle_compensate:=false laser_height:=0.15 slam_params_file:=$HOME/my.yaml
 # 期待：health OK + DenseBoost 10.0 Hz + Slamtoolbox activating (見 §2 驗)
 ```
 
@@ -61,7 +61,7 @@ ros2 run tf2_ros static_transform_publisher 0 0 0.2 0 0 0 base_footprint laser
 # 終端 4：SLAM (推 launch 版，autostart 自動 activate；run 版要手動兩行)
 source /opt/ros/jazzy/setup.bash
 ros2 launch slam_toolbox online_async_launch.py \
-  slam_params_file:=~/slam_toolbox.yaml use_sim_time:=false
+  slam_params_file:=$HOME/slam_toolbox.yaml use_sim_time:=false
 # 兩個參數都要：不指 slam_params_file 就用官方預設檔；實機 use_sim_time 必須 false
 # 備選 (效果同上，只是要手動開工，重開就要重做)：
 # ros2 run slam_toolbox async_slam_toolbox_node --ros-args --params-file ~/slam_toolbox.yaml

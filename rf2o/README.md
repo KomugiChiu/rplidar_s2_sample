@@ -72,7 +72,7 @@ ros2 run rf2o_laser_odometry rf2o_laser_odometry_node --ros-args \
 # 終端 4：toolbox
 source /opt/ros/jazzy/setup.bash
 ros2 launch slam_toolbox online_async_launch.py \
-  slam_params_file:=~/slam_toolbox.yaml use_sim_time:=false
+  slam_params_file:=$HOME/slam_toolbox.yaml use_sim_time:=false
 ```
 
 ## 5. 驗證＋建圖（板上）

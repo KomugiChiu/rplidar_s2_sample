@@ -4,7 +4,7 @@
 # 板上用法 (先 scp 本檔上板)：
 #   ros2 launch ~/slam_s2_headless.launch.py
 #   ros2 launch ~/slam_s2_headless.launch.py serial_port:=/dev/ttyUSB1 angle_compensate:=false
-#   ros2 launch ~/slam_s2_headless.launch.py slam_params_file:=~/my.yaml laser_height:=0.15
+#   ros2 launch ~/slam_s2_headless.launch.py slam_params_file:=$HOME/my.yaml laser_height:=0.15
 import os
 
 from launch import LaunchDescription
