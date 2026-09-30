@@ -9,6 +9,34 @@
 
 ---
 
+## 目錄
+
+- [0. TL;DR](#sec-0)
+- [1. LiDAR 是什麼](#sec-1)
+- [2. RPLIDAR S2 硬體與本機實機](#sec-2)
+- [3. SDK 位置](#sec-3)
+- [4. 編譯 ROS 2 node](#sec-4)
+- [5. 執行與參數](#sec-5)
+  - [5.3 一圈多少點：3200、3240](#sec-5-3)
+- [6. Topic 清單](#sec-6)
+- [7. `/scan` 欄位逐項解說](#sec-7)
+  - [7.2 欄位定義 + 實測值](#sec-7-2)
+  - [7.4 實作陷阱（intensity 錯位）](#sec-7-4)
+  - [7.7 三種尺度的點位對照](#sec-7-7)
+  - [7.9 角度問答](#sec-7-9)
+  - [7.10 SDK 原始樣本](#sec-7-10)
+- [8. TF 與 Odom](#sec-8)
+  - [8.1 兩條邊的意義](#sec-8-1)
+  - [8.3 TF 欄位全解](#sec-8-3)
+  - [8.5 誰發什麼](#sec-8-5)
+  - [8.9 `/odom_rf2o` 全解與誰用 odom](#sec-8-9)
+- [9. SLAM demo 能做的事](#sec-9)
+- [10. Nav2 缺口](#sec-10)
+- [11. 已知坑速查](#sec-11)
+- [附錄 A：檔案索引](#sec-app-a) · [附錄 B：指令速查](#sec-app-b) · [附錄 C：關鍵數據](#sec-app-c)
+
+---
+<a id="sec-0"></a>
 ## 0. TL;DR
 
 | 問題 | 答案 |
@@ -18,10 +46,11 @@
 | 雷達能給什麼 topic？ | 只有 **`/scan`（`sensor_msgs/msg/LaserScan`）** + 兩個服務 `/start_motor`、`/stop_motor`（`std_srvs/srv/Empty`）。沒有 PointCloud2、沒有 IMU、沒有 TF |
 | Topic 裡的值是什麼？ | 一圈 3240 個 bin 的距離 + 反射強度。實測 `angle` 跨 359°、`range 0.15~30 m`、10 Hz、`inf` = 該方向無回波。逐欄解說見 §7 |
 | 在 SLAM demo 能幹嘛？ | 本 repo 已驗 6 條鏈：`slam_toolbox`（static 假 odom / rf2o 真 odom）、`hector_mapping`、`hector+rf2o`、`cartographer`、`rtabmap`（scan-only）、`rf2o` 單獨里程計。皆為**手持建圖**，證據在 `arm64_slam/`、`bags/` |
-| Nav2 呢？ | **本 repo 目前只用 `nav2_map_server` 存圖**，完整 Nav2 導航（AMCL / costmap / planner / controller）**尚未實測**，缺輪速/底盤。缺口清單見 §9 |
+| Nav2 呢？ | **本 repo 目前只用 `nav2_map_server` 存圖**，完整 Nav2 導航（AMCL / costmap / planner / controller）**尚未實測**，缺輪速/底盤。缺口清單見 §10 |
 
 ---
 
+<a id="sec-1"></a>
 ## 1. LiDAR 是什麼
 
 ### 1.1 一句話
@@ -45,6 +74,7 @@ Z 軸（雷達離地高度）SLAM 不看，只影響**後續 Nav2 規劃與避�
 
 ---
 
+<a id="sec-2"></a>
 ## 2. RPLIDAR S2 硬體與本機實機
 
 ### 2.1 規格 **[規格]**
@@ -104,6 +134,7 @@ python3 -m venv .venv
 
 ---
 
+<a id="sec-3"></a>
 ## 3. SDK 位置
 
 ### 3.1 上游來源
@@ -181,6 +212,7 @@ ILidarDriver::setMotorSpeed(rpm) / getDeviceInfo() / getHealth()
 
 ---
 
+<a id="sec-4"></a>
 ## 4. 編譯 ROS 2 node
 
 ### 4.1 為什麼不能直接 apt
@@ -291,6 +323,7 @@ python3 -m venv .venv && .venv/bin/pip install -r x86_simple/requirements.txt
 
 ---
 
+<a id="sec-5"></a>
 ## 5. 執行與參數
 
 ### 5.1 啟動
@@ -347,6 +380,7 @@ Node 額外支援但 launch 沒暴露的參數（`ros2 param` 可設）：
 | `auto_standby` | `false` | **沒人訂閱就自動停馬達**，省電但會有重啟延遲 |
 | `flip_x_axis` | `false` | 翻轉 180° 索引 |
 
+<a id="sec-5-3"></a>
 ### 5.3 一圈多少點：3200、3240 與 `angle_compensate`
 
 #### 5.3.1 3200 怎麼來的：取樣率 ÷ 轉速
@@ -442,6 +476,7 @@ Headless 一鍵驗證：`bash x86_ros2/s2_ros_check.sh /dev/ttyUSB0 12`
 
 ---
 
+<a id="sec-6"></a>
 ## 6. Topic 清單
 
 `rplidar_node` 建立的介面**只有這些**（[實測讀碼] `src/rplidar_node.cpp`）：
@@ -476,6 +511,7 @@ ros2 service call /start_motor std_srvs/srv/Empty
 
 ---
 
+<a id="sec-7"></a>
 ## 7. `/scan` 欄位逐項解說
 
 ### 7.1 原始 `.msg` 定義 [實測讀檔]
@@ -541,6 +577,7 @@ std_msgs/Header                    /opt/ros/jazzy/share/std_msgs/msg/Header.msg
 `nanosec` 是 `uint32` 不是 `int32`——負時間靠 `sec` 借位（`-1.7 s` 表示成 `{sec: -2, nanosec: 3e8}`），
 所以 `stamp.sec + stamp.nanosec * 1e-9` 這種寫法在負時間會算錯，實務上要轉成 `builtin_interfaces.msg.Time` 用。
 
+<a id="sec-7-2"></a>
 ### 7.2 欄位定義 + 本機實測值
 
 實測樣本：`x86_ros2/scan_once_sample.yaml`（2026-09-10，x86，S2 DenseBoost）
@@ -602,6 +639,7 @@ ros2 run tf2_ros tf2_echo map laser     # 手動看換算關係
 
 **時戳很重要**：`lookupTransform` 要用 `msg.header.stamp` 而不是 `now()`，否則雷達在動時會有幾公分的「時間撕裂」誤差。
 
+<a id="sec-7-4"></a>
 ### 7.4 兩個實作陷阱（讀碼 + 實測佐證）
 
 **(a) `intensities` 與 `ranges` 索引不對齊（上游 bug）**
@@ -669,6 +707,7 @@ intensities = 4(len) + 3240 × 4               = 12,964 B
 - `angle_compensate:=false` → 1900~3500 bin，少 40 % 體積但角度不均勻
 - 不要用 `PointCloud2` 中轉（同樣資料量、overhead 更大）
 
+<a id="sec-7-7"></a>
 ### 7.7 三種尺度的點位對照 [實測]
 
 以下全部取自板上同一圈（2026-09-29，`stamp=1790649729.185`，N=3240）。
@@ -716,6 +755,7 @@ intensities = 4(len) + 3240 × 4               = 12,964 B
   只有重起 node 改參數才會變。它是 TF 樹的鑰匙：SLAM 拿 `stamp` 配 `frame_id`
   查 `map→…→laser`，一個管時間、一個管空間。
 
+<a id="sec-7-9"></a>
 ### 7.9 角度問答：原始角、格子角與真值 [實測讀碼]
 
 #### Q1：原始資料知道每點的角度嗎？
@@ -763,6 +803,7 @@ intensities = 4(len) + 3240 × 4               = 12,964 B
 但角度不同 ≠ 值不同：同一原始點被複製到相鄰多格是常態
 （`0.326×3, 0.328×3, …`），有效角解析度仍是物理的 ~0.11°。
 
+<a id="sec-7-10"></a>
 ### 7.10 SDK 原始樣本實例 [實測]
 
 2026-09-29 板上直讀 SDK（`pyrplidarsdk.get_scan_data()`，未經 node 轉發，同顆 S2）：
@@ -822,9 +863,218 @@ raw[2]    angle=  0.187° range=0.3210m
 
 ---
 
-## 8. 在本專案的 SLAM demo 環境能做的事
+<a id="sec-8"></a>
+## 8. TF 與 Odom（座標樹）
 
-### 8.1 全鏈資料流（已實測）
+> 本節整理自板上實問實答：`map→odom` / `odom→base` 是 TF 樹上的邊，
+> 不是 topic；真正的 topic 只有 `/tf` 與 `/tf_static`。
+
+<a id="sec-8-1"></a>
+### 8.1 `map→odom` 跟 `odom→base` 的意義（REP-105）
+
+```
+map ──(修正量)──→ odom ──(連續推測)──→ base_footprint ──(安裝幾何)──→ laser
+         SLAM發             里程計/static發              static（高度）
+```
+
+| 邊 | 回答的問題 | 特性 | 誰用 |
+|---|---|---|---|
+| `odom→base_footprint` | 「從起點算，我走了多少？」（本體感覺） | 連續變化、絕不跳變；會漂 | controller（怕跳變不怕慢漂） |
+| `map→odom` | 「本體感覺錯了多少？」（對圖校正） | 平時幾乎不動，迴環/重定位時**允許跳變** | planner（只看 `map→base` 全量） |
+
+機器人在地圖上的真實位姿 = 兩段相乘。拆兩段就是為了把「怕跳變的」和「會跳變的」隔開。
+各鏈的 `odom→base` 是誰發：純 hector / toolbox static 版是 static identity
+（= 宣告「里程計覺得你從沒動過」）；rf2o 鏈是 rf2o 發 dynamic（本環境低估 7 倍就是這條在騙人）。
+
+### 8.2 它們不是 topic
+
+初學者最常搞混：`map→odom`、`odom→base` 是 TF 樹上的**邊**，真正的 topic 只有兩個：
+
+- `/tf`（`tf2_msgs/TFMessage`，dynamic，每秒幾十則）：一則的 `transforms[]` 陣列可夾帶多條邊。
+- `/tf_static`（同型別，latch，發一次）：static 版那包只有 2 則 = `odom→base` + `base→laser` 各一封就閉嘴。
+
+```bash
+ros2 topic echo /tf --once
+# transforms:
+# - header: {frame_id: map}  child_frame_id: odom
+# - header: {frame_id: odom}  child_frame_id: base_footprint
+```
+
+所以 `ros2 topic list` 永遠看不到它們；看樹用 `tf2_echo` 或 `ros2 run tf2_tools view_frames`。
+**topic 是頻道，TF 是寄在 `/tf` 頻道裡的信**——`reparenting / multiple authority`
+指的就是同一目的地（`odom→base`）有兩個人同時寄，收件端（tf2 buffer）不知信誰。
+
+<a id="sec-8-3"></a>
+### 8.3 TF 欄位全解與三條邊的實例
+
+一條邊 = 一個 `geometry_msgs/TransformStamped`：
+
+```yaml
+header.stamp:      1790649729.185     # 有效時刻（不是發送時刻）
+header.frame_id:   odom               # 父：站在這個座標系看
+child_frame_id:    base_footprint     # 子：下面這組位姿是它的
+transform.translation: {x, y, z}      # 平移（公尺）
+transform.rotation: {x, y, z, w}      # 旋轉（四元數，見下）
+```
+
+| 邊 | 父 → 子 | 實例值 | 白話 |
+|---|---|---|---|
+| `odom→base`（static） | `odom` → `base_footprint` | 全 0 + `w: 1`（= 完全重合） | 站在開機原點，看機器人（凍結在原點） |
+| `base→laser`（static） | `base_footprint` → `laser` | `z: 0.2`，其餘同上 | 站在機體中心，看雷達（正上方 20 cm） |
+| `map→odom`（dynamic） | `map` → `odom` | 如 `{x: 1.23, y: -0.45, z: 0}` + yaw 四元數 | 站在地圖原點，看開機原點被修正到哪 |
+
+三個語意重點：
+
+1. **父子欄決定方向**：translation/rotation 永遠回答「子站在父裡面的哪裡」。
+   字串一字不差才接得起來（`laser` vs `laser_frame` 差一字就斷鏈）；
+   `lookupTransform("map", "laser")` 就是沿 `laser→base→odom→map` 掛鉤逐段串起。
+2. **旋轉用四元數**：RPY 在 ±90° 有萬向鎖，gimbal lock 下插值會斷；
+   四元數處處平滑。手算不了就看 `tf2_echo` 最後一行（已轉回 RPY）。
+   2D 的邊 `z`、`rotation.x`、`rotation.y` 恆 0——有值就代表歪了或解算壞了，除錯先看這三個。
+3. **`stamp` 是有效時刻**：查 TF 要帶 `/scan` 的 stamp（`lookupTransform("map", "laser", scan.stamp)`），
+   拿 `now()` 查會有幾公分撕裂；`extrapolation into the future` = 拿未來的時間問過去的 TF。
+   bag 重放沒接 `--clock` 會讓動態邊全過期、整棵樹斷掉——重放死因第一名。
+
+### 8.4 `translation` 是位姿，不是總和
+
+`translation` = 子原點「現在」在父裡面的位置，每則獨立全量寫，沒有 `+=`。
+看起來像「走了多少」，純粹是因為父（`odom`/`map`）原點釘在起點。
+反例：`base→laser` 永遠是 (0, 0, 0.2)，走多遠都不變——它是相對位姿，跟路程無關。
+要「t1 到 t2 動了多少」就查兩次再相除：
+`T(odom→base @ t2) × inverse(T(odom→base @ t1))`
+（bag 重放拿 `/odom_rf2o` topic 相減更快，不用碰四元數乘法）。
+
+<a id="sec-8-5"></a>
+### 8.5 誰發什麼：一鍵 launch 的人事表
+
+以 `slam_s2_headless.launch.py` 為例——**3 個發布者（broadcaster），2 個頻道，0 個 server**
+（TF 沒有 server，那是 service 的詞；也只有 broadcaster + listener，沒有 request/response）：
+
+| 節點 | 發布的邊 | 進哪個 topic | 頻率 |
+|---|---|---|---|
+| `odom_to_base_footprint`（static） | `odom→base` | `/tf_static` | latch 一次 |
+| `base_to_laser`（static） | `base→laser` | `/tf_static` | latch 一次 |
+| `slam_toolbox` | `map→odom` | `/tf` | ~20Hz（`transform_publish_period: 0.05`） |
+| `rplidar_node` | 無（不發 TF） | — | — |
+
+`ros2 topic info /tf -v` 可以數出一個 topic 背後有幾個發布者。
+
+### 8.6 rf2o 送什麼
+
+rf2o 一次送兩樣（`rf2o_params.yaml`：`odom_topic: /odom_rf2o`，`publish_tf: true`，
+`odom_frame_id: odom`，`base_frame_id: base_footprint`）：
+
+1. Topic `/odom_rf2o`（`nav_msgs/Odometry`，10Hz）：pose + twist + covariance。
+2. TF 邊 `odom→base_footprint`（dynamic，pose 的鏡像）。
+
+所以 rf2o 開了就不能再補 static `odom→base`（同一條邊兩個發布者 = 打架）；
+`publish_tf: false` 時只剩 topic，樹斷在 `odom→base`——topic 有資料不代表樹有通。
+
+### 8.7 `map→odom` 是誰發
+
+誰負責「對圖定位」誰就發，一條鏈 exactly 一個：
+
+| 鏈 | 發布者 |
+|---|---|
+| toolbox static / rf2o 版 | `/slam_toolbox` |
+| hector 版 | `/hector_mapping`（`pub_map_odom_transform:=true`） |
+| carto 版 | `cartographer_node`（lua 的 `map_frame`/`odom_frame`） |
+| rtabmap 版 | `/rtabmap/rtabmap` |
+| rf2o_only（無 SLAM） | 沒人發，樹斷在 `odom`（rviz 只能選 Fixed Frame=`odom`） |
+| 未來 Nav2 載圖定位 | `/amcl`（或 toolbox localization 模式） |
+
+hector 和 toolbox 都會發此邊，兩套不可並存；`lifecycle` 未 `active` 時也沒人發——
+`tf2_echo map odom` 找不到，先看 lifecycle 再懷疑網路。
+
+### 8.8 slam_toolbox 發的 `/map` 與 `map→odom`
+
+兩個都發，條件和頻率不同（都要 lifecycle `active`）：
+
+- `/map`（`OccupancyGrid`，5 cm/格）：`map_update_interval: 5.0` 節流 + 走過 `minimum_travel_*` 才長大；
+  bag 實證 149 秒只發 29 則；QoS `transient_local` latch，晚訂閱也拿得到。
+- `/tf` 內的 `map→odom`：`transform_publish_period: 0.05` = 20Hz 一直送。
+
+```bash
+ros2 lifecycle get /slam_toolbox                        # active [3] 才有下面兩個
+ros2 topic echo /map --once | grep -E 'width|height|resolution'
+ros2 run tf2_ros tf2_echo map odom
+```
+
+排錯永遠上游往下：`/scan` 有 → TF 全通 → `/map`、`map→odom` 才會有。
+
+<a id="sec-8-9"></a>
+### 8.9 `/odom_rf2o` topic 全解與誰用 odom
+
+名字來自 `rf2o_params.yaml` 的 `odom_topic` 參數（板上故意不叫 `/odom`，跟未來輪速計區隔；
+TF 那邊的 `odom_frame_id: odom` 是另一回事，不受影響）。
+bag 實證：`nav_msgs/msg/Odometry`，1145 則 / 117 秒 ≈ 9.8Hz。
+
+#### msg 定義（`/opt/ros/jazzy/share/nav_msgs/msg/Odometry.msg`，全文 4 欄）
+
+```msg
+std_msgs/Header header              # 位姿的父座標系（rf2o 填 odom）
+string child_frame_id               # 位姿指向誰（rf2o 填 base_footprint）
+geometry_msgs/PoseWithCovariance pose
+geometry_msgs/TwistWithCovariance twist
+```
+
+官方註解的兩個座標系約定：**pose 用 `header.frame_id` 表示，twist 用 `child_frame_id` 表示**。
+
+#### 逐欄（rf2o 填的值）
+
+| 欄位 | 值 | 意義 |
+|---|---|---|
+| `header.stamp` / `header.frame_id` | 時刻 / `odom` | 這組位姿的時間點 + 「位置是在 odom 裡看的」 |
+| `child_frame_id` | `base_footprint` | pose 指向誰 |
+| `pose.pose.position` | `{x, y, z: 0}` | 位置（2D，`z` 恆 0） |
+| `pose.pose.orientation` | `{x: 0, y: 0, z, w}` | 方向四元數（2D，x、y 恆 0） |
+| `pose.covariance[36]` | 6×6 row-major（x,y,z,rx,ry,rz） | 不確定性；2D 只有 x、y、yaw 有意義，越大越心虛 → rviz 的 covariance 橢圓 |
+| `twist.twist.linear/angular` | 線速度 / 角速度 | rf2o 無輪速計，**位姿差分**算的，天生 noisy |
+| `twist.covariance[36]` | 同格式 | 速度的不確定性（通常更大更醜） |
+
+三個實務重點：
+
+1. **pose 是本體，twist 是衍生物**：靜止時 pose 不動但 twist 在零附近抖；
+   算路徑長/淨位移用 pose 相減（7 倍低估就是這樣算的），別拿 twist 積分。
+2. **pose 就是 TF 那條邊**：鏡像進 TF = `odom→base_footprint`（§8.6）——
+   topic 給「想看速度和不確定性」的，TF 給「要查座標換算」的，同一份位姿兩種包裝。
+3. **covariance 是除錯儀表**：走進無回波區看橢圓脹大，就知道匹配在硬撐。
+
+```bash
+ros2 topic echo /odom_rf2o --once
+ros2 topic echo /odom_rf2o --once --field pose.pose.position   # 只看位置
+```
+
+#### SLAM 不訂這個 topic
+
+`slam_toolbox.yaml` 沒有 `odom_topic` 參數，`node info` 的訂閱只有 `/scan`——
+toolbox 吃的是 TF 樹上的 `odom→base`（§8.1 的運動初估），不是這個 topic。
+所以 rf2o 的 `publish_tf: true` 是命脈：關掉它，toolbox 對 rf2o 完全無感。
+
+#### `/odom_rf2o` 現在只發沒人吃
+
+| 鏈 | 下場 |
+|---|---|
+| toolbox + rf2o / hector + rf2o | 沒人訂（走 TF） |
+| rf2o_only | rviz 畫箭頭 + 錄 bag |
+
+用途全在主線之外：rviz 除錯、bag 離線定量、未來 Nav2 controller 的速度回授
+（到時大概 remap 回 `/odom`）。**現在它是儀表板和黑盒子，不是引擎的一部分**。
+
+#### 誰用 odom 總表
+
+吃 TF（要位姿）：slam_toolbox / hector / cartographer（初估）、AMCL（運動模型）、
+Nav2 controller（位姿）、`robot_localization` EKF（融合）。
+吃 topic（要速度）：Nav2 controller（`twist` 回授）、EKF（量測）、rviz、bag 離線分析。
+生產端：`diff_drive_controller`（輪速金標準，缺底盤）、rf2o（雷射積分）、
+rtabmap/icp_odometry、VIO（無相機）、EKF 輸出的 `/odometry/filtered`。
+
+---
+
+<a id="sec-9"></a>
+## 9. 在本專案的 SLAM demo 環境能做的事
+
+### 9.1 全鏈資料流（已實測）
 
 ```
 [RPLIDAR S2] --serial 1Mbaud--> [rplidar_node : SDK 解包 → /scan 10Hz, frame=laser]
@@ -844,7 +1094,7 @@ raw[2]    angle=  0.187° range=0.3210m
   [nav2_map_server] map_saver_cli -f map   /   ros2 bag record  →  回 x86 重放調參
 ```
 
-### 8.2 各 demo 鏈對照（全部 **[實測]**，2026-09-16 ~ 09-24，ARM 板）
+### 9.2 各 demo 鏈對照（全部 **[實測]**，2026-09-16 ~ 09-24，ARM 板）
 
 | 目錄 | 組合 | 訂 `/scan` 的 node | 產出 topic | `odom→base_footprint` 誰發 | 靜態 CPU | 實測結果 |
 |---|---|---|---|---|---|---|
@@ -857,7 +1107,7 @@ raw[2]    angle=  0.187° range=0.3210m
 | `carto/` | + `cartographer` + `occupancy_grid_node` | `cartographer_node` | `/map`（5 cm） | rf2o 或 carto 自發 | — | 通過，**效果上限最高**（pose-graph 全域最佳化） |
 | `arm64_slam/rtabmap/` | + `rtabmap` scan-only | `icp_odometry` + rtabmap | `/rtabmap/odom`, `/rtabmap/map` | rtabmap | 34 % / 420 MB | 通過；rgbd/fusion 因無相機未驗 |
 
-### 8.3 `/scan` 這一個 topic，在 demo 環境能撐出哪些功能
+### 9.3 `/scan` 這一個 topic，在 demo 環境能撐出哪些功能
 
 | 功能 | 機制 | 本 repo 對應實作 | 證據 |
 |---|---|---|---|
@@ -882,7 +1132,7 @@ raw[2]    angle=  0.187° range=0.3210m
 
 → 別被「`/map` 沒發幾次」誤導：**静止時 `/map` 不更新是正常的**，走過 `minimum_travel_distance` 才長大。
 
-### 8.4 對 topic 的「直接」用法（不改 SLAM）
+### 9.4 對 topic 的「直接」用法（不改 SLAM）
 
 ```bash
 # 純看掃描品質（不跑任何 SLAM）
@@ -904,9 +1154,10 @@ ros2 bag play rosbag2_xxx --clock          # 重放時 rviz 要 -p use_sim_time:
 
 ---
 
-## 9. Nav2：現況、缺口、可行的下一步
+<a id="sec-10"></a>
+## 10. Nav2：現況、缺口、可行的下一步
 
-### 9.1 現況（誠實說明）
+### 10.1 現況（誠實說明）
 
 **本 repo 目前用到 Nav2 的只有 `nav2_map_server` 的 `map_saver_cli`**（存圖），
 `sudo apt install ros-jazzy-nav2-map-server`。
@@ -914,7 +1165,7 @@ ros2 bag play rosbag2_xxx --clock          # 重放時 rviz 要 -p use_sim_time:
 
 原因是物理限制，不是沒裝：本環境是**手持雷達 + 板子，沒有底盤**——沒有 `/cmd_vel` 消費者、沒有輪速、沒有里程計、沒有 `robot_description`。
 
-### 9.2 要把 `/scan` 接到 Nav2，各元件吃什麼
+### 10.2 要把 `/scan` 接到 Nav2，各元件吃什麼
 
 | Nav2 元件 | 需要 `/scan` 嗎 | 還需要什麼 | 本環境狀態 |
 |---|---|---|---|
@@ -929,7 +1180,7 @@ ros2 bag play rosbag2_xxx --clock          # 重放時 rviz 要 -p use_sim_time:
 | `waypoint_follower` | ✗ | 底盤 + 全域 planner | ❌ |
 | `nav2_smoother_server` | ✗ | costmap | ⚠️ |
 
-### 9.3 缺什麼才能跑起來（依優先序）
+### 10.3 缺什麼才能跑起來（依優先序）
 
 1. **底盤**：差速或全向車 + `cmd_vel` 訂閱者（自寫或用 `ros2_teleop_keyboard` 接真機）
 2. **`/odom`**：輪速計（`diff_drive_controller` 會自發）或 IMU+輪速餵 `robot_localization`（EKF）
@@ -946,7 +1197,7 @@ ros2 bag play rosbag2_xxx --clock          # 重放時 rviz 要 -p use_sim_time:
 5. **起點**：`/map` 由 `map_server` 載入；要 Nav2 認得 `laser` frame，
    需把 `/scan` remap 成 Nav2 期望的名字（`scan` 或在 `obstacle_layer` 改 `topic: /scan`）
 
-### 9.4 不接底盤也能 demo 的部分（成本最低的示範）
+### 10.4 不接底盤也能 demo 的部分（成本最低的示範）
 
 即使沒有車，**這些可以立刻用現有 `/scan` + 已存地圖做**：
 
@@ -967,7 +1218,8 @@ ros2 launch slam_toolbox localization_launch.py \
 
 ---
 
-## 10. 已知坑速查（全部本專案實測踩過）
+<a id="sec-11"></a>
+## 11. 已知坑速查（全部本專案實測踩過）
 
 | 症狀 | 原因 | 解法 |
 |---|---|---|
@@ -993,6 +1245,7 @@ ros2 launch slam_toolbox localization_launch.py \
 
 ---
 
+<a id="sec-app-a"></a>
 ## 附錄 A：本 repo 檔案索引
 
 ```
@@ -1024,6 +1277,7 @@ ros2 launch slam_toolbox localization_launch.py \
 └── report/                       ★ 本報告
 ```
 
+<a id="sec-app-b"></a>
 ## 附錄 B：指令速查
 
 ```bash
@@ -1067,6 +1321,7 @@ ros2 daemon stop && ros2 topic list
 ros2 run tf2_ros tf2_echo base_footprint laser
 ```
 
+<a id="sec-app-c"></a>
 ## 附錄 C：本文關鍵數據一覽
 
 | 數據 | 值 | 來源 |
