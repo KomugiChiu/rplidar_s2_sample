@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<title>rtabmap lidar 建圖：nodes＋參數</title>
+<style>
+body{font-family:sans-serif;max-width:1100px;margin:20px auto;padding:0 16px;color:#222}
+h1{font-size:22px}h2{font-size:18px;margin-top:28px;border-bottom:2px solid #444;padding-bottom:4px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td,th{border:1px solid #bbb;padding:4px 8px;text-align:left;vertical-align:top}
+th{background:#eee}tr.grp td{background:#dde;font-weight:bold}
+.n{font-family:monospace;white-space:nowrap}.t{color:#666}.v{font-family:monospace;word-break:break-all}
+.star{color:#c00;font-weight:bold}
+.flow{background:#f6f6f6;padding:10px;font-family:monospace;font-size:13px}
+.meta{color:#555;font-size:13px}
+</style></head><body>
+<h1>rtabmap lidar 建圖：nodes＋參數（RPLidar S2 → icp odom → rtabmap）</h1>
+<div class="flow">
+<svg width="870" height="280" font-family="sans-serif" font-size="13">
+  <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#333" stroke-width="1.5"/></marker></defs>
+  <text x="435" y="20" text-anchor="middle">base_footprint → laser（/tf_static）</text>
+  <text x="435" y="38" text-anchor="middle" font-size="11" fill="#555">TF 樹：map → odom → base_footprint → laser</text>
+  <rect x="360" y="50" width="150" height="44" rx="6" fill="#f6f6f6" stroke="#333" stroke-dasharray="5,3"/>
+  <text x="435" y="77" text-anchor="middle">static TF</text>
+  <line x1="370" y1="94" x2="315" y2="150" stroke="#333" stroke-width="1" stroke-dasharray="4,2" marker-end="url(#ar)"/>
+  <line x1="500" y1="94" x2="555" y2="150" stroke="#333" stroke-width="1" stroke-dasharray="4,2" marker-end="url(#ar)"/>
+  <rect x="10" y="150" width="130" height="60" rx="6" fill="#e8f4e8" stroke="#333"/>
+  <text x="75" y="175" text-anchor="middle">rplidar_node</text>
+  <text x="75" y="192" text-anchor="middle" font-size="11" fill="#555">RPLidar S2</text>
+  <rect x="250" y="150" width="130" height="60" rx="6" fill="#e8eefc" stroke="#333"/>
+  <text x="315" y="175" text-anchor="middle">icp_odometry</text>
+  <text x="315" y="192" text-anchor="middle" font-size="11" fill="#555">ICP 里程計</text>
+  <rect x="490" y="150" width="130" height="60" rx="6" fill="#fcf3e8" stroke="#333"/>
+  <text x="555" y="175" text-anchor="middle">rtabmap</text>
+  <text x="555" y="192" text-anchor="middle" font-size="11" fill="#555">SLAM 建圖</text>
+  <rect x="730" y="150" width="130" height="60" rx="6" fill="#f0f0f0" stroke="#333"/>
+  <text x="795" y="175" text-anchor="middle">rviz2</text>
+  <text x="795" y="192" text-anchor="middle" font-size="11" fill="#555">本地顯示</text>
+  <line x1="140" y1="180" x2="245" y2="180" stroke="#333" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="192" y="170" text-anchor="middle" font-size="12">/scan（odom用）</text>
+  <line x1="380" y1="180" x2="485" y2="180" stroke="#333" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="432" y="170" text-anchor="middle" font-size="12">/rtabmap/odom</text>
+  <line x1="620" y1="180" x2="725" y2="180" stroke="#333" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="672" y="170" text-anchor="middle" font-size="12">/rtabmap/map</text>
+  <path d="M75,210 L75,238 L555,238 L555,214" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="470" y="232" text-anchor="middle" font-size="12">/scan（建圖用）</text>
+</svg>
+</div>
+<h2>launch 引數（laser_mapping.sh → rtabmap.launch.py）</h2>
+<table><tr><th>引數</th><th>本次值</th><th>說明</th></tr>
+<tr><td class="n">visual_odometry</td><td class="v">false</td><td>不啟 visual odometry 節點（無相機）</td></tr>
+<tr><td class="n">icp_odometry</td><td class="v">true</td><td>啟 icp odometry 節點（odom 來源）</td></tr>
+<tr><td class="n">subscribe_scan</td><td class="v">true</td><td>rtabmap 訂 /scan 建圖</td></tr>
+<tr><td class="n">scan_topic</td><td class="v">/scan</td><td>scan topic 名</td></tr>
+<tr><td class="n">frame_id</td><td class="v">base_footprint</td><td>robot base frame</td></tr>
+<tr><td class="n">cfg</td><td class="v">~/rtabmap_lidar/laser_mapping.ini</td><td>ini 設定檔（字串參數正規路徑）</td></tr>
+<tr><td class="n">rtabmap_args</td><td class="v">--delete_db_on_start</td><td>全新 DB 開始</td></tr>
+<tr><td class="n">rtabmap_viz / rviz</td><td class="v">false / false</td><td>headless，本地 rviz 另開</td></tr>
+</table>
+<h2>node 總表</h2>
+<table><tr><th>#</th><th>node</th><th>package / executable</th><th>功能</th><th>訂閱</th><th>發佈</th></tr>
+<tr><td>1</td><td class="n">rplidar_node</td><td class="v">rplidar_ros / rplidar_node</td><td>S2 rplidar node：序列埠讀取 → 發佈 /scan（DenseBoost 10Hz）</td><td><code>—</code></td><td><code>/scan (sensor_msgs/LaserScan)</code></td></tr>
+<tr><td>2</td><td class="n">static_tf</td><td class="v">tf2_ros / static_transform_publisher</td><td>靜態 TF：base_footprint → laser（x0 y0 z0.20，可選 yaw 180）</td><td><code>—</code></td><td><code>/tf_static</code></td></tr>
+<tr><td>3</td><td class="n">icp_odometry</td><td class="v">rtabmap_odom / icp_odometry</td><td>ICP scan matching 里程計：/scan → /rtabmap/odom＋odom→base_footprint TF</td><td><code>/scan</code></td><td><code>/rtabmap/odom, /rtabmap/odom_info, odom→base_footprint TF（/tf）</code></td></tr>
+<tr><td>4</td><td class="n">rtabmap</td><td class="v">rtabmap_slam / rtabmap</td><td>SLAM 建圖：odom＋scan → occupancy grid（/rtabmap/map）＋DB</td><td><code>/rtabmap/odom, /scan</code></td><td><code>/rtabmap/map, /rtabmap/cloud_map, map→odom TF</code></td></tr>
+</table>
+<h2>有資料的 topics（live 量測）</h2>
+<table><tr><th>topic</th><th>型別</th><th>速率</th><th>來源</th></tr>
+<tr><td class="n">/scan</td><td class="v">sensor_msgs/LaserScan</td><td class="v">10Hz</td><td>rplidar_node</td></tr>
+<tr><td class="n">/rtabmap/odom</td><td class="v">nav_msgs/Odometry</td><td class="v">10Hz</td><td>icp_odometry</td></tr>
+<tr><td class="n">/tf</td><td class="v">tf2_msgs/TFMessage</td><td class="v">~20Hz</td><td>icp_odometry（odom→base_footprint）＋rtabmap（map→odom）</td></tr>
+<tr><td class="n">/tf_static</td><td class="v">tf2_msgs/TFMessage</td><td class="v">latched</td><td>static TF</td></tr>
+<tr><td class="n">/rtabmap/map</td><td class="v">nav_msgs/OccupancyGrid</td><td class="v">有更新才發（＋latch）；靜態無</td><td>rtabmap</td></tr>
+<tr><td class="n">/rtabmap/cloud_map</td><td class="v">sensor_msgs/PointCloud2</td><td class="v">有更新才發（＋latch）；靜態無</td><td>rtabmap</td></tr>
+<tr><td class="n">/rtabmap/info</td><td class="v">rtabmap_msgs/Info</td><td class="v">~1Hz（＝Rtabmap/DetectionRate）</td><td>rtabmap</td></tr>
+</table>
+<h2>TF 樹（父子關係）</h2>
+<p class='meta'>map→odom 由 rtabmap 在建出圖後才發佈（靜態無圖時這段不存在，rviz Fixed Frame 先放 odom）。odom→base_footprint 由 icp_odometry 即時發佈；base_footprint→laser 為 static（见上表）。</p>
+<table><tr><th>parent</th><th>child</th><th>走哪個 topic</th><th>發佈者</th><th>說明</th></tr>
+<tr><td class="n">map</td><td class="n">odom</td><td class="n">/tf</td><td class="v">rtabmap</td><td>SLAM 位姿圖輸出；無圖時不存在</td></tr>
+<tr><td class="n">odom</td><td class="n">base_footprint</td><td class="n">/tf</td><td class="v">icp_odometry</td><td>ICP 里程計即時位姿</td></tr>
+<tr><td class="n">base_footprint</td><td class="n">laser</td><td class="n">/tf_static</td><td class="v">static_transform_publisher</td><td>x0 y0 z0.20，可選 yaw 180（LASER_YAW_DEG）；latched 只發一次</td></tr>
+</table>
+<h2>各 node 本次額外設定的值</h2>
+<table><tr><th>node</th><th>參數</th><th>本次值</th><th>說明</th></tr>
+<tr><td class="n">rplidar_node</td><td class="n">serial_port</td><td class="v">/dev/ttyUSB0</td><td>S2 序列埠</td></tr>
+<tr><td class="n">rplidar_node</td><td class="n">serial_baudrate</td><td class="v">1000000</td><td>S2 固定值</td></tr>
+<tr><td class="n">rplidar_node</td><td class="n">frame_id</td><td class="v">laser</td><td>環境慣例（非 rplidar node 預設 laser_frame）</td></tr>
+<tr><td class="n">rplidar_node</td><td class="n">angle_compensate</td><td class="v">true</td><td>角度補償（小板可改 false 省 CPU）</td></tr>
+<tr><td class="n">rplidar_node</td><td class="n">scan_mode</td><td class="v">DenseBoost</td><td>10Hz 掃描模式</td></tr>
+<tr><td class="n">static_tf</td><td class="n">z</td><td class="v">0.20</td><td>雷達安裝高度</td></tr>
+<tr><td class="n">static_tf</td><td class="n">yaw</td><td class="v">180°（qz=1,qw=0）</td><td>odom 箭頭對齊 S2 機身箭頭，rviz 已驗證</td></tr>
+<tr><td class="n">icp_odometry</td><td class="n">Icp/MaxTranslation</td><td class="v">0.4</td><td>預設 0.2 會砍正常步伐（經 ini）</td></tr>
+<tr><td class="n">icp_odometry</td><td class="n">Icp/MaxCorrespondenceDistance</td><td class="v">0.15</td><td>預設 0.1（經 ini）</td></tr>
+<tr><td class="n">rtabmap</td><td class="n">subscribe_scan</td><td class="v">true</td><td>訂 /scan 建 2D 圖</td></tr>
+<tr><td class="n">rtabmap</td><td class="n">subscribe_rgbd / subscribe_depth / subscribe_rgb / subscribe_stereo</td><td class="v">false</td><td>無相機全關（缺一即卡死等 camera）</td></tr>
+<tr><td class="n">rtabmap</td><td class="n">frame_id / map_frame_id</td><td class="v">base_footprint / map</td><td>frames</td></tr>
+<tr><td class="n">rtabmap</td><td class="n">database_path</td><td class="v">~/.ros/rtabmap.db</td><td>＋ --delete_db_on_start 全新開始</td></tr>
+<tr><td class="n">rtabmap</td><td class="n">approx_sync</td><td class="v">true</td><td>odom＋scan 近似同步</td></tr>
+</table>
+<h2>全部參數（live dump，★＝本次有設定；點 node 名稱可收合）</h2>
+<details><summary style='font-size:16px;font-weight:bold;cursor:pointer;margin-top:20px'>rplidar_node <span class='meta'>(rplidar_ros / rplidar_node)</span></summary>
+<p class='meta'>S2 rplidar node：序列埠讀取 → 發佈 /scan（DenseBoost 10Hz）<br>訂閱：<code>—</code>　發佈：<code>/scan (sensor_msgs/LaserScan)</code></p>
+<p class='meta'>共 18 個參數</p>
+<table><tr><th>參數</th><th>型別</th><th>目前值</th><th>說明</th></tr>
+<tr><td class="n">angle_compensate ★</td><td class="t">bool</td><td class="v">True</td><td>角度補償；true 較密但吃 CPU，本次用 true</td></tr>
+<tr><td class="n">auto_standby</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">channel_type</td><td class="t">string</td><td class="v">serial</td><td></td></tr>
+<tr><td class="n">flip_x_axis</td><td class="t">bool</td><td class="v">False</td><td>X 軸翻轉，本次 false</td></tr>
+<tr><td class="n">frame_id ★</td><td class="t">string</td><td class="v">laser</td><td>base_footprint（odom frame 的 child）</td></tr>
+<tr><td class="n">inverted</td><td class="t">bool</td><td class="v">False</td><td>掃描鏡像（角度取反），給雷達上下顛倒裝用；非轉 180°，本次 false</td></tr>
+<tr><td class="n">qos_overrides</td><td class="t">other</td><td class="v">{/parameter_events: {publisher: {depth: 1000, durability: volatile, history: keep_last,
+      reliability: reliable}}}</td><td></td></tr>
+<tr><td class="n">scan_frequency</td><td class="t">double</td><td class="v">10.0</td><td>目標轉速，本次 10Hz</td></tr>
+<tr><td class="n">scan_mode ★</td><td class="t">string</td><td class="v">DenseBoost</td><td>S2 掃描模式，本次 DenseBoost（10Hz）</td></tr>
+<tr><td class="n">serial_baudrate ★</td><td class="t">int</td><td class="v">1000000</td><td>S2 固定 1000000</td></tr>
+<tr><td class="n">serial_port ★</td><td class="t">string</td><td class="v">/dev/ttyUSB0</td><td>S2 接的序列埠（本機 /dev/ttyUSB0，需 dialout 群）</td></tr>
+<tr><td class="n">start_type_description_service</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">tcp_ip</td><td class="t">string</td><td class="v">192.168.0.7</td><td></td></tr>
+<tr><td class="n">tcp_port</td><td class="t">int</td><td class="v">20108</td><td></td></tr>
+<tr><td class="n">topic_name</td><td class="t">string</td><td class="v">scan</td><td>發佈的 topic 名（scan → /scan）</td></tr>
+<tr><td class="n">udp_ip</td><td class="t">string</td><td class="v">192.168.11.2</td><td></td></tr>
+<tr><td class="n">udp_port</td><td class="t">int</td><td class="v">8089</td><td></td></tr>
+<tr><td class="n">use_sim_time</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+</table>
+</details>
+<details><summary style='font-size:16px;font-weight:bold;cursor:pointer;margin-top:20px'>static_tf <span class='meta'>(tf2_ros / static_transform_publisher)</span></summary>
+<p class='meta'>靜態 TF：base_footprint → laser（x0 y0 z0.20，可選 yaw 180）<br>訂閱：<code>—</code>　發佈：<code>/tf_static</code></p>
+<table><tr><th>啟動引數</th><th>型別</th><th>本次值</th><th>說明</th></tr>
+<tr><td class="n">x y z ★</td><td class="t">float×3</td><td class="v">0 0 0.20</td><td>雷達安裝高度 0.20m</td></tr>
+<tr><td class="n">qx qy qz qw ★</td><td class="t">float×4</td><td class="v">0 0 0/1 1/0</td><td>姿態；LASER_YAW_DEG=180 時 qz=1,qw=0（odom 箭頭跟 S2 機身箭頭反向時用）</td></tr>
+<tr><td class="n">frame-id / child-frame-id ★</td><td class="t">string</td><td class="v">base_footprint / laser</td><td>環境慣例 frame 名</td></tr>
+</table>
+<p class="meta">方向性結論（2026-10-14 實測）：odom 箭頭方向＝base_footprint 的 yaw，
+由這條 static TF 決定。rviz 箭頭跟 S2 機身箭頭反向 → 加 yaw π（上列 qz=1,qw=0），
+rviz 確認轉正。rplidar 的 <code>inverted</code> 是鏡像（左右反轉），不是轉向，不可混用。</p>
+</details>
+<details><summary style='font-size:16px;font-weight:bold;cursor:pointer;margin-top:20px'>icp_odometry <span class='meta'>(rtabmap_odom / icp_odometry)</span></summary>
+<p class='meta'>ICP scan matching 里程計：/scan → /rtabmap/odom＋odom→base_footprint TF<br>訂閱：<code>/scan</code>　發佈：<code>/rtabmap/odom, /rtabmap/odom_info, odom→base_footprint TF（/tf）</code></p>
+<p class='meta'>共 294 個參數</p>
+<table><tr><th>參數</th><th>型別</th><th>目前值</th><th>說明</th></tr>
+<tr class="grp"><td colspan="4">General</td></tr>
+<tr><td class="n">always_check_imu_tf</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">always_process_most_recent_frame</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">config_path</td><td class="t">string</td><td class="v">/home/komugi/rtabmap_lidar/laser_mapping.ini</td><td></td></tr>
+<tr><td class="n">deskewing</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">deskewing_slerp</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">diagnostic_updater</td><td class="t">other</td><td class="v">{period: 2.0, use_fqn: false}</td><td></td></tr>
+<tr><td class="n">expected_update_rate</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">frame_id</td><td class="t">string</td><td class="v">base_footprint</td><td>base_footprint（odom frame 的 child）</td></tr>
+<tr><td class="n">ground_truth_base_frame_id</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">ground_truth_frame_id</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">guess_angular_variance</td><td class="t">double</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">guess_frame_id</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">guess_linear_variance</td><td class="t">double</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">guess_min_rotation</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">guess_min_time</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">guess_min_translation</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">initial_pose</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">log_to_rosout_level</td><td class="t">int</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">max_update_rate</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">min_update_rate</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">odom_frame_id</td><td class="t">string</td><td class="v">odom</td><td></td></tr>
+<tr><td class="n">publish_null_when_lost</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">publish_tf</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">qos</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">qos_overrides</td><td class="t">other</td><td class="v">{/parameter_events: {publisher: {depth: 1000, durability: volatile, history: keep_last,
+      reliability: reliable}}, /tf: {publisher: {depth: 100, durability: volatile,
+      history: keep_last, reliability: reliable}}}</td><td></td></tr>
+<tr><td class="n">scan_cloud_is_2d</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">scan_cloud_max_points</td><td class="t">int</td><td class="v">-1</td><td></td></tr>
+<tr><td class="n">scan_downsampling_step</td><td class="t">int</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">scan_normal_ground_up</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">scan_normal_k</td><td class="t">int</td><td class="v">5</td><td></td></tr>
+<tr><td class="n">scan_normal_radius</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">scan_range_max</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">scan_range_min</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">scan_voxel_size</td><td class="t">double</td><td class="v">0.05000000074505806</td><td></td></tr>
+<tr><td class="n">sensor_data_compression_format</td><td class="t">string</td><td class="v">.jpg</td><td></td></tr>
+<tr><td class="n">sensor_data_parallel_compression</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">start_type_description_service</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">topic_queue_size</td><td class="t">int</td><td class="v">10</td><td></td></tr>
+<tr><td class="n">use_sim_time</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">wait_for_transform</td><td class="t">double</td><td class="v">0.2</td><td></td></tr>
+<tr><td class="n">wait_imu_to_init</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr class="grp"><td colspan="4">GTSAM</td></tr>
+<tr><td class="n">GTSAM/IncRelinearizeSkip</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">GTSAM/IncRelinearizeThreshold</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">GTSAM/Incremental</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">GTSAM/Optimizer</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr class="grp"><td colspan="4">Icp</td></tr>
+<tr><td class="n">Icp/CCFilterOutFarthestPoints</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Icp/CCMaxFinalRMS</td><td class="t">string</td><td class="v">0.2</td><td></td></tr>
+<tr><td class="n">Icp/CCSamplingLimit</td><td class="t">string</td><td class="v">50000</td><td></td></tr>
+<tr><td class="n">Icp/CorrespondenceRatio</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">Icp/DebugExportFormat</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">Icp/DownsamplingStep</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Icp/Epsilon</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Icp/FiltersEnabled</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">Icp/Force4DoF</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Icp/Iterations</td><td class="t">string</td><td class="v">30</td><td></td></tr>
+<tr><td class="n">Icp/MaxCorrespondenceDistance ★</td><td class="t">string</td><td class="v">0.15</td><td>對應點最大距離(m)。本次 0.15（預設 0.1）</td></tr>
+<tr><td class="n">Icp/MaxRotation</td><td class="t">string</td><td class="v">0.78</td><td>連續兩幀最大旋轉(rad)，預設 0.78</td></tr>
+<tr><td class="n">Icp/MaxTranslation ★</td><td class="t">string</td><td class="v">0.4</td><td>連續兩幀最大平移(m)，超限判匹配無效。本次 0.4（預設 0.2 會砍正常步伐）</td></tr>
+<tr><td class="n">Icp/OutlierRatio</td><td class="t">string</td><td class="v">0.85</td><td></td></tr>
+<tr><td class="n">Icp/PMConfig</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">Icp/PMMatcherEpsilon</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Icp/PMMatcherIntensity</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Icp/PMMatcherKnn</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlane</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlaneComplexityCentered</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlaneGroundNormalsUp</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlaneK</td><td class="t">string</td><td class="v">5</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlaneLowComplexityStrategy</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlaneMinComplexity</td><td class="t">string</td><td class="v">0.02</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlaneRadius</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Icp/RangeMax</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Icp/RangeMin</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Icp/ReciprocalCorrespondences</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Icp/Strategy</td><td class="t">string</td><td class="v">1</td><td>1＝點到面（point-to-plane）</td></tr>
+<tr><td class="n">Icp/VoxelSize</td><td class="t">string</td><td class="v">0.05</td><td>體素降採樣(m)，預設 0.05</td></tr>
+<tr class="grp"><td colspan="4">Kp</td></tr>
+<tr><td class="n">Kp/ByteToFloat</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">Odom</td></tr>
+<tr><td class="n">Odom/AlignWithGround</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Odom/Deskewing</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Odom/FillInfoData</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Odom/FilteringStrategy</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Odom/GuessMotion</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Odom/GuessSmoothingDelay</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Odom/Holonomic</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Odom/ImageBufferSize</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Odom/ImageDecimation</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Odom/KalmanMeasurementNoise</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">Odom/KalmanProcessNoise</td><td class="t">string</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">Odom/KeyFrameThr</td><td class="t">string</td><td class="v">0.3</td><td></td></tr>
+<tr><td class="n">Odom/ParticleLambdaR</td><td class="t">string</td><td class="v">100</td><td></td></tr>
+<tr><td class="n">Odom/ParticleLambdaT</td><td class="t">string</td><td class="v">100</td><td></td></tr>
+<tr><td class="n">Odom/ParticleNoiseR</td><td class="t">string</td><td class="v">0.002</td><td></td></tr>
+<tr><td class="n">Odom/ParticleNoiseT</td><td class="t">string</td><td class="v">0.002</td><td></td></tr>
+<tr><td class="n">Odom/ParticleSize</td><td class="t">string</td><td class="v">400</td><td></td></tr>
+<tr><td class="n">Odom/ResetCountdown</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Odom/ScanKeyFrameThr</td><td class="t">string</td><td class="v">0.9</td><td>scan 變化比例達標才建 keyframe，預設 0.9</td></tr>
+<tr><td class="n">Odom/Strategy</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Odom/VisKeyFrameThr</td><td class="t">string</td><td class="v">150</td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomCuVSLAM</td></tr>
+<tr><td class="n">OdomCuVSLAM/MulticamMode</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomF2M</td></tr>
+<tr><td class="n">OdomF2M/BundleAdjustment</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">OdomF2M/BundleAdjustmentMaxFrames</td><td class="t">string</td><td class="v">10</td><td></td></tr>
+<tr><td class="n">OdomF2M/BundleAdjustmentMaxKeyFramesPerFeature</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">OdomF2M/BundleAdjustmentMinMotion</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">OdomF2M/BundleUpdateFeatureMapOnAllFrames</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">OdomF2M/FloorThreshold</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">OdomF2M/InitDepthFactor</td><td class="t">string</td><td class="v">0.05</td><td></td></tr>
+<tr><td class="n">OdomF2M/MaxNewFeatures</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">OdomF2M/MaxSize</td><td class="t">string</td><td class="v">2000</td><td></td></tr>
+<tr><td class="n">OdomF2M/ScanMaxSize</td><td class="t">string</td><td class="v">2000</td><td></td></tr>
+<tr><td class="n">OdomF2M/ScanRange</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">OdomF2M/ScanSubtractAngle</td><td class="t">string</td><td class="v">45</td><td></td></tr>
+<tr><td class="n">OdomF2M/ScanSubtractRadius</td><td class="t">string</td><td class="v">0.05</td><td></td></tr>
+<tr><td class="n">OdomF2M/ValidDepthRatio</td><td class="t">string</td><td class="v">0.75</td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomFovis</td></tr>
+<tr><td class="n">OdomFovis/BucketHeight</td><td class="t">string</td><td class="v">80</td><td></td></tr>
+<tr><td class="n">OdomFovis/BucketWidth</td><td class="t">string</td><td class="v">80</td><td></td></tr>
+<tr><td class="n">OdomFovis/CliqueInlierThreshold</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">OdomFovis/FastThreshold</td><td class="t">string</td><td class="v">20</td><td></td></tr>
+<tr><td class="n">OdomFovis/FastThresholdAdaptiveGain</td><td class="t">string</td><td class="v">0.005</td><td></td></tr>
+<tr><td class="n">OdomFovis/FeatureSearchWindow</td><td class="t">string</td><td class="v">25</td><td></td></tr>
+<tr><td class="n">OdomFovis/FeatureWindowSize</td><td class="t">string</td><td class="v">9</td><td></td></tr>
+<tr><td class="n">OdomFovis/InlierMaxReprojectionError</td><td class="t">string</td><td class="v">1.5</td><td></td></tr>
+<tr><td class="n">OdomFovis/MaxKeypointsPerBucket</td><td class="t">string</td><td class="v">25</td><td></td></tr>
+<tr><td class="n">OdomFovis/MaxMeanReprojectionError</td><td class="t">string</td><td class="v">10.0</td><td></td></tr>
+<tr><td class="n">OdomFovis/MaxPyramidLevel</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">OdomFovis/MinFeaturesForEstimate</td><td class="t">string</td><td class="v">20</td><td></td></tr>
+<tr><td class="n">OdomFovis/MinPyramidLevel</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">OdomFovis/StereoMaxDisparity</td><td class="t">string</td><td class="v">128</td><td></td></tr>
+<tr><td class="n">OdomFovis/StereoMaxDistEpipolarLine</td><td class="t">string</td><td class="v">1.5</td><td></td></tr>
+<tr><td class="n">OdomFovis/StereoMaxRefinementDisplacement</td><td class="t">string</td><td class="v">1.0</td><td></td></tr>
+<tr><td class="n">OdomFovis/StereoRequireMutualMatch</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">OdomFovis/TargetPixelsPerFeature</td><td class="t">string</td><td class="v">250</td><td></td></tr>
+<tr><td class="n">OdomFovis/UpdateTargetFeaturesWithRefined</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">OdomFovis/UseAdaptiveThreshold</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">OdomFovis/UseBucketing</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">OdomFovis/UseHomographyInitialization</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">OdomFovis/UseImageNormalization</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">OdomFovis/UseSubpixelRefinement</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomLIOSAM</td></tr>
+<tr><td class="n">OdomLIOSAM/AngVar</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">OdomLIOSAM/ConfigPath</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">OdomLIOSAM/EdgeThreshold</td><td class="t">string</td><td class="v">1.0</td><td></td></tr>
+<tr><td class="n">OdomLIOSAM/HorizonScan</td><td class="t">string</td><td class="v">1800</td><td></td></tr>
+<tr><td class="n">OdomLIOSAM/ImuAccBiasN</td><td class="t">string</td><td class="v">0.0002</td><td></td></tr>
+<tr><td class="n">OdomLIOSAM/ImuAccNoise</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">OdomLIOSAM/ImuGravity</td><td class="t">string</td><td class="v">9.80511</td><td></td></tr>
+<tr><td class="n">OdomLIOSAM/ImuGyrBiasN</td><td class="t">string</td><td class="v">0.00003</td><td></td></tr>
+<tr><td class="n">OdomLIOSAM/ImuGyrNoise</td><td class="t">string</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">OdomLIOSAM/LinVar</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">OdomLIOSAM/NScan</td><td class="t">string</td><td class="v">16</td><td></td></tr>
+<tr><td class="n">OdomLIOSAM/Sensor</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">OdomLIOSAM/SurfThreshold</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomLOAM</td></tr>
+<tr><td class="n">OdomLOAM/AngVar</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">OdomLOAM/LinVar</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">OdomLOAM/LocalMapping</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">OdomLOAM/Resolution</td><td class="t">string</td><td class="v">0.2</td><td></td></tr>
+<tr><td class="n">OdomLOAM/ScanPeriod</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">OdomLOAM/Sensor</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomMSCKF</td></tr>
+<tr><td class="n">OdomMSCKF/FastThreshold</td><td class="t">string</td><td class="v">10</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/GridCol</td><td class="t">string</td><td class="v">5</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/GridMaxFeatureNum</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/GridMinFeatureNum</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/GridRow</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/InitCovAccBias</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/InitCovExRot</td><td class="t">string</td><td class="v">0.00030462</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/InitCovExTrans</td><td class="t">string</td><td class="v">0.000025</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/InitCovGyroBias</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/InitCovVel</td><td class="t">string</td><td class="v">0.25</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/MaxCamStateSize</td><td class="t">string</td><td class="v">20</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/MaxIteration</td><td class="t">string</td><td class="v">30</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/NoiseAcc</td><td class="t">string</td><td class="v">0.05</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/NoiseAccBias</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/NoiseFeature</td><td class="t">string</td><td class="v">0.035</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/NoiseGyro</td><td class="t">string</td><td class="v">0.005</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/NoiseGyroBias</td><td class="t">string</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/OptTranslationThreshold</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/PatchSize</td><td class="t">string</td><td class="v">15</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/PositionStdThreshold</td><td class="t">string</td><td class="v">8.0</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/PyramidLevels</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/RansacThreshold</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/RotationThreshold</td><td class="t">string</td><td class="v">0.2618</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/StereoThreshold</td><td class="t">string</td><td class="v">5</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/TrackPrecision</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/TrackingRateThreshold</td><td class="t">string</td><td class="v">0.5</td><td></td></tr>
+<tr><td class="n">OdomMSCKF/TranslationThreshold</td><td class="t">string</td><td class="v">0.4</td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomMono</td></tr>
+<tr><td class="n">OdomMono/InitMinFlow</td><td class="t">string</td><td class="v">100</td><td></td></tr>
+<tr><td class="n">OdomMono/InitMinTranslation</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">OdomMono/MaxVariance</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">OdomMono/MinTranslation</td><td class="t">string</td><td class="v">0.02</td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomOKVIS</td></tr>
+<tr><td class="n">OdomOKVIS/ConfigPath</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomORBSLAM</td></tr>
+<tr><td class="n">OdomORBSLAM/AccNoise</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">OdomORBSLAM/AccWalk</td><td class="t">string</td><td class="v">0.0001</td><td></td></tr>
+<tr><td class="n">OdomORBSLAM/Bf</td><td class="t">string</td><td class="v">0.076</td><td></td></tr>
+<tr><td class="n">OdomORBSLAM/Fps</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">OdomORBSLAM/GyroNoise</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">OdomORBSLAM/GyroWalk</td><td class="t">string</td><td class="v">0.000001</td><td></td></tr>
+<tr><td class="n">OdomORBSLAM/Inertial</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">OdomORBSLAM/MapSize</td><td class="t">string</td><td class="v">3000</td><td></td></tr>
+<tr><td class="n">OdomORBSLAM/MaxFeatures</td><td class="t">string</td><td class="v">1000</td><td></td></tr>
+<tr><td class="n">OdomORBSLAM/SamplingRate</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">OdomORBSLAM/ThDepth</td><td class="t">string</td><td class="v">40.0</td><td></td></tr>
+<tr><td class="n">OdomORBSLAM/VocPath</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomOpen3D</td></tr>
+<tr><td class="n">OdomOpen3D/MaxDepth</td><td class="t">string</td><td class="v">3.0</td><td></td></tr>
+<tr><td class="n">OdomOpen3D/Method</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomOpenVINS</td></tr>
+<tr><td class="n">OdomOpenVINS/AccelerometerNoiseDensity</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/AccelerometerRandomWalk</td><td class="t">string</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/CalibCamExtrinsics</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/CalibCamIntrinsics</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/CalibCamTimeoffset</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/CalibIMUGSensitivity</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/CalibIMUIntrinsics</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/ConfigPath</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/DtSLAMDelay</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/FeatRepMSCKF</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/FeatRepSLAM</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/FiMaxBaseline</td><td class="t">string</td><td class="v">40</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/FiMaxCondNumber</td><td class="t">string</td><td class="v">10000</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/FiMaxRuns</td><td class="t">string</td><td class="v">5</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/FiRefineFeatures</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/FiTriangulate1d</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/GravityMag</td><td class="t">string</td><td class="v">9.81</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/GyroscopeNoiseDensity</td><td class="t">string</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/GyroscopeRandomWalk</td><td class="t">string</td><td class="v">0.0001</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitDynInflationBa</td><td class="t">string</td><td class="v">100.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitDynInflationBg</td><td class="t">string</td><td class="v">10.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitDynInflationOri</td><td class="t">string</td><td class="v">10.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitDynInflationVel</td><td class="t">string</td><td class="v">100.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitDynMLEMaxIter</td><td class="t">string</td><td class="v">50</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitDynMLEMaxThreads</td><td class="t">string</td><td class="v">6</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitDynMLEMaxTime</td><td class="t">string</td><td class="v">0.05</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitDynMLEOptCalib</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitDynMinDeg</td><td class="t">string</td><td class="v">10.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitDynMinRecCond</td><td class="t">string</td><td class="v">1e-15</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitDynNumPose</td><td class="t">string</td><td class="v">6</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitDynUse</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitIMUThresh</td><td class="t">string</td><td class="v">1.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitMaxDisparity</td><td class="t">string</td><td class="v">10.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitMaxFeatures</td><td class="t">string</td><td class="v">50</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/InitWindowTime</td><td class="t">string</td><td class="v">2.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/Integration</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/LeftMaskPath</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/MaxClones</td><td class="t">string</td><td class="v">11</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/MaxMSCKFInUpdate</td><td class="t">string</td><td class="v">50</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/MaxSLAM</td><td class="t">string</td><td class="v">50</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/MaxSLAMInUpdate</td><td class="t">string</td><td class="v">25</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/MinPxDist</td><td class="t">string</td><td class="v">15</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/NumPts</td><td class="t">string</td><td class="v">200</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/RightMaskPath</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/TryZUPT</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/UpMSCKFChi2Multiplier</td><td class="t">string</td><td class="v">1.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/UpMSCKFSigmaPx</td><td class="t">string</td><td class="v">1.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/UpSLAMChi2Multiplier</td><td class="t">string</td><td class="v">1.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/UpSLAMSigmaPx</td><td class="t">string</td><td class="v">1.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/UseFEJ</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/UseKLT</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/UseStereo</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/ZUPTChi2Multiplier</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/ZUPTMaxDisparity</td><td class="t">string</td><td class="v">0.5</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/ZUPTMaxVelodicy</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/ZUPTNoiseMultiplier</td><td class="t">string</td><td class="v">10.0</td><td></td></tr>
+<tr><td class="n">OdomOpenVINS/ZUPTOnlyAtBeginning</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomVINSFusion</td></tr>
+<tr><td class="n">OdomVINSFusion/ConfigPath</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr class="grp"><td colspan="4">OdomViso2</td></tr>
+<tr><td class="n">OdomViso2/BucketHeight</td><td class="t">string</td><td class="v">50</td><td></td></tr>
+<tr><td class="n">OdomViso2/BucketMaxFeatures</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">OdomViso2/BucketWidth</td><td class="t">string</td><td class="v">50</td><td></td></tr>
+<tr><td class="n">OdomViso2/InlierThreshold</td><td class="t">string</td><td class="v">2.0</td><td></td></tr>
+<tr><td class="n">OdomViso2/MatchBinsize</td><td class="t">string</td><td class="v">50</td><td></td></tr>
+<tr><td class="n">OdomViso2/MatchDispTolerance</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">OdomViso2/MatchHalfResolution</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">OdomViso2/MatchMultiStage</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">OdomViso2/MatchNmsN</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">OdomViso2/MatchNmsTau</td><td class="t">string</td><td class="v">50</td><td></td></tr>
+<tr><td class="n">OdomViso2/MatchOutlierDispTolerance</td><td class="t">string</td><td class="v">5</td><td></td></tr>
+<tr><td class="n">OdomViso2/MatchOutlierFlowTolerance</td><td class="t">string</td><td class="v">5</td><td></td></tr>
+<tr><td class="n">OdomViso2/MatchRadius</td><td class="t">string</td><td class="v">200</td><td></td></tr>
+<tr><td class="n">OdomViso2/MatchRefinement</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">OdomViso2/RansacIters</td><td class="t">string</td><td class="v">200</td><td></td></tr>
+<tr><td class="n">OdomViso2/Reweighting</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr class="grp"><td colspan="4">Optimizer</td></tr>
+<tr><td class="n">Optimizer/Baseline</td><td class="t">string</td><td class="v">0.075</td><td></td></tr>
+<tr><td class="n">Optimizer/DisparityVariance</td><td class="t">string</td><td class="v">1.0</td><td></td></tr>
+<tr><td class="n">Optimizer/Epsilon</td><td class="t">string</td><td class="v">0.00001</td><td></td></tr>
+<tr><td class="n">Optimizer/GravitySigma</td><td class="t">string</td><td class="v">0.3</td><td></td></tr>
+<tr><td class="n">Optimizer/Iterations</td><td class="t">string</td><td class="v">20</td><td></td></tr>
+<tr><td class="n">Optimizer/LandmarksIgnored</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Optimizer/PixelVariance</td><td class="t">string</td><td class="v">1.0</td><td></td></tr>
+<tr><td class="n">Optimizer/PriorsIgnored</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Optimizer/Robust</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Optimizer/RobustKernelDelta</td><td class="t">string</td><td class="v">8</td><td></td></tr>
+<tr><td class="n">Optimizer/Strategy</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">Optimizer/VarianceIgnored</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">Reg</td></tr>
+<tr><td class="n">Reg/Force3DoF</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Reg/RepeatOnce</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Reg/Strategy</td><td class="t">string</td><td class="v">1</td><td>1＝ICP（雷射模式自動設）</td></tr>
+<tr class="grp"><td colspan="4">Rtabmap</td></tr>
+<tr><td class="n">Rtabmap/ImagesAlreadyRectified</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Rtabmap/PublishRAMUsage</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">g2o</td></tr>
+<tr><td class="n">g2o/Optimizer</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">g2o/Solver</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+</table>
+</details>
+<details><summary style='font-size:16px;font-weight:bold;cursor:pointer;margin-top:20px'>rtabmap <span class='meta'>(rtabmap_slam / rtabmap)</span></summary>
+<p class='meta'>SLAM 建圖：odom＋scan → occupancy grid（/rtabmap/map）＋DB<br>訂閱：<code>/rtabmap/odom, /scan</code>　發佈：<code>/rtabmap/map, /rtabmap/cloud_map, map→odom TF</code></p>
+<p class='meta'>共 499 個參數</p>
+<table><tr><th>參數</th><th>型別</th><th>目前值</th><th>說明</th></tr>
+<tr class="grp"><td colspan="4">General</td></tr>
+<tr><td class="n">approx_sync ★</td><td class="t">bool</td><td class="v">True</td><td>odom＋scan 近似同步。本次 true</td></tr>
+<tr><td class="n">cloud_output_voxelized</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">cloud_subtract_filtering</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">cloud_subtract_filtering_min_neighbors</td><td class="t">int</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">config_path</td><td class="t">string</td><td class="v">/home/komugi/rtabmap_lidar/laser_mapping.ini</td><td></td></tr>
+<tr><td class="n">database_path ★</td><td class="t">string</td><td class="v">~/.ros/rtabmap.db</td><td>~/.ros/rtabmap.db（本次 --delete_db_on_start 全新開始）</td></tr>
+<tr><td class="n">delete_db_on_start</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">depth_transport</td><td class="t">string</td><td class="v">raw</td><td></td></tr>
+<tr><td class="n">diagnostic_updater</td><td class="t">other</td><td class="v">{period: 2.0, use_fqn: false}</td><td></td></tr>
+<tr><td class="n">frame_id ★</td><td class="t">string</td><td class="v">base_footprint</td><td>base_footprint（odom frame 的 child）</td></tr>
+<tr><td class="n">gen_depth</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">gen_depth_decimation</td><td class="t">int</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">gen_depth_fill_holes_error</td><td class="t">double</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">gen_depth_fill_holes_size</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">gen_depth_fill_iterations</td><td class="t">int</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">gen_scan</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">gen_scan_max_depth</td><td class="t">double</td><td class="v">4.0</td><td></td></tr>
+<tr><td class="n">gen_scan_min_depth</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">ground_truth_base_frame_id</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">ground_truth_frame_id</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">image_transport</td><td class="t">string</td><td class="v">raw</td><td></td></tr>
+<tr><td class="n">initial_pose</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">is_rtabmap_paused</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">landmark_angular_variance</td><td class="t">double</td><td class="v">9999.0</td><td></td></tr>
+<tr><td class="n">landmark_linear_variance</td><td class="t">double</td><td class="v">0.0001</td><td></td></tr>
+<tr><td class="n">latch</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">loc_thr</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">log_to_rosout_level</td><td class="t">int</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">map_always_update</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">map_cache_loaded_on_init</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">map_cleanup</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">map_empty_ray_tracing</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">map_filter_angle</td><td class="t">double</td><td class="v">30.0</td><td></td></tr>
+<tr><td class="n">map_filter_radius</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">map_frame_id ★</td><td class="t">string</td><td class="v">map</td><td>map（輸出地圖 frame）</td></tr>
+<tr><td class="n">octomap_tree_depth</td><td class="t">int</td><td class="v">16</td><td></td></tr>
+<tr><td class="n">odom_frame_id</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">odom_frame_id_init</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">odom_sensor_sync</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">odom_tf_angular_variance</td><td class="t">double</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">odom_tf_linear_variance</td><td class="t">double</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">pub_loc_pose_only_when_localizing</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">publish_tf</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">qos</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">qos_camera_info</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">qos_env_sensor</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">qos_gps</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">qos_image</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">qos_imu</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">qos_odom</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">qos_overrides</td><td class="t">other</td><td class="v">{/parameter_events: {publisher: {depth: 1000, durability: volatile, history: keep_last,
+      reliability: reliable}}, /tf: {publisher: {depth: 100, durability: volatile,
+      history: keep_last, reliability: reliable}}}</td><td></td></tr>
+<tr><td class="n">qos_scan</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">qos_sensor_data</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">qos_user_data</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">queue_size</td><td class="t">int</td><td class="v">-1</td><td></td></tr>
+<tr><td class="n">rgbd_cameras</td><td class="t">int</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">scan_cloud_is_2d</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">scan_cloud_max_points</td><td class="t">int</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">staleness_factor</td><td class="t">double</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">start_type_description_service</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">stereo_to_depth</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">subscribe_depth ★</td><td class="t">bool</td><td class="v">False</td><td>關（預設 true 會連帶拉 rgb＋depth＋info）</td></tr>
+<tr><td class="n">subscribe_inter_odom_info</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">subscribe_odom</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">subscribe_odom_info</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">subscribe_rgb ★</td><td class="t">bool</td><td class="v">False</td><td>關</td></tr>
+<tr><td class="n">subscribe_rgbd ★</td><td class="t">bool</td><td class="v">False</td><td>關（無相機）。注意只關 visual_odometry 不夠，rtabmap 本體會等 camera topics</td></tr>
+<tr><td class="n">subscribe_scan ★</td><td class="t">bool</td><td class="v">True</td><td>訂閱 LaserScan 建 2D 雷射圖。本次 true</td></tr>
+<tr><td class="n">subscribe_scan_cloud</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">subscribe_scan_descriptor</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">subscribe_sensor_data</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">subscribe_stereo ★</td><td class="t">bool</td><td class="v">False</td><td>關</td></tr>
+<tr><td class="n">subscribe_user_data</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">sync_queue_size</td><td class="t">int</td><td class="v">10</td><td></td></tr>
+<tr><td class="n">tf_delay</td><td class="t">double</td><td class="v">0.05</td><td></td></tr>
+<tr><td class="n">tf_tolerance</td><td class="t">double</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">topic_queue_size</td><td class="t">int</td><td class="v">10</td><td></td></tr>
+<tr><td class="n">use_action_for_goal</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">use_saved_map</td><td class="t">bool</td><td class="v">True</td><td></td></tr>
+<tr><td class="n">use_sim_time</td><td class="t">bool</td><td class="v">False</td><td></td></tr>
+<tr><td class="n">wait_for_transform</td><td class="t">double</td><td class="v">0.2</td><td></td></tr>
+<tr class="grp"><td colspan="4">BRIEF</td></tr>
+<tr><td class="n">BRIEF/Bytes</td><td class="t">string</td><td class="v">32</td><td></td></tr>
+<tr class="grp"><td colspan="4">BRISK</td></tr>
+<tr><td class="n">BRISK/Octaves</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">BRISK/PatternScale</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">BRISK/Thresh</td><td class="t">string</td><td class="v">30</td><td></td></tr>
+<tr class="grp"><td colspan="4">Bayes</td></tr>
+<tr><td class="n">Bayes/FullPredictionUpdate</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Bayes/PredictionLC</td><td class="t">string</td><td class="v">0.1 0.36 0.30 0.16 0.062 0.0151 0.00255 0.000324 2.5e-05 1e-06 4.8e-08 1.2e-09 1.9e-11 2.2e-13 1.7e-15 8.5e-18 2.9e-20 6.9e-23</td><td></td></tr>
+<tr><td class="n">Bayes/SparsePrediction</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Bayes/VirtualPlacePriorThr</td><td class="t">string</td><td class="v">0.9</td><td></td></tr>
+<tr class="grp"><td colspan="4">Db</td></tr>
+<tr><td class="n">Db/TargetVersion</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr class="grp"><td colspan="4">DbSqlite3</td></tr>
+<tr><td class="n">DbSqlite3/CacheSize</td><td class="t">string</td><td class="v">10000</td><td></td></tr>
+<tr><td class="n">DbSqlite3/InMemory</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">DbSqlite3/JournalMode</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">DbSqlite3/Synchronous</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">DbSqlite3/TempStore</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr class="grp"><td colspan="4">FAST</td></tr>
+<tr><td class="n">FAST/CV</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">FAST/Gpu</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">FAST/GpuKeypointsRatio</td><td class="t">string</td><td class="v">0.05</td><td></td></tr>
+<tr><td class="n">FAST/GridCols</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">FAST/GridRows</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">FAST/MaxThreshold</td><td class="t">string</td><td class="v">200</td><td></td></tr>
+<tr><td class="n">FAST/MinThreshold</td><td class="t">string</td><td class="v">7</td><td></td></tr>
+<tr><td class="n">FAST/NonmaxSuppression</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">FAST/Threshold</td><td class="t">string</td><td class="v">20</td><td></td></tr>
+<tr class="grp"><td colspan="4">FREAK</td></tr>
+<tr><td class="n">FREAK/NOctaves</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">FREAK/OrientationNormalized</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">FREAK/PatternScale</td><td class="t">string</td><td class="v">22</td><td></td></tr>
+<tr><td class="n">FREAK/ScaleNormalized</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr class="grp"><td colspan="4">GFTT</td></tr>
+<tr><td class="n">GFTT/BlockSize</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">GFTT/Gpu</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">GFTT/K</td><td class="t">string</td><td class="v">0.04</td><td></td></tr>
+<tr><td class="n">GFTT/MinDistance</td><td class="t">string</td><td class="v">7</td><td></td></tr>
+<tr><td class="n">GFTT/QualityLevel</td><td class="t">string</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">GFTT/UseHarrisDetector</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">GMS</td></tr>
+<tr><td class="n">GMS/ThresholdFactor</td><td class="t">string</td><td class="v">6.0</td><td></td></tr>
+<tr><td class="n">GMS/WithRotation</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">GMS/WithScale</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">GTSAM</td></tr>
+<tr><td class="n">GTSAM/IncRelinearizeSkip</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">GTSAM/IncRelinearizeThreshold</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">GTSAM/Incremental</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">GTSAM/Optimizer</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr class="grp"><td colspan="4">Grid</td></tr>
+<tr><td class="n">Grid/3D</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Grid/CellSize</td><td class="t">string</td><td class="v">0.05</td><td></td></tr>
+<tr><td class="n">Grid/ClusterRadius</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">Grid/DepthDecimation</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">Grid/DepthRoiRatios</td><td class="t">string</td><td class="v">0.0 0.0 0.0 0.0</td><td></td></tr>
+<tr><td class="n">Grid/FlatObstacleDetected</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Grid/FootprintHeight</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Grid/FootprintLength</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Grid/FootprintWidth</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Grid/GroundIsObstacle</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Grid/MapFrameProjection</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Grid/MaxGroundAngle</td><td class="t">string</td><td class="v">45</td><td></td></tr>
+<tr><td class="n">Grid/MaxGroundHeight</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Grid/MaxObstacleHeight</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Grid/MinClusterSize</td><td class="t">string</td><td class="v">10</td><td></td></tr>
+<tr><td class="n">Grid/MinGroundHeight</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Grid/NoiseFilteringMinNeighbors</td><td class="t">string</td><td class="v">5</td><td></td></tr>
+<tr><td class="n">Grid/NoiseFilteringRadius</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Grid/NormalK</td><td class="t">string</td><td class="v">20</td><td></td></tr>
+<tr><td class="n">Grid/NormalsSegmentation</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Grid/PreVoxelFiltering</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Grid/RangeMax</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Grid/RangeMin</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Grid/RayTracing</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Grid/Scan2dUnknownSpaceFilled</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Grid/ScanDecimation</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Grid/Sensor</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr class="grp"><td colspan="4">GridGlobal</td></tr>
+<tr><td class="n">GridGlobal/AltitudeDelta</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">GridGlobal/Eroded</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">GridGlobal/FloodFillDepth</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">GridGlobal/FootprintRadius</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">GridGlobal/MaxNodes</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">GridGlobal/MinSize</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">GridGlobal/OccupancyThr</td><td class="t">string</td><td class="v">0.5</td><td></td></tr>
+<tr><td class="n">GridGlobal/ProbClampingMax</td><td class="t">string</td><td class="v">0.971</td><td></td></tr>
+<tr><td class="n">GridGlobal/ProbClampingMin</td><td class="t">string</td><td class="v">0.1192</td><td></td></tr>
+<tr><td class="n">GridGlobal/ProbHit</td><td class="t">string</td><td class="v">0.7</td><td></td></tr>
+<tr><td class="n">GridGlobal/ProbMiss</td><td class="t">string</td><td class="v">0.4</td><td></td></tr>
+<tr><td class="n">GridGlobal/UpdateError</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr class="grp"><td colspan="4">Icp</td></tr>
+<tr><td class="n">Icp/CCFilterOutFarthestPoints</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Icp/CCMaxFinalRMS</td><td class="t">string</td><td class="v">0.2</td><td></td></tr>
+<tr><td class="n">Icp/CCSamplingLimit</td><td class="t">string</td><td class="v">50000</td><td></td></tr>
+<tr><td class="n">Icp/CorrespondenceRatio</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">Icp/DebugExportFormat</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">Icp/DownsamplingStep</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Icp/Epsilon</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Icp/FiltersEnabled</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">Icp/Force4DoF</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Icp/Iterations</td><td class="t">string</td><td class="v">30</td><td></td></tr>
+<tr><td class="n">Icp/MaxCorrespondenceDistance ★</td><td class="t">string</td><td class="v">0.15</td><td>對應點最大距離(m)。本次 0.15（預設 0.1）</td></tr>
+<tr><td class="n">Icp/MaxRotation</td><td class="t">string</td><td class="v">0.78</td><td>連續兩幀最大旋轉(rad)，預設 0.78</td></tr>
+<tr><td class="n">Icp/MaxTranslation ★</td><td class="t">string</td><td class="v">0.4</td><td>連續兩幀最大平移(m)，超限判匹配無效。本次 0.4（預設 0.2 會砍正常步伐）</td></tr>
+<tr><td class="n">Icp/OutlierRatio</td><td class="t">string</td><td class="v">0.85</td><td></td></tr>
+<tr><td class="n">Icp/PMConfig</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">Icp/PMMatcherEpsilon</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Icp/PMMatcherIntensity</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Icp/PMMatcherKnn</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlane</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlaneComplexityCentered</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlaneGroundNormalsUp</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlaneK</td><td class="t">string</td><td class="v">5</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlaneLowComplexityStrategy</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlaneMinComplexity</td><td class="t">string</td><td class="v">0.02</td><td></td></tr>
+<tr><td class="n">Icp/PointToPlaneRadius</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Icp/RangeMax</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Icp/RangeMin</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Icp/ReciprocalCorrespondences</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Icp/Strategy</td><td class="t">string</td><td class="v">1</td><td>1＝點到面（point-to-plane）</td></tr>
+<tr><td class="n">Icp/VoxelSize</td><td class="t">string</td><td class="v">0.05</td><td>體素降採樣(m)，預設 0.05</td></tr>
+<tr class="grp"><td colspan="4">ImuFilter</td></tr>
+<tr><td class="n">ImuFilter/ComplementaryBiasAlpha</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">ImuFilter/ComplementaryDoAdpativeGain</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">ImuFilter/ComplementaryDoBiasEstimation</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">ImuFilter/ComplementaryGainAcc</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">ImuFilter/MadgwickGain</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">ImuFilter/MadgwickZeta</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr class="grp"><td colspan="4">KAZE</td></tr>
+<tr><td class="n">KAZE/Diffusivity</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">KAZE/Extended</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">KAZE/NOctaveLayers</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">KAZE/NOctaves</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">KAZE/Threshold</td><td class="t">string</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">KAZE/Upright</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">Kp</td></tr>
+<tr><td class="n">Kp/BadSignRatio</td><td class="t">string</td><td class="v">0.5</td><td></td></tr>
+<tr><td class="n">Kp/ByteToFloat</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Kp/DetectorStrategy</td><td class="t">string</td><td class="v">8</td><td></td></tr>
+<tr><td class="n">Kp/DictionaryPath</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">Kp/FlannIndexSaved</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Kp/FlannRebalancingFactor</td><td class="t">string</td><td class="v">2.0</td><td></td></tr>
+<tr><td class="n">Kp/FlannThreads</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Kp/GridCols</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Kp/GridRows</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Kp/IncrementalDictionary</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Kp/IncrementalFlann</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Kp/MaxDepth</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Kp/MaxFeatures</td><td class="t">string</td><td class="v">-1</td><td></td></tr>
+<tr><td class="n">Kp/MinDepth</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Kp/NNStrategy</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Kp/NewWordsComparedTogether</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Kp/NndrRatio</td><td class="t">string</td><td class="v">0.8</td><td></td></tr>
+<tr><td class="n">Kp/Parallelized</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Kp/RoiRatios</td><td class="t">string</td><td class="v">0.0 0.0 0.0 0.0</td><td></td></tr>
+<tr><td class="n">Kp/SSC</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Kp/SerializeWithChecksum</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Kp/SubPixEps</td><td class="t">string</td><td class="v">0.02</td><td></td></tr>
+<tr><td class="n">Kp/SubPixIterations</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Kp/SubPixWinSize</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">Kp/TfIdfLikelihoodUsed</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr class="grp"><td colspan="4">Marker</td></tr>
+<tr><td class="n">Marker/Dictionary</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Marker/Length</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Marker/Lengths</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">Marker/MaxDepthError</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">Marker/MaxRange</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Marker/MinRange</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Marker/Priors</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">Marker/PriorsVarianceAngular</td><td class="t">string</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">Marker/PriorsVarianceLinear</td><td class="t">string</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">Marker/Strategy</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Marker/VarianceAngular</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">Marker/VarianceLinear</td><td class="t">string</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">Marker/VarianceOrientationIgnored</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">MarkerAprilTag</td></tr>
+<tr><td class="n">MarkerAprilTag/Debug</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">MarkerAprilTag/DecodeSharpening</td><td class="t">string</td><td class="v">0.25</td><td></td></tr>
+<tr><td class="n">MarkerAprilTag/NThreads</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">MarkerAprilTag/QuadDecimate</td><td class="t">string</td><td class="v">1.0</td><td></td></tr>
+<tr><td class="n">MarkerAprilTag/QuadSigma</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">MarkerAprilTag/RefineEdges</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr class="grp"><td colspan="4">MarkerOpenCV</td></tr>
+<tr><td class="n">MarkerOpenCV/CornerRefinementMethod</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr class="grp"><td colspan="4">Mem</td></tr>
+<tr><td class="n">Mem/BadSignaturesIgnored</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/BinDataKept</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Mem/CompressionParallelized</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Mem/CovOffDiagIgnored</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Mem/DepthAsMask</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Mem/DepthCompressionFormat</td><td class="t">string</td><td class="v">.rvl</td><td></td></tr>
+<tr><td class="n">Mem/DepthMaskFloorThr</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Mem/GenerateIds</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Mem/GlobalDescriptorStrategy</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Mem/ImageCompressionFormat</td><td class="t">string</td><td class="v">.jpg</td><td></td></tr>
+<tr><td class="n">Mem/ImageKept</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/ImagePostDecimation</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Mem/ImagePreDecimation</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Mem/IncrementalMemory</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Mem/InitWMWithAllNodes</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/IntermediateNodeDataKept</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/LaserScanDownsampleStepSize</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Mem/LaserScanNormalK</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Mem/LaserScanNormalRadius</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Mem/LaserScanVoxelSize</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Mem/LoadVisualLocalFeaturesOnInit</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Mem/LocalizationDataSaved</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/LocalizationReadOnly</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/MapLabelsAdded</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Mem/NotLinkedNodesKept</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Mem/RawDescriptorsKept</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Mem/RecentWmRatio</td><td class="t">string</td><td class="v">0.2</td><td></td></tr>
+<tr><td class="n">Mem/ReduceGraph</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/RehearsalIdUpdatedToNewOne</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/RehearsalSimilarity</td><td class="t">string</td><td class="v">0.6</td><td></td></tr>
+<tr><td class="n">Mem/RehearsalWeightIgnoredWhileMoving</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/RotateImagesUpsideUp</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/STMSize</td><td class="t">string</td><td class="v">10</td><td></td></tr>
+<tr><td class="n">Mem/SaveDepth16Format</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/StereoFromMotion</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/TransferSortingByWeightId</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Mem/UseOdomFeatures</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Mem/UseOdomGravity</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">ORB</td></tr>
+<tr><td class="n">ORB/EdgeThreshold</td><td class="t">string</td><td class="v">19</td><td></td></tr>
+<tr><td class="n">ORB/FirstLevel</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">ORB/Gpu</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">ORB/NLevels</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">ORB/PatchSize</td><td class="t">string</td><td class="v">31</td><td></td></tr>
+<tr><td class="n">ORB/ScaleFactor</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">ORB/ScoreType</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">ORB/WTA_K</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr class="grp"><td colspan="4">Optimizer</td></tr>
+<tr><td class="n">Optimizer/Baseline</td><td class="t">string</td><td class="v">0.075</td><td></td></tr>
+<tr><td class="n">Optimizer/DisparityVariance</td><td class="t">string</td><td class="v">1.0</td><td></td></tr>
+<tr><td class="n">Optimizer/Epsilon</td><td class="t">string</td><td class="v">0.00001</td><td></td></tr>
+<tr><td class="n">Optimizer/GravitySigma</td><td class="t">string</td><td class="v">0.3</td><td></td></tr>
+<tr><td class="n">Optimizer/Iterations</td><td class="t">string</td><td class="v">20</td><td></td></tr>
+<tr><td class="n">Optimizer/LandmarksIgnored</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Optimizer/PixelVariance</td><td class="t">string</td><td class="v">1.0</td><td></td></tr>
+<tr><td class="n">Optimizer/PriorsIgnored</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Optimizer/Robust</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Optimizer/RobustKernelDelta</td><td class="t">string</td><td class="v">8</td><td></td></tr>
+<tr><td class="n">Optimizer/Strategy</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">Optimizer/VarianceIgnored</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">PyDescriptor</td></tr>
+<tr><td class="n">PyDescriptor/Dim</td><td class="t">string</td><td class="v">4096</td><td></td></tr>
+<tr><td class="n">PyDescriptor/Path</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr class="grp"><td colspan="4">PyDetector</td></tr>
+<tr><td class="n">PyDetector/Cuda</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">PyDetector/Path</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr class="grp"><td colspan="4">PyMatcher</td></tr>
+<tr><td class="n">PyMatcher/Cuda</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">PyMatcher/Iterations</td><td class="t">string</td><td class="v">20</td><td></td></tr>
+<tr><td class="n">PyMatcher/Model</td><td class="t">string</td><td class="v">indoor</td><td></td></tr>
+<tr><td class="n">PyMatcher/Path</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">PyMatcher/Threshold</td><td class="t">string</td><td class="v">0.2</td><td></td></tr>
+<tr class="grp"><td colspan="4">RGBD</td></tr>
+<tr><td class="n">RGBD/AggressiveLoopThr</td><td class="t">string</td><td class="v">0.05</td><td></td></tr>
+<tr><td class="n">RGBD/AngularSpeedUpdate</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">RGBD/AngularUpdate</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">RGBD/CreateOccupancyGrid</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">RGBD/Enabled</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">RGBD/ForceOdom3DoF</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">RGBD/GoalReachedRadius</td><td class="t">string</td><td class="v">0.5</td><td></td></tr>
+<tr><td class="n">RGBD/GoalsSavedInUserData</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">RGBD/InvertedReg</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">RGBD/LinearSpeedUpdate</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">RGBD/LinearUpdate</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">RGBD/LocalBundleOnLoopClosure</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">RGBD/LocalImmunizationRatio</td><td class="t">string</td><td class="v">0.25</td><td></td></tr>
+<tr><td class="n">RGBD/LocalRadius</td><td class="t">string</td><td class="v">10</td><td></td></tr>
+<tr><td class="n">RGBD/LocalizationPriorError</td><td class="t">string</td><td class="v">0.001</td><td></td></tr>
+<tr><td class="n">RGBD/LocalizationSecondTryWithoutProximityLinks</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">RGBD/LocalizationSmoothing</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">RGBD/LoopClosureIdentityGuess</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">RGBD/LoopClosureReextractFeatures</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">RGBD/LoopCovLimited</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">RGBD/MarkerDetection</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">RGBD/MaxLocalRetrieved</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">RGBD/MaxLoopClosureDistance</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">RGBD/MaxOdomCacheSize</td><td class="t">string</td><td class="v">10</td><td></td></tr>
+<tr><td class="n">RGBD/NeighborLinkRefining</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">RGBD/NewMapOdomChangeDistance</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">RGBD/OptimizeFromGraphEnd</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">RGBD/OptimizeMaxError</td><td class="t">string</td><td class="v">3.0</td><td></td></tr>
+<tr><td class="n">RGBD/OptimizeMaxErrorRepairRadius</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">RGBD/PlanAngularVelocity</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">RGBD/PlanLinearVelocity</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">RGBD/PlanStuckIterations</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">RGBD/ProximityAngle</td><td class="t">string</td><td class="v">45</td><td></td></tr>
+<tr><td class="n">RGBD/ProximityBySpace</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">RGBD/ProximityByTime</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">RGBD/ProximityGlobalScanMap</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">RGBD/ProximityMaxGraphDepth</td><td class="t">string</td><td class="v">50</td><td></td></tr>
+<tr><td class="n">RGBD/ProximityMaxPaths</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">RGBD/ProximityMergedScanCovFactor</td><td class="t">string</td><td class="v">100.0</td><td></td></tr>
+<tr><td class="n">RGBD/ProximityOdomGuess</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">RGBD/ProximityPathFilteringRadius</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">RGBD/ProximityPathMaxNeighbors</td><td class="t">string</td><td class="v">10</td><td></td></tr>
+<tr><td class="n">RGBD/ProximityPathRawPosesUsed</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">RGBD/ScanMatchingIdsSavedInLinks</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">RGBD/StartAtOrigin</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">Reg</td></tr>
+<tr><td class="n">Reg/Force3DoF</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Reg/RepeatOnce</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Reg/Strategy</td><td class="t">string</td><td class="v">1</td><td>1＝ICP（雷射模式自動設）</td></tr>
+<tr class="grp"><td colspan="4">Rtabmap</td></tr>
+<tr><td class="n">Rtabmap/ComputeRMSE</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Rtabmap/CreateIntermediateNodes</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Rtabmap/DetectionRate</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Rtabmap/ImageBufferSize</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Rtabmap/ImagesAlreadyRectified</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Rtabmap/LoopGPS</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Rtabmap/LoopRatio</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Rtabmap/LoopThr</td><td class="t">string</td><td class="v">0.11</td><td></td></tr>
+<tr><td class="n">Rtabmap/MaxRepublished</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">Rtabmap/MaxRetrieved</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">Rtabmap/MemoryThr</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Rtabmap/PublishLastSignature</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Rtabmap/PublishLikelihood</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Rtabmap/PublishPdf</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Rtabmap/PublishRAMUsage</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Rtabmap/PublishStats</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Rtabmap/RectifyOnlyFeatures</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Rtabmap/SaveWMState</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Rtabmap/StartNewMapOnGoodSignature</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Rtabmap/StartNewMapOnLoopClosure</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Rtabmap/StatisticLogged</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Rtabmap/StatisticLoggedHeaders</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Rtabmap/StatisticLogsBufferedInRAM</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Rtabmap/TimeThr</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Rtabmap/VirtualPlaceLikelihoodRatio</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Rtabmap/WorkingDirectory</td><td class="t">string</td><td class="v">/home/komugi/.ros</td><td></td></tr>
+<tr class="grp"><td colspan="4">SIFT</td></tr>
+<tr><td class="n">SIFT/ContrastThreshold</td><td class="t">string</td><td class="v">0.04</td><td></td></tr>
+<tr><td class="n">SIFT/EdgeThreshold</td><td class="t">string</td><td class="v">10</td><td></td></tr>
+<tr><td class="n">SIFT/GaussianThreshold</td><td class="t">string</td><td class="v">2.0</td><td></td></tr>
+<tr><td class="n">SIFT/Gpu</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">SIFT/MaxGaussianThreshold</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">SIFT/NOctaveLayers</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">SIFT/PreciseUpscale</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">SIFT/RootSIFT</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">SIFT/Sigma</td><td class="t">string</td><td class="v">1.6</td><td></td></tr>
+<tr><td class="n">SIFT/Upscale</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">SURF</td></tr>
+<tr><td class="n">SURF/Extended</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">SURF/GpuKeypointsRatio</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">SURF/GpuVersion</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">SURF/HessianThreshold</td><td class="t">string</td><td class="v">500</td><td></td></tr>
+<tr><td class="n">SURF/OctaveLayers</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">SURF/Octaves</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">SURF/Upright</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr class="grp"><td colspan="4">Stereo</td></tr>
+<tr><td class="n">Stereo/DenseStrategy</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Stereo/Eps</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">Stereo/ErrorThreshold</td><td class="t">string</td><td class="v">50</td><td></td></tr>
+<tr><td class="n">Stereo/Gpu</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Stereo/Iterations</td><td class="t">string</td><td class="v">30</td><td></td></tr>
+<tr><td class="n">Stereo/MaxDisparity</td><td class="t">string</td><td class="v">128.0</td><td></td></tr>
+<tr><td class="n">Stereo/MaxLevel</td><td class="t">string</td><td class="v">5</td><td></td></tr>
+<tr><td class="n">Stereo/MinDisparity</td><td class="t">string</td><td class="v">0.5</td><td></td></tr>
+<tr><td class="n">Stereo/MinEigThreshold</td><td class="t">string</td><td class="v">1e-4</td><td></td></tr>
+<tr><td class="n">Stereo/OpticalFlow</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Stereo/SSD</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Stereo/UseMinEigenVals</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Stereo/WinHeight</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">Stereo/WinWidth</td><td class="t">string</td><td class="v">15</td><td></td></tr>
+<tr class="grp"><td colspan="4">StereoBM</td></tr>
+<tr><td class="n">StereoBM/BlockSize</td><td class="t">string</td><td class="v">15</td><td></td></tr>
+<tr><td class="n">StereoBM/Disp12MaxDiff</td><td class="t">string</td><td class="v">-1</td><td></td></tr>
+<tr><td class="n">StereoBM/MinDisparity</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">StereoBM/NumDisparities</td><td class="t">string</td><td class="v">128</td><td></td></tr>
+<tr><td class="n">StereoBM/PreFilterCap</td><td class="t">string</td><td class="v">31</td><td></td></tr>
+<tr><td class="n">StereoBM/PreFilterSize</td><td class="t">string</td><td class="v">9</td><td></td></tr>
+<tr><td class="n">StereoBM/SpeckleRange</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">StereoBM/SpeckleWindowSize</td><td class="t">string</td><td class="v">100</td><td></td></tr>
+<tr><td class="n">StereoBM/TextureThreshold</td><td class="t">string</td><td class="v">10</td><td></td></tr>
+<tr><td class="n">StereoBM/UniquenessRatio</td><td class="t">string</td><td class="v">15</td><td></td></tr>
+<tr class="grp"><td colspan="4">StereoSGBM</td></tr>
+<tr><td class="n">StereoSGBM/BlockSize</td><td class="t">string</td><td class="v">15</td><td></td></tr>
+<tr><td class="n">StereoSGBM/Disp12MaxDiff</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">StereoSGBM/MinDisparity</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">StereoSGBM/Mode</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">StereoSGBM/NumDisparities</td><td class="t">string</td><td class="v">128</td><td></td></tr>
+<tr><td class="n">StereoSGBM/P1</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">StereoSGBM/P2</td><td class="t">string</td><td class="v">5</td><td></td></tr>
+<tr><td class="n">StereoSGBM/PreFilterCap</td><td class="t">string</td><td class="v">31</td><td></td></tr>
+<tr><td class="n">StereoSGBM/SpeckleRange</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">StereoSGBM/SpeckleWindowSize</td><td class="t">string</td><td class="v">100</td><td></td></tr>
+<tr><td class="n">StereoSGBM/UniquenessRatio</td><td class="t">string</td><td class="v">20</td><td></td></tr>
+<tr class="grp"><td colspan="4">SuperPoint</td></tr>
+<tr><td class="n">SuperPoint/Cuda</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">SuperPoint/ModelPath</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">SuperPoint/NMS</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">SuperPoint/NMSRadius</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">SuperPoint/Threshold</td><td class="t">string</td><td class="v">0.010</td><td></td></tr>
+<tr class="grp"><td colspan="4">SuperPointRpautrat</td></tr>
+<tr><td class="n">SuperPointRpautrat/Cuda</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">SuperPointRpautrat/ModelPath</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr><td class="n">SuperPointRpautrat/NMS</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">SuperPointRpautrat/NMSRadius</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">SuperPointRpautrat/Threshold</td><td class="t">string</td><td class="v">0.005</td><td></td></tr>
+<tr><td class="n">SuperPointRpautrat/WeightsPath</td><td class="t">string</td><td class="v"></td><td></td></tr>
+<tr class="grp"><td colspan="4">VhEp</td></tr>
+<tr><td class="n">VhEp/Enabled</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">VhEp/MatchCountMin</td><td class="t">string</td><td class="v">8</td><td></td></tr>
+<tr><td class="n">VhEp/RansacParam1</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">VhEp/RansacParam2</td><td class="t">string</td><td class="v">0.99</td><td></td></tr>
+<tr class="grp"><td colspan="4">Vis</td></tr>
+<tr><td class="n">Vis/BundleAdjustment</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Vis/CorFlowEps</td><td class="t">string</td><td class="v">0.01</td><td></td></tr>
+<tr><td class="n">Vis/CorFlowErrorThreshold</td><td class="t">string</td><td class="v">20</td><td></td></tr>
+<tr><td class="n">Vis/CorFlowGpu</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Vis/CorFlowIterations</td><td class="t">string</td><td class="v">30</td><td></td></tr>
+<tr><td class="n">Vis/CorFlowMaxLevel</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr><td class="n">Vis/CorFlowMinEigThreshold</td><td class="t">string</td><td class="v">1e-4</td><td></td></tr>
+<tr><td class="n">Vis/CorFlowUseMinEigenVals</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Vis/CorFlowWinSize</td><td class="t">string</td><td class="v">16</td><td></td></tr>
+<tr><td class="n">Vis/CorGuessMatchToProjection</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Vis/CorGuessWinSize</td><td class="t">string</td><td class="v">40</td><td></td></tr>
+<tr><td class="n">Vis/CorNNDR</td><td class="t">string</td><td class="v">0.8</td><td></td></tr>
+<tr><td class="n">Vis/CorNNType</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Vis/CorType</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Vis/DepthAsMask</td><td class="t">string</td><td class="v">true</td><td></td></tr>
+<tr><td class="n">Vis/DepthMaskFloorThr</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Vis/EpipolarGeometryVar</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">Vis/EstimationType</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Vis/FeatureType</td><td class="t">string</td><td class="v">8</td><td></td></tr>
+<tr><td class="n">Vis/GridCols</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Vis/GridRows</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Vis/InlierDistance</td><td class="t">string</td><td class="v">0.1</td><td></td></tr>
+<tr><td class="n">Vis/Iterations</td><td class="t">string</td><td class="v">300</td><td></td></tr>
+<tr><td class="n">Vis/MaxDepth</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Vis/MaxFeatures</td><td class="t">string</td><td class="v">1000</td><td></td></tr>
+<tr><td class="n">Vis/MeanInliersDistance</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Vis/MinDepth</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Vis/MinInliers</td><td class="t">string</td><td class="v">20</td><td></td></tr>
+<tr><td class="n">Vis/MinInliersDistribution</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Vis/PnPFlags</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Vis/PnPMaxVariance</td><td class="t">string</td><td class="v">0.0</td><td></td></tr>
+<tr><td class="n">Vis/PnPRefineIterations</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Vis/PnPReprojError</td><td class="t">string</td><td class="v">2</td><td></td></tr>
+<tr><td class="n">Vis/PnPSamplingPolicy</td><td class="t">string</td><td class="v">1</td><td></td></tr>
+<tr><td class="n">Vis/PnPSplitLinearCovComponents</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Vis/PnPVarianceMedianRatio</td><td class="t">string</td><td class="v">4</td><td></td></tr>
+<tr><td class="n">Vis/RefineIterations</td><td class="t">string</td><td class="v">5</td><td></td></tr>
+<tr><td class="n">Vis/RoiRatios</td><td class="t">string</td><td class="v">0.0 0.0 0.0 0.0</td><td></td></tr>
+<tr><td class="n">Vis/SSC</td><td class="t">string</td><td class="v">false</td><td></td></tr>
+<tr><td class="n">Vis/SubPixEps</td><td class="t">string</td><td class="v">0.02</td><td></td></tr>
+<tr><td class="n">Vis/SubPixIterations</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">Vis/SubPixWinSize</td><td class="t">string</td><td class="v">3</td><td></td></tr>
+<tr class="grp"><td colspan="4">g2o</td></tr>
+<tr><td class="n">g2o/Optimizer</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+<tr><td class="n">g2o/Solver</td><td class="t">string</td><td class="v">0</td><td></td></tr>
+</table>
+</details>
+<p class="meta">★ 本次設定：rplidar(serial_port, baudrate, frame_id, angle_compensate, scan_mode)；ini(Icp/MaxTranslation=0.4, MaxCorrespondenceDistance=0.15)；launch(subscribe_scan, visual/icp 開關, frames, cfg, fresh DB)；static TF(含 yaw 選項)。</p></body></html>
