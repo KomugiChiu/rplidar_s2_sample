@@ -1,0 +1,30 @@
+# Nav2 靜態圖最小參數（ROS2 Jazzy，配 RPLIDAR S2 + rf2o odom）
+# 用法：
+#   ros2 launch nav2_bringup localization_launch.py \
+#     map:=/abs/path/to/map_slamtoolbox_static_02.yaml \
+#     params_file:=/abs/path/to/nav2_params_min.yaml \
+#     use_sim_time:=false autostart:=true
+# 注意：yaml_filename / map 檔用絕對路徑；frame 要跟 rf2o + static tf 對上
+#   odom (rf2o) -> base_footprint -> laser (static)
+
+map_server:
+  ros__parameters:
+    yaml_filename: "/home/user/Downloads/komugi/lidar/slam_toolbox_static/map_slamtoolbox_static_02.yaml"
+    topic_name: "map"
+    frame_id: "map"
+
+amcl:
+  ros__parameters:
+    use_sim_time: false
+    alpha1: 0.2
+    alpha2: 0.2
+    alpha3: 0.2
+    alpha4: 0.2
+    base_frame_id: "base_footprint"
+    global_frame_id: "map"
+    odom_frame_id: "odom"
+    scan_topic: "/scan"
+    map_topic: "/map"
+    tf_broadcast: true
+    update_min_d: 0.05
+    update_min_a: 0.05
