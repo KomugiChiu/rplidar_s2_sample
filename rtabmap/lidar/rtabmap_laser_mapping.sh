@@ -22,7 +22,7 @@ LASER_Z="${LASER_Z:-0.20}"
 SERIAL_PORT="${SERIAL_PORT:-/dev/ttyUSB0}"
 ANGLE_COMPENSATE="${ANGLE_COMPENSATE:-true}"
 SCAN_MODE="${SCAN_MODE:-DenseBoost}"
-RPLIDAR_WS="${RPLIDAR_WS:-$HOME/test/rplidar_ros}"
+RPLIDAR_WS="${RPLIDAR_WS:-/nvt_ros2_example/rplidar_ros/}"
 SKIP_LIDAR="${SKIP_LIDAR:-0}"
 BAG="${BAG:-}"
 
@@ -95,7 +95,7 @@ fi
 # ("malformed launch argument"), and multi-pair strings arrive as one argv
 # token which rtabmap's parser ignores. set_str_param.py remains for
 # live-tuning a RUNNING node.
-CFG="${CFG:-$HOME/rtabmap_lidar/laser_mapping.ini}"
+CFG="${CFG:-./rtabmap_laser_mapping.ini}"
 
 # rtabmap: icp odometry ON (=odom source), ALL visual subscriptions OFF
 # (subscribe_rgbd:=false alone is NOT enough: subscribe_depth defaults true
