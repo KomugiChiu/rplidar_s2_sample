@@ -10,7 +10,8 @@
 #   SKIP_LIDAR=1 ./laser_mapping.sh            # /scan already up, skip driver
 # Env overrides:
 #   SCAN_TOPIC (default /scan)  LASER_FRAME (default laser)
-#   BASE_FRAME (default base_footprint)  LASER_Z (default 0.20)
+#   BASE_FRAME (default base_footprint)  BASE_LINK_FRAME (default base_link)
+#   BASE_LINK_Z (default 0.10)  LASER_Z (default 0.20)
 #   SERIAL_PORT (default /dev/ttyUSB0)  ANGLE_COMPENSATE (default false: weak board)
 #   SCAN_MODE (default DenseBoost)  RPLIDAR_WS (default ~/test/rplidar_ros)
 set -eo pipefail   # NOTE: no -u (ROS setup.bash needs unset vars)
@@ -18,6 +19,8 @@ set -eo pipefail   # NOTE: no -u (ROS setup.bash needs unset vars)
 SCAN_TOPIC="${SCAN_TOPIC:-/scan}"
 LASER_FRAME="${LASER_FRAME:-laser}"
 BASE_FRAME="${BASE_FRAME:-base_footprint}"
+BASE_LINK_FRAME="${BASE_LINK_FRAME:-base_link}"
+BASE_LINK_Z="${BASE_LINK_Z:-0.10}"
 LASER_Z="${LASER_Z:-0.20}"
 SERIAL_PORT="${SERIAL_PORT:-/dev/ttyUSB0}"
 ANGLE_COMPENSATE="${ANGLE_COMPENSATE:-true}"
@@ -77,7 +80,17 @@ setsid ros2 run tf2_ros static_transform_publisher \
   --x 0 --y 0 --z "$LASER_Z" --qx 0 --qy 0 --qz "$LQZ" --qw "$LQW" \
   --frame-id "$BASE_FRAME" --child-frame-id "$LASER_FRAME" \
   </dev/null >/tmp/lidar_static_tf.log 2>&1 &
-sleep 2
+sleep 1
+
+# static TF leaf: base_footprint -> base_link (for nav2 consumers).
+# Kept as a sibling of laser (not reparenting laser) so existing
+# odom/mapping behaviour is unchanged; BASE_LINK_Z is the body-center
+# height above ground (footprint z=0).
+setsid ros2 run tf2_ros static_transform_publisher \
+  --x 0 --y 0 --z "$BASE_LINK_Z" --qx 0 --qy 0 --qz 0 --qw 1 \
+  --frame-id "$BASE_FRAME" --child-frame-id "$BASE_LINK_FRAME" \
+  </dev/null >/tmp/lidar_static_base_link.log 2>&1 &
+sleep 1
 
 # optional bag (sensor data only; map artifacts saved separately)
 if [ -n "$BAG" ]; then
