@@ -71,25 +71,26 @@ if ! timeout 10 ros2 topic hz "$SCAN_TOPIC" 2>/dev/null | grep -q "average rate"
   echo "WARN: no data on $SCAN_TOPIC yet (may be discovery lag), continuing anyway"
 fi
 
-# static TF: base -> laser (rtabmap needs TF scan->frame_id).
+# static TF chain: base_footprint -> base_link -> laser
+# (rtabmap needs TF scan->frame_id; nav2 consumes base_link).
 # LASER_YAW_DEG: 0 or 180. Use 180 if the odom arrow in rviz points opposite
 # to the S2 printed arrow (base X then aligns with laser angle-0 flipped).
 LASER_YAW_DEG="${LASER_YAW_DEG:-0}"
 if [ "$LASER_YAW_DEG" = "180" ]; then LQZ=1; LQW=0; else LQZ=0; LQW=1; fi
-setsid ros2 run tf2_ros static_transform_publisher \
-  --x 0 --y 0 --z "$LASER_Z" --qx 0 --qy 0 --qz "$LQZ" --qw "$LQW" \
-  --frame-id "$BASE_FRAME" --child-frame-id "$LASER_FRAME" \
-  </dev/null >/tmp/lidar_static_tf.log 2>&1 &
-sleep 1
-
-# static TF leaf: base_footprint -> base_link (for nav2 consumers).
-# Kept as a sibling of laser (not reparenting laser) so existing
-# odom/mapping behaviour is unchanged; BASE_LINK_Z is the body-center
-# height above ground (footprint z=0).
+# Static TF chain: base_footprint -> base_link -> laser.
+# LASER_Z is the lidar height above ground (footprint z=0); the laser
+# link hangs under base_link with the relative offset so the total is
+# unchanged (BASE_LINK_Z + relative = LASER_Z).
+LASER_REL_Z="$(awk -v a="$LASER_Z" -v b="$BASE_LINK_Z" 'BEGIN{printf "%.3f", a-b}')"
 setsid ros2 run tf2_ros static_transform_publisher \
   --x 0 --y 0 --z "$BASE_LINK_Z" --qx 0 --qy 0 --qz 0 --qw 1 \
   --frame-id "$BASE_FRAME" --child-frame-id "$BASE_LINK_FRAME" \
   </dev/null >/tmp/lidar_static_base_link.log 2>&1 &
+sleep 1
+setsid ros2 run tf2_ros static_transform_publisher \
+  --x 0 --y 0 --z "$LASER_REL_Z" --qx 0 --qy 0 --qz "$LQZ" --qw "$LQW" \
+  --frame-id "$BASE_LINK_FRAME" --child-frame-id "$LASER_FRAME" \
+  </dev/null >/tmp/lidar_static_tf.log 2>&1 &
 sleep 1
 
 # optional bag (sensor data only; map artifacts saved separately)

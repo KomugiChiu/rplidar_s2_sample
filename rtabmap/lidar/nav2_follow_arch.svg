@@ -1,5 +1,5 @@
 <svg width="1000" height="910" font-family="sans-serif" font-size="13" xmlns="http://www.w3.org/2000/svg">
-  <defs><marker id="ar2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#333" stroke-width="1.5"/></marker><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#333" stroke-width="1.5"/></marker></defs>
+  <defs><marker id="ar2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#333" stroke-width="1.5"/></marker><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#333" stroke-width="1.5"/></marker><marker id="ar-green" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#1a7f4d" stroke-width="1.5"/></marker><marker id="ar-blue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#2563eb" stroke-width="1.5"/></marker><marker id="ar-orange" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#d97706" stroke-width="1.5"/></marker><marker id="ar-purple" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#7c3aed" stroke-width="1.5"/></marker></defs>
   <rect x="530" y="105" width="465" height="305" rx="8" fill="none" stroke="#333" stroke-width="1.5"/>
   <text x="557" y="120" font-size="12" fill="#555">Nav2</text>
   <rect x="20" y="125" width="400" height="52" rx="6" fill="#e8f4e8" stroke="#333"/>
@@ -16,9 +16,10 @@
   <text x="345" y="250" text-anchor="middle">icp_odometry</text>
   <rect x="270" y="315" width="150" height="52" rx="6" fill="#fcf3e8" stroke="#333"/>
   <text x="345" y="345" text-anchor="middle">rtabmap</text>
-  <rect x="270" y="410" width="150" height="52" rx="6" fill="#f6f6f6" stroke="#333" stroke-width="1.5"/>
+  <rect x="270" y="410" width="150" height="66" rx="6" fill="#f6f6f6" stroke="#333" stroke-width="1.5"/>
   <text x="345" y="432" text-anchor="middle">static TF</text>
   <text x="345" y="448" text-anchor="middle" font-size="11" fill="#555">base→laser / base→camera</text>
+  <text x="345" y="464" text-anchor="middle" font-size="11" fill="#555">footprint→base_link→laser</text>
   <rect x="270" y="505" width="150" height="52" rx="6" fill="#fff" stroke="#333" stroke-dasharray="5,3"/>
   <text x="345" y="527" text-anchor="middle">follower</text>
   <text x="345" y="543" text-anchor="middle" font-size="11" fill="#555">人後方目標點</text>
@@ -66,26 +67,30 @@
   <rect x="500" y="640" width="130" height="40" rx="6" fill="#f6f6f6" stroke="#333"/>
   <text x="565" y="664" text-anchor="middle">base_footprint</text>
   <rect x="710" y="640" width="130" height="40" rx="6" fill="#f6f6f6" stroke="#333"/>
-  <text x="775" y="664" text-anchor="middle">laser</text>
-  <line x1="210" y1="660" x2="285" y2="660" stroke="#1a7f4d" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="775" y="664" text-anchor="middle">base_link</text>
+  <line x1="210" y1="660" x2="285" y2="660" stroke="#1a7f4d" stroke-width="2" marker-end="url(#ar-green)"/>
   <text x="250" y="652" text-anchor="middle" font-size="11" fill="#1a7f4d">/tf</text>
-  <line x1="420" y1="660" x2="495" y2="660" stroke="#2563eb" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="420" y1="660" x2="495" y2="660" stroke="#2563eb" stroke-width="2" marker-end="url(#ar-blue)"/>
   <text x="460" y="652" text-anchor="middle" font-size="11" fill="#2563eb">/tf</text>
-  <line x1="630" y1="660" x2="705" y2="660" stroke="#d97706" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="630" y1="660" x2="705" y2="660" stroke="#d97706" stroke-width="2" marker-end="url(#ar-orange)"/>
   <text x="667" y="652" text-anchor="middle" font-size="11" fill="#d97706">/tf_static</text>
-  <line x1="565" y1="680" x2="565" y2="700" stroke="#7c3aed" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="775" y1="680" x2="775" y2="699" stroke="#d97706" stroke-width="2" marker-end="url(#ar-orange)"/>
+  <rect x="710" y="700" width="130" height="40" rx="6" fill="#f6f6f6" stroke="#333"/>
+  <text x="775" y="724" text-anchor="middle">laser</text>
+  <text x="745" y="693" text-anchor="middle" font-size="11" fill="#d97706">/tf_static</text>
+  <line x1="565" y1="680" x2="565" y2="700" stroke="#7c3aed" stroke-width="2" marker-end="url(#ar-purple)"/>
   <rect x="500" y="700" width="130" height="40" rx="6" fill="#f6f6f6" stroke="#333"/>
   <text x="565" y="724" text-anchor="middle">camera</text>
-  <rect x="710" y="700" width="130" height="40" rx="6" fill="#f6f6f6" stroke="#333"/>
-  <text x="775" y="724" text-anchor="middle">person_0</text>
-  <line x1="630" y1="720" x2="705" y2="720" stroke="#7c3aed" stroke-width="2" marker-end="url(#ar)"/>
-  <text x="667" y="712" text-anchor="middle" font-size="11" fill="#7c3aed">detector 發佈</text>
-      <path d="M775,740 L775,755 L145,755 L145,684" fill="none" stroke="#7c3aed" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#ar)"/>
-  <text x="460" y="747" text-anchor="middle" font-size="11" fill="#7c3aed">lookup person_0 in map frame</text>
+  <rect x="500" y="770" width="130" height="40" rx="6" fill="#f6f6f6" stroke="#333"/>
+  <text x="565" y="794" text-anchor="middle">person_0</text>
+  <line x1="565" y1="740" x2="565" y2="769" stroke="#7c3aed" stroke-width="2" marker-end="url(#ar-purple)"/>
+  <text x="640" y="762" text-anchor="middle" font-size="11" fill="#7c3aed">detector 發佈</text>
+      <path d="M565,810 L565,825 L145,825 L145,684" fill="none" stroke="#7c3aed" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#ar-purple)"/>
+  <text x="460" y="819" text-anchor="middle" font-size="11" fill="#7c3aed">lookup person_0 in map frame</text>
           <text x="20" y="270" font-size="12" fill="#555">圖例：TF 邊顏色</text>
   <line x1="20" y1="288" x2="42" y2="288" stroke="#1a7f4d" stroke-width="3"/><text x="48" y="292" font-size="11">map→odom</text>
   <line x1="20" y1="306" x2="42" y2="306" stroke="#2563eb" stroke-width="3"/><text x="48" y="310" font-size="11">odom→base</text>
-  <line x1="20" y1="324" x2="42" y2="324" stroke="#d97706" stroke-width="3"/><text x="48" y="328" font-size="11">base→laser</text>
+  <line x1="20" y1="324" x2="42" y2="324" stroke="#d97706" stroke-width="3"/><text x="48" y="328" font-size="11">base→base_link→laser (static)</text>
   <line x1="20" y1="342" x2="42" y2="342" stroke="#7c3aed" stroke-width="3"/><text x="48" y="346" font-size="11">camera→person</text>
   <text x="20" y="360" font-size="11" fill="#555">左上＝取用／右上＝發佈</text>
   <circle cx="420" cy="410" r="5" fill="#d97706"/>

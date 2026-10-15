@@ -30,7 +30,7 @@ th{background:#eee}tr.grp td{background:#dde;font-weight:bold}
 <h2>node 總表</h2>
 <table><tr><th>#</th><th>node</th><th>package / executable</th><th>功能</th><th>訂閱</th><th>發佈</th></tr>
 <tr><td>1</td><td class="n">rplidar_node</td><td class="v">rplidar_ros / rplidar_node</td><td>S2 rplidar node：序列埠讀取 → 發佈 /scan（DenseBoost 10Hz）</td><td><code>—</code></td><td><code>/scan (sensor_msgs/LaserScan)</code></td></tr>
-<tr><td>2</td><td class="n">static_tf</td><td class="v">tf2_ros / static_transform_publisher</td><td>靜態 TF：base_footprint → laser（x0 y0 z0.20，可選 yaw 180）</td><td><code>—</code></td><td><code>/tf_static</code></td></tr>
+<tr><td>2</td><td class="n">static_tf</td><td class="v">tf2_ros / static_transform_publisher ×2</td><td>靜態 TF 鏈：base_footprint → base_link（x0 y0 z0.10）→ laser（相對 z0.10，離地 0.20；可選 yaw 180）</td><td><code>—</code></td><td><code>/tf_static</code></td></tr>
 <tr><td>3</td><td class="n">icp_odometry</td><td class="v">rtabmap_odom / icp_odometry</td><td>ICP scan matching 里程計：/scan → /rtabmap/odom＋odom→base_footprint TF</td><td><code>/scan</code></td><td><code>/rtabmap/odom, /rtabmap/odom_info, odom→base_footprint TF（/tf）</code></td></tr>
 <tr><td>4</td><td class="n">rtabmap</td><td class="v">rtabmap_slam / rtabmap</td><td>SLAM 建圖：odom＋scan → occupancy grid（/rtabmap/map）＋DB</td><td><code>/rtabmap/odom, /scan</code></td><td><code>/rtabmap/map, /rtabmap/cloud_map, map→odom TF</code></td></tr>
 </table>
@@ -45,11 +45,12 @@ th{background:#eee}tr.grp td{background:#dde;font-weight:bold}
 <tr><td class="n">/rtabmap/info</td><td class="v">rtabmap_msgs/Info</td><td class="v">~1Hz（＝Rtabmap/DetectionRate）</td><td>rtabmap</td></tr>
 </table>
 <h2>TF 樹（父子關係）</h2>
-<p class='meta'>map→odom 由 rtabmap 在建出圖後才發佈（靜態無圖時這段不存在，rviz Fixed Frame 先放 odom）。odom→base_footprint 由 icp_odometry 即時發佈；base_footprint→laser 為 static（见上表）。</p>
+<p class='meta'>map→odom 由 rtabmap 在建出圖後才發佈（靜態無圖時這段不存在，rviz Fixed Frame 先放 odom）。odom→base_footprint 由 icp_odometry 即時發佈；base_footprint→base_link→laser 為 static 鏈（见上表；BASE_LINK_Z 預設 0.10，LASER_Z 為離地高度）。</p>
 <table><tr><th>parent</th><th>child</th><th>走哪個 topic</th><th>發佈者</th><th>說明</th></tr>
 <tr><td class="n">map</td><td class="n">odom</td><td class="n">/tf</td><td class="v">rtabmap</td><td>SLAM 位姿圖輸出；無圖時不存在</td></tr>
 <tr><td class="n">odom</td><td class="n">base_footprint</td><td class="n">/tf</td><td class="v">icp_odometry</td><td>ICP 里程計即時位姿</td></tr>
-<tr><td class="n">base_footprint</td><td class="n">laser</td><td class="n">/tf_static</td><td class="v">static_transform_publisher</td><td>x0 y0 z0.20，可選 yaw 180（LASER_YAW_DEG）；latched 只發一次</td></tr>
+<tr><td class="n">base_footprint</td><td class="n">base_link</td><td class="n">/tf_static</td><td class="v">static_transform_publisher</td><td>x0 y0 z0.10（BASE_LINK_Z）；nav2 用</td></tr>
+<tr><td class="n">base_link</td><td class="n">laser</td><td class="n">/tf_static</td><td class="v">static_transform_publisher</td><td>x0 y0 z0.10（= LASER_Z 0.20 − BASE_LINK_Z；可選 yaw 180）</td></tr>
 </table>
 <h2>各 node 本次額外設定的值</h2>
 <table><tr><th>node</th><th>參數</th><th>本次值</th><th>說明</th></tr>
@@ -58,7 +59,8 @@ th{background:#eee}tr.grp td{background:#dde;font-weight:bold}
 <tr><td class="n">rplidar_node</td><td class="n">frame_id</td><td class="v">laser</td><td>環境慣例（非 rplidar node 預設 laser_frame）</td></tr>
 <tr><td class="n">rplidar_node</td><td class="n">angle_compensate</td><td class="v">true</td><td>角度補償（小板可改 false 省 CPU）</td></tr>
 <tr><td class="n">rplidar_node</td><td class="n">scan_mode</td><td class="v">DenseBoost</td><td>10Hz 掃描模式</td></tr>
-<tr><td class="n">static_tf</td><td class="n">z</td><td class="v">0.20</td><td>雷達安裝高度</td></tr>
+<tr><td class="n">static_tf</td><td class="n">z (base_link)</td><td class="v">0.10</td><td>車體中心離地高度（BASE_LINK_Z）</td></tr>
+<tr><td class="n">static_tf</td><td class="n">z (laser，相對 base_link)</td><td class="v">0.10</td><td>雷達相對高度（= LASER_Z 0.20 − BASE_LINK_Z）</td></tr>
 <tr><td class="n">static_tf</td><td class="n">yaw</td><td class="v">180°（qz=1,qw=0）</td><td>odom 箭頭對齊 S2 機身箭頭，rviz 已驗證</td></tr>
 <tr><td class="n">icp_odometry</td><td class="n">Icp/MaxTranslation</td><td class="v">0.4</td><td>預設 0.2 會砍正常步伐（經 ini）</td></tr>
 <tr><td class="n">icp_odometry</td><td class="n">Icp/MaxCorrespondenceDistance</td><td class="v">0.15</td><td>預設 0.1（經 ini）</td></tr>
