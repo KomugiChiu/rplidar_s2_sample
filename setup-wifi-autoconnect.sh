@@ -85,6 +85,20 @@ run() {
   fi
 }
 
+# Force what this run wrote out to the medium instead of leaving it in the
+# page cache.
+#
+# The board's RTC is dead ("nvt_rtc: RTC s/w reset timeout"), so it boots with
+# a bogus clock, and it has been seen coming up with "EXT4-fs (mmcblk0p1):
+# recovery complete" — the previous shutdown never finished. When that
+# happens ext4 replays the metadata only: a file created shortly before the
+# reset survives as 0 bytes with no data blocks at all. systemd reads a
+# 0-byte unit file as masked, so the service ends up enabled but permanently
+# dead, and nothing anywhere prints an error about it.
+persist() {
+  [ "$DRYRUN" -eq 1 ] || sync
+}
+
 usage() { sed -n '2,/^set -euo/p' "$0" | sed 's/^# \{0,1\}//; $d'; }
 # --------------------------------------------------------------------------
 # dhcpcd coexistence
@@ -221,6 +235,7 @@ if [ "$UNINSTALL" -eq 1 ]; then
     run dhcpcd_restore_conf
     run dhcpcd_restart
   fi
+  persist
   say "done. If NetworkManager was set to 'stop', re-enable it by hand."
   exit 0
 fi
@@ -545,6 +560,7 @@ if [ "$DHCPCD_MODE" = deny ] && dhcpcd_present; then
   else
     [ -f "$DHCP_CONF" ] || : >"$DHCP_CONF"
     dhcpcd_write_conf "$DHCPCD_LIST" || die "could not update $DHCP_CONF"
+    persist
     say "wrote $DHCP_CONF"
     # Restarting dhcpcd makes the rule effective now. The wifi service is
     # restarted further down; its helper flushes the interface, which clears
@@ -731,6 +747,10 @@ if [ -f /lib/systemd/system/wpa_supplicant.service ] && [ "$DRYRUN" -eq 0 ]; the
 fi
 
 if [ "$DRYRUN" -eq 0 ]; then
+  # Flush before systemd is told to rely on these files: a unit file still
+  # sitting in the page cache reads back as 0 bytes after a reset, and systemd
+  # treats that as masked.
+  persist
   say "enabling and starting $SERVICE_NAME"
   systemctl enable "$SERVICE_NAME" >/dev/null
   systemctl restart "$SERVICE_NAME"
