@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 # Stop every process started by start_rtabmap_laser.sh.
 #
-# Why a separate script:
-#   start_rtabmap_laser.sh starts the S2 driver, the static TF publisher(s)
-#   and (optionally) the bag recorder with `setsid`, so they live in their own
-#   session and never receive the terminal's Ctrl+C.  If the mapping script
-#   itself dies (Ctrl+C, `kill -TERM %1` on a stopped job, SIGKILL, closed
-#   terminal, crash) those children stay behind as orphans: the S2 keeps
-#   /dev/ttyUSB0 busy and the next run fails with "device busy".
+# Two mechanisms, combined:
+#   1. PID file (primary, precise): start_rtabmap_laser.sh records every
+#      process it starts (name + pid + kill mode) in $PID_FILE.  The setsid'd
+#      helpers are session leaders, so their whole process group is killed
+#      with `kill -- -<pid>` (same idea as the nav2 start/stop scripts).
+#   2. Command line patterns (fallback, complete): catches orphans whose PID
+#      file entry is gone (e.g. /tmp cleaned, older script version, driver
+#      started by hand).  Only used for the rtabmap family when the PID file
+#      exists, so a driver owned by somebody else is not killed.
 #
 # Usage (on board):
 #   ./stop_rtabmap_laser.sh                    # SIGTERM everything, SIGKILL what survives
 #   KEEP_DRIVER=1 ./stop_rtabmap_laser.sh      # keep rplidar_node (owned by someone else)
 #   DRY_RUN=1 ./stop_rtabmap_laser.sh          # only list what would be stopped
+#   PID_FILE=/tmp/rtabmap_laser/pids ./stop_rtabmap_laser.sh
 #
 # Exit code: 0 when nothing of this flow is left running, 1 otherwise.
 set -eo pipefail   # NOTE: no -u (ROS setup files need unset vars)
@@ -20,6 +23,7 @@ set -eo pipefail   # NOTE: no -u (ROS setup files need unset vars)
 KEEP_DRIVER="${KEEP_DRIVER:-0}"
 DRY_RUN="${DRY_RUN:-0}"
 WAIT_SECS="${WAIT_SECS:-10}"
+PID_FILE="${PID_FILE:-/tmp/rtabmap_laser/pids}"
 
 # Command line patterns of this flow (matched with pgrep/pkill -f).
 # `ros2 run` and `ros2 launch` fork the real node, so both the wrapper and
@@ -33,17 +37,21 @@ PATTERNS=(
   "ros2 launch rplidar_ros rplidar_s2_launch.py"   # S2 driver wrapper
   "rplidar_ros/rplidar_node"                       # S2 driver node
 )
+# Patterns used when the PID file is present: the driver is only killed when
+# we started it ourselves (recorded in the PID file), never by pattern.
+PATTERNS_NODRIVER=(
+  "ros2 launch rtabmap_launch rtabmap.launch.py"
+  "rtabmap_slam/rtabmap"
+  "rtabmap_odom/icp_odometry"
+  "ros2 bag record"
+  "static_transform_publisher"
+)
 
 # PIDs of this flow (deduped, order preserved).
-# Ancestors of this script are excluded: a shell whose command line merely
-# mentions "rtabmap" (e.g. `bash -c '... rtabmap ...'`) must not be killed.
 match_pids() {
   local pat pid out="" skip
   skip=" $(ancestor_pids) "
-  for pat in "${PATTERNS[@]}"; do
-    if [ "$KEEP_DRIVER" = "1" ]; then
-      case "$pat" in *rplidar*) continue ;; esac
-    fi
+  for pat in "$@"; do
     for pid in $(pgrep -f "$pat" 2>/dev/null || true); do
       case "$skip" in *" $pid "*) continue ;; esac
       case " $out " in *" $pid "*) ;; *) out="$out $pid" ;; esac
@@ -84,15 +92,69 @@ stopped_pids() {
   echo "${out# }"
 }
 
+# Send a signal to one recorded process.
+#   mode "group" -> the process is a session leader: kill its process group
+#   mode "proc"  -> single process (ros2 launch shuts its children down itself)
+signal_entry() {
+  local sig="$1" pid="$2" mode="$3"
+  if [ "$mode" = "group" ]; then
+    kill "-$sig" -- "-$pid" 2>/dev/null || true
+  else
+    kill "-$sig" "$pid" 2>/dev/null || true
+  fi
+}
+
+# --- collect the targets -------------------------------------------------
+declare -a TARGET_PIDS=()   # pids to signal
+declare -a TARGET_MODES=()  # group|proc
+declare -a TARGET_NAMES=()  # human readable
+
+add_target() {  # pid mode name
+  TARGET_PIDS+=("$1")
+  TARGET_MODES+=("$2")
+  TARGET_NAMES+=("$3")
+}
+
 echo "== laser-mapping processes =="
-PIDS="$(match_pids)"
-if [ -z "$PIDS" ]; then
+
+HAVE_PID_FILE=0
+if [ -s "$PID_FILE" ]; then
+  HAVE_PID_FILE=1
+  while read -r pid name mode; do
+    [ -n "${pid:-}" ] || continue
+    [ -d "/proc/$pid" ] || continue
+    add_target "$pid" "${mode:-proc}" "${name:-pid$pid}"
+  done < "$PID_FILE"
+fi
+
+# Pattern sweep: the rtabmap family always, the driver only when there is no
+# PID file (then we cannot know whether we started it).
+SWEEP_PATTERNS=("${PATTERNS_NODRIVER[@]}")
+if [ "$HAVE_PID_FILE" = "0" ]; then
+  SWEEP_PATTERNS=("${PATTERNS[@]}")
+fi
+if [ "$KEEP_DRIVER" = "1" ]; then
+  SWEEP_PATTERNS=("${PATTERNS_NODRIVER[@]}")
+fi
+
+for pid in $(match_pids "${SWEEP_PATTERNS[@]}"); do
+  known=0
+  for known_pid in "${TARGET_PIDS[@]:-}"; do
+    [ "$known_pid" = "$pid" ] && known=1
+  done
+  [ "$known" = "1" ] && continue
+  add_target "$pid" "group" "sweep"
+done
+
+if [ "${#TARGET_PIDS[@]}" -eq 0 ]; then
   echo "  (nothing running)"
+  [ "$HAVE_PID_FILE" = "1" ] && rm -f "$PID_FILE"
   exit 0
 fi
-for pid in $PIDS; do
-  printf '  %-8s %s\n' "$pid" \
-    "$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | cut -c1-110)"
+
+for i in "${!TARGET_PIDS[@]}"; do
+  printf '  %-8s %-6s %s\n' "${TARGET_PIDS[$i]}" "${TARGET_MODES[$i]}" \
+    "$(tr '\0' ' ' < "/proc/${TARGET_PIDS[$i]}/cmdline" 2>/dev/null | cut -c1-100)"
 done
 
 if [ "$DRY_RUN" = "1" ]; then
@@ -100,40 +162,59 @@ if [ "$DRY_RUN" = "1" ]; then
   exit 0
 fi
 
+# --- stop ---------------------------------------------------------------
 echo "-- sending SIGTERM"
-for pid in $PIDS; do kill -TERM "$pid" 2>/dev/null || true; done
+for i in "${!TARGET_PIDS[@]}"; do
+  signal_entry TERM "${TARGET_PIDS[$i]}" "${TARGET_MODES[$i]}"
+done
 
 end=$((SECONDS + WAIT_SECS))
 while [ "$SECONDS" -lt "$end" ]; do
-  PIDS="$(alive_pids "$PIDS")"
-  [ -z "$PIDS" ] && break
+  remaining=""
+  for pid in "${TARGET_PIDS[@]}"; do
+    [ -d "/proc/$pid" ] && remaining="$remaining $pid"
+  done
+  [ -z "$remaining" ] && break
   sleep 0.5
 done
 
-PIDS="$(alive_pids "$PIDS")"
-if [ -n "$PIDS" ]; then
-  STUCK="$(stopped_pids "$PIDS")"
-  if [ -n "$STUCK" ]; then
+# still alive?
+STUCK=""
+for i in "${!TARGET_PIDS[@]}"; do
+  [ -d "/proc/${TARGET_PIDS[$i]}" ] && STUCK="$STUCK ${TARGET_PIDS[$i]}"
+done
+if [ -n "$STUCK" ]; then
+  stopped="$(stopped_pids "$STUCK")"
+  if [ -n "$stopped" ]; then
     # A stopped process does not handle SIGTERM until it is resumed.
-    echo "-- $STUCK is stopped: SIGCONT so the pending SIGTERM is delivered"
-    for pid in $STUCK; do kill -CONT "$pid" 2>/dev/null || true; done
+    echo "-- $stopped is stopped: SIGCONT so the pending SIGTERM is delivered"
+    for pid in $stopped; do kill -CONT "$pid" 2>/dev/null || true; done
     sleep 2
   fi
-  PIDS="$(alive_pids "$PIDS")"
 fi
 
-if [ -n "$PIDS" ]; then
-  echo "-- sending SIGKILL to $PIDS"
-  for pid in $PIDS; do kill -KILL "$pid" 2>/dev/null || true; done
+STUCK=""
+for i in "${!TARGET_PIDS[@]}"; do
+  [ -d "/proc/${TARGET_PIDS[$i]}" ] && STUCK="$STUCK ${TARGET_PIDS[$i]}"
+done
+if [ -n "$STUCK" ]; then
+  echo "-- sending SIGKILL to$STUCK"
+  for i in "${!TARGET_PIDS[@]}"; do
+    signal_entry KILL "${TARGET_PIDS[$i]}" "${TARGET_MODES[$i]}"
+  done
   sleep 1
-  PIDS="$(alive_pids "$PIDS")"
 fi
 
-if [ -n "$PIDS" ]; then
-  echo "STILL RUNNING: $PIDS"
+STUCK=""
+for i in "${!TARGET_PIDS[@]}"; do
+  [ -d "/proc/${TARGET_PIDS[$i]}" ] && STUCK="$STUCK ${TARGET_PIDS[$i]}"
+done
+if [ -n "$STUCK" ]; then
+  echo "STILL RUNNING:$STUCK"
   exit 1
 fi
 
+rm -f "$PID_FILE"
 echo "== all stopped =="
 if [ -f /opt/ros/jazzy/setup.bash ]; then
   # shellcheck disable=SC1091

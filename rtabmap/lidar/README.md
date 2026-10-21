@@ -64,12 +64,29 @@ If the script was stopped with Ctrl+Z, it is suspended and Ctrl+C no longer
 reaches it — use `kill -TERM %1` (the stop script also resumes stopped
 processes so the pending SIGTERM is delivered), or `fg` and then Ctrl+C.
 
+### How the stop works
+
+Both mechanisms are combined (same idea as the nav2 start/stop scripts):
+
+1. **PID file (precise)** — the start script records every process it starts
+   in `$PID_FILE` (`/tmp/rtabmap_laser/pids`) as `pid name mode`:
+   - `group` → the process is a `setsid` session leader, the whole process
+     group is killed (`kill -- -<pid>`)
+   - `proc` → single process (`ros2 launch` stops its own children)
+   The start script refuses to start a second instance while a recorded PID
+   is still alive.
+2. **Command line patterns (fallback)** — catches orphans whose PID file entry
+   is gone (e.g. `/tmp` cleaned, older script version). The S2 driver is only
+   matched this way when there is no PID file, so a driver owned by somebody
+   else is never killed by accident.
+
 Environment overrides: `SCAN_TOPIC` (/scan), `LASER_FRAME` (laser),
 `BASE_FRAME` (base_footprint), `BASE_LINK_FRAME` (base_link), `BASE_LINK_Z`
 (0.10), `LASER_Z` (0.20), `SERIAL_PORT` (/dev/ttyUSB0), `ANGLE_COMPENSATE`
 (true), `SCAN_MODE` (DenseBoost), `CFG`
 (`<script dir>/rtabmap_laser_mapping.ini`), `BAG` (empty), `SKIP_LIDAR` (0),
-`QUIET` (0), `NO_LOG` (0), `LOG_LEVEL` (launch default), `LOG_DIR` (/tmp).
+`QUIET` (0), `NO_LOG` (0), `LOG_LEVEL` (launch default), `LOG_DIR` (/tmp),
+`RUN_DIR` (/tmp/rtabmap_laser), `PID_FILE` (`$RUN_DIR/pids`).
 
 The script can be started from any working directory: the `.ini` and
 `stop_rtabmap_laser.sh` are resolved relative to the script itself (absolute
