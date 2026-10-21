@@ -86,7 +86,23 @@ Environment overrides: `SCAN_TOPIC` (/scan), `LASER_FRAME` (laser),
 (true), `SCAN_MODE` (DenseBoost), `CFG`
 (`<script dir>/rtabmap_laser_mapping.ini`), `BAG` (empty), `SKIP_LIDAR` (0),
 `QUIET` (0), `NO_LOG` (0), `LOG_LEVEL` (launch default), `LOG_DIR` (/tmp),
-`RUN_DIR` (/tmp/rtabmap_laser), `PID_FILE` (`$RUN_DIR/pids`).
+`RUN_DIR` (/tmp/rtabmap_laser), `PID_FILE` (`$RUN_DIR/pids`),
+`ODOM_TOPIC` (/odom), `VO_FRAME_ID` (odom).
+
+## Odom topic and nav2
+
+The rtabmap nodes run in the `/rtabmap` namespace, so a relative topic would
+land on `/rtabmap/odom` — but `nav2`'s `controller_server` / `bt_navigator`
+subscribe to the **global** `/odom`. The script therefore launches with an
+absolute topic name:
+
+```bash
+odom_topic:=/odom     # -> published on /odom
+vo_frame_id:=odom     # TF frame id stays "odom" (no leading slash)
+```
+
+`ODOM_TOPIC` / `VO_FRAME_ID` can be overridden, e.g. `ODOM_TOPIC=/robot/odom`.
+The bag records the same topic (`ODOM_TOPIC`).
 
 The script can be started from any working directory: the `.ini` and
 `stop_rtabmap_laser.sh` are resolved relative to the script itself (absolute

@@ -17,6 +17,9 @@
 #   SERIAL_PORT (default /dev/ttyUSB0)  ANGLE_COMPENSATE (default false: weak board)
 #   SCAN_MODE (default DenseBoost)  RPLIDAR_WS (default ~/test/rplidar_ros)
 #   CFG (default: <this script's dir>/rtabmap_laser_mapping.ini)
+#   ODOM_TOPIC (default /odom: absolute name, so nav2's controller_server
+#               which subscribes to the global /odom gets the data)
+#   VO_FRAME_ID (default odom: TF frame id of the odometry)
 #   QUIET (default 0: 1 = keep the console clean, all node output -> log files)
 #   NO_LOG (default 0: 1 = no log files at all, everything -> /dev/null)
 #   LOG_LEVEL (default: info; forwarded to the launch as log_level:=<level>)
@@ -38,6 +41,16 @@ SCAN_MODE="${SCAN_MODE:-DenseBoost}"
 RPLIDAR_WS="${RPLIDAR_WS:-/nvt_ros2_example/rplidar_ros/}"
 SKIP_LIDAR="${SKIP_LIDAR:-0}"
 BAG="${BAG:-}"
+# The rtabmap nodes live in the /rtabmap namespace, so a relative topic would
+# land on /rtabmap/odom.  nav2's controller_server / bt_navigator subscribe to
+# the global /odom, so publish there (absolute name).  The TF frame id stays
+# plain "odom" (a frame id must not start with a slash).
+ODOM_TOPIC="${ODOM_TOPIC:-/odom}"
+VO_FRAME_ID="${VO_FRAME_ID:-odom}"
+case "$ODOM_TOPIC" in
+  /*) ODOM_TOPIC_ABS="$ODOM_TOPIC" ;;
+  *)  ODOM_TOPIC_ABS="/rtabmap/$ODOM_TOPIC" ;;
+esac
 # --- logging ---
 # QUIET=1 keeps the console clean: the rtabmap launch output is written to a
 # file instead of the terminal.  LOG_LEVEL lowers the verbosity of the
@@ -187,7 +200,7 @@ sleep 1
 # optional bag (sensor data only; map artifacts saved separately)
 if [ -n "$BAG" ]; then
   setsid ros2 bag record -o "$BAG" \
-    "$SCAN_TOPIC" /tf /tf_static /rtabmap/odom \
+    "$SCAN_TOPIC" /tf /tf_static "$ODOM_TOPIC_ABS" \
     </dev/null >"$BAG_LOG" 2>&1 &
   BAGPID=$!
   remember_pid "$BAGPID" bag_recorder group
@@ -218,6 +231,8 @@ LAUNCH_ARGS=(
   subscribe_scan:=true
   scan_topic:="$SCAN_TOPIC"
   frame_id:="$BASE_FRAME"
+  odom_topic:="$ODOM_TOPIC"
+  vo_frame_id:="$VO_FRAME_ID"
   cfg:="$CFG"
   rtabmap_viz:=false
   rviz:=false

@@ -143,7 +143,15 @@ for pid in $(match_pids "${SWEEP_PATTERNS[@]}"); do
     [ "$known_pid" = "$pid" ] && known=1
   done
   [ "$known" = "1" ] && continue
-  add_target "$pid" "group" "sweep"
+  # Only a session leader may be killed as a whole group (pgid == pid).
+  # The rtabmap/icp_odometry nodes are children of the launch and share its
+  # process group, so they have to be signalled individually.
+  pgid="$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')"
+  if [ -n "$pgid" ] && [ "$pgid" = "$pid" ]; then
+    add_target "$pid" "group" "sweep"
+  else
+    add_target "$pid" "proc" "sweep"
+  fi
 done
 
 if [ "${#TARGET_PIDS[@]}" -eq 0 ]; then
@@ -202,7 +210,15 @@ if [ -n "$STUCK" ]; then
   for i in "${!TARGET_PIDS[@]}"; do
     signal_entry KILL "${TARGET_PIDS[$i]}" "${TARGET_MODES[$i]}"
   done
-  sleep 1
+  # give the kernel a moment to reap them
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    sleep 0.5
+    STUCK=""
+    for i in "${!TARGET_PIDS[@]}"; do
+      [ -d "/proc/${TARGET_PIDS[$i]}" ] && STUCK="$STUCK ${TARGET_PIDS[$i]}"
+    done
+    [ -z "$STUCK" ] && break
+  done
 fi
 
 STUCK=""
