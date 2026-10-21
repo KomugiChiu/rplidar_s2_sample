@@ -6,8 +6,9 @@ Runs on the board, no camera required. Sync this directory to the board before u
 
 | File | Purpose |
 |---|---|
-| `rtabmap_laser_mapping.sh` | One-shot mapping: S2 driver → static TF → rtabmap (ICP odometry + laser scan). Optional bag recording |
+| `start_rtabmap_laser.sh` | One-shot mapping: S2 driver → static TF → rtabmap (ICP odometry + laser scan). Optional bag recording |
 | `rtabmap_laser_mapping.ini` | rtabmap parameters, loaded via `cfg:=` (INI values are strings, so no type issues) |
+| `stop_rtabmap_laser.sh` | Stops every node of this flow (driver, static TF, rtabmap, bag recorder), including leftovers of a killed run |
 | `check_deps.sh` | Dependency check (+ auto-install) for the rtabmap + RPLidar S2 flow |
 | `set_str_param.py` | Fallback: update string-typed parameters on a running node without restart |
 | `maps/` | Saved 2D maps (pgm + yaml) |
@@ -16,16 +17,63 @@ Runs on the board, no camera required. Sync this directory to the board before u
 ## Usage (on board)
 
 ```bash
-./rtabmap_laser_mapping.sh                           # mapping only
-BAG=~/bags/lidar_$(date +%Y%m%d) ./rtabmap_laser_mapping.sh   # mapping + record bag
-SKIP_LIDAR=1 ./rtabmap_laser_mapping.sh              # /scan already published, skip driver
-LASER_YAW_DEG=180 ./rtabmap_laser_mapping.sh         # use when odom arrow is opposite to the S2 printed arrow
+./start_rtabmap_laser.sh                           # mapping only
+BAG=~/bags/lidar_$(date +%Y%m%d) ./start_rtabmap_laser.sh   # mapping + record bag
+SKIP_LIDAR=1 ./start_rtabmap_laser.sh              # /scan already published, skip driver
+LASER_YAW_DEG=180 ./start_rtabmap_laser.sh         # use when odom arrow is opposite to the S2 printed arrow
+QUIET=1 ./start_rtabmap_laser.sh                   # clean console, node output -> log files
+NO_LOG=1 ./start_rtabmap_laser.sh                  # no console output and no log files
 ```
 
+## Logs
+
+| Variable | Default | Effect |
+|---|---|---|
+| `QUIET` | `0` | `1` = keep the console clean; the rtabmap launch output goes to `$LOG_FILE` instead of the terminal |
+| `NO_LOG` | `0` | `1` = no log files at all: every node output is discarded (`/dev/null`), implies `QUIET=1` |
+| `LOG_LEVEL` | (launch default `info`) | forwarded to the launch as `log_level:=<level>` (`info`/`warn`/`error`/`debug`); `QUIET=1` defaults it to `warn` |
+| `LOG_DIR` | `/tmp` | directory for all log files (created if missing) |
+| `LOG_FILE` | `$LOG_DIR/lidar_rtabmap.log` | rtabmap / icp_odometry output |
+
+Log files written: `lidar_rtabmap.log`, `lidar_rplidar.log`,
+`lidar_static_base_link.log`, `lidar_static_tf.log`, `lidar_bag.log`.
+With `QUIET=1` the script prints where they are; follow the rtabmap one with
+`tail -f /tmp/lidar_rtabmap.log`.
+
+Note: `NO_LOG=1` only silences the *nodes'* stdout/stderr. ROS 2 still writes
+its own logs to `~/.ros/log/` and rtabmap still keeps its map database in
+`~/.ros/rtabmap.db`.
+
+Note: rtabmap rewrites the `.ini` with its full parameter set when it exits,
+so the file grows from the 2 hand-written ICP lines to a full dump.
+
+## Stopping
+
+`start_rtabmap_laser.sh` starts the driver / static TF / bag recorder with
+`setsid`, so those do not receive the terminal's Ctrl+C. The script's own trap
+cleans them up on Ctrl+C, but if the script is killed (`kill -9`, closed
+terminal, crash) they stay behind and keep `/dev/ttyUSB0` busy. Use:
+
+```bash
+./stop_rtabmap_laser.sh                    # SIGTERM everything, SIGKILL what survives
+DRY_RUN=1 ./stop_rtabmap_laser.sh          # only list what would be stopped
+KEEP_DRIVER=1 ./stop_rtabmap_laser.sh      # keep rplidar_node (owned by someone else)
+```
+
+If the script was stopped with Ctrl+Z, it is suspended and Ctrl+C no longer
+reaches it — use `kill -TERM %1` (the stop script also resumes stopped
+processes so the pending SIGTERM is delivered), or `fg` and then Ctrl+C.
+
 Environment overrides: `SCAN_TOPIC` (/scan), `LASER_FRAME` (laser),
-`BASE_FRAME` (base_footprint), `LASER_Z` (0.20), `SERIAL_PORT` (/dev/ttyUSB0),
-`ANGLE_COMPENSATE` (true), `SCAN_MODE` (DenseBoost), `CFG`
-(./rtabmap_laser_mapping.ini), `BAG` (empty), `SKIP_LIDAR` (0).
+`BASE_FRAME` (base_footprint), `BASE_LINK_FRAME` (base_link), `BASE_LINK_Z`
+(0.10), `LASER_Z` (0.20), `SERIAL_PORT` (/dev/ttyUSB0), `ANGLE_COMPENSATE`
+(true), `SCAN_MODE` (DenseBoost), `CFG`
+(`<script dir>/rtabmap_laser_mapping.ini`), `BAG` (empty), `SKIP_LIDAR` (0),
+`QUIET` (0), `NO_LOG` (0), `LOG_LEVEL` (launch default), `LOG_DIR` (/tmp).
+
+The script can be started from any working directory: the `.ini` and
+`stop_rtabmap_laser.sh` are resolved relative to the script itself (absolute
+paths), and the effective config file is printed on startup.
 
 Prerequisite: `rplidar_ros` workspace (sourced by the script), user in the `dialout` group.
 
