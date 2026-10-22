@@ -1,0 +1,47 @@
+# slam_toolbox 非同步 (async) 2D SLAM 設定
+# 適用於 ROS2 Humble / Jazzy
+slam_toolbox:
+  ros__parameters:
+    # 是否使用 latching topics（發送所有累積的 map）
+    use_latch: true
+
+    # --- 2D SLAM 基本參數 ---
+    # 地圖解析度（每格多少米）
+    resolution: 0.05
+
+    # 地圖範圍設定
+    max_laser_range: 12.0
+    min_laser_range: 0.1
+
+    # 掃描配準的迭代次數
+    scan_match_threshold: 0.995
+    loop_match_minimum_chain_size: 10
+    loop_match_maximum_variance_coarse: 3.0
+    loop_match_maximum_variance_fine: 0.5
+
+    # --- 機器人模型 ---
+    # 差動驅動（diff drive）：false
+    # 全向驅動：true
+    transform_publish_period: 0.05
+    enable_loop_closure: true
+    do_loop_closure: true
+
+    # 地圖更新策略
+    map_update_interval: 5.0
+    scan_buffer_size: 30
+    scan_buffer_maximum_scan_distance: 10.0
+
+    # 偵測到大範圍未對齊時自動跳出（避免地圖錯亂）
+    minimum_travel_distance: 0.0
+    minimum_travel_heading: 0.0
+    minimum_time_interval: 0.0
+
+    # 輸出的座標系
+    odom_frame: odom
+    map_frame: map
+    base_frame: base_footprint
+    scan_topic: /scan
+
+    # 提供「map->odom」tf（若 false，則外部必須提供）
+    publish_map_occupancy_grid: true
+    set_initial_pose: false

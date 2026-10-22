@@ -502,11 +502,41 @@ nav2 用 slam_toolbox 的 `/map` 與 `map→odom`，rtabmap 只需要提供
 （4 核板負載會到 40~50，planner 只剩 1.2 Hz）。
 把 rtabmap 的 SLAM node 關掉、或用 scan-only 的 launch，負載立刻下降。
 
+## 12. 另一條 SLAM 流程：slam_toolbox + rf2o
+
+除了 rtabmap 那套，板上還有一條 **`rf2o 提供 odom`、`slam_toolbox 提供地圖`** 的流程，
+腳本在 `/nvt_ros2_example/slam_toolbox_rf2o/`（`start_slam_toolbox_rf2o.sh` /
+`stop_slam_toolbox_rf2o.sh`，骨架與 rtabmap 那套相同：PID 檔、QUIET/NO_LOG、
+路徑與腳本位置無關、Ctrl+C 自動收乾淨）。細節見 `slam_toolbox_rf2o/README_start_stop.md`。
+
+分工與 TF 樹：
+
+```
+rplidar_ros   -> /scan
+rf2o          -> /odom_rf2o + odom -> base_footprint   (動態)
+slam_toolbox  -> /map        + map   -> odom            (動態)
+static tf     -> base_footprint -> base_link -> laser
+```
+
+```bash
+# rf2o_laser_odometry 需自行編譯（板上已建於 /root/rf2o_ws）
+git clone -b ros2 https://github.com/MAPIRlab/rf2o_laser_odometry.git
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+```
+
+**兩個坑**：
+- 不要用空值參數（`-p init_pose_from_topic:=` 會被 rcl 拒絕 → node abort），改用 `--params-file`
+- `set -o pipefail` 下 `ps` 失敗會讓 stop script 提早結束 → 記得加 `|| true`
+
 ## 附錄：本次移植實際修改的檔案
 | 檔案 | 修改 |
 |---|---|
 | `rtabmap/lidar/start_rtabmap_laser.sh` | 移除 `exec`、改用 PID 檔記錄程序、ini/停止腳本改相對腳本位置解析、`QUIET`/`NO_LOG`/`LOG_LEVEL`/`LOG_DIR`、`odom_topic:=/odom`、`scan_cloud_topic:=/scan_cloud_unused`（解死鎖） |
 | `rtabmap/lidar/stop_rtabmap_laser.sh` | 新增（PID 檔 + pattern 雙機制、stopped 行程 SIGCONT、群組/單行程判斷） |
+| `slam_toolbox_rf2o/start_slam_toolbox_rf2o.sh` | 新增（rf2o odom + slam_toolbox 地圖，rtabmap 那套的骨架） |
+| `slam_toolbox_rf2o/stop_slam_toolbox_rf2o.sh` | 新增（同上） |
+| `slam_toolbox_rf2o/slam_toolbox_rf2o.yaml`、`rf2o_params.yaml` | 新增（參數） |
+| `slam_toolbox_rf2o/README_start_stop.md` | 新增（流程說明） |
 | `rtabmap/lidar/nav2_slam_rviz.rviz` | 新增（SLAM + Nav2 顯示） |
 | `rtabmap/lidar/README.md` | 說明更新 |
 | `porting_readme.md` | 新增（本文件） |

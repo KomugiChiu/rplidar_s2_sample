@@ -161,7 +161,9 @@ for pid in $(match_pids "${SWEEP_PATTERNS[@]}"); do
   # Only a session leader may be killed as a whole group (pgid == pid).
   # The rtabmap/icp_odometry nodes are children of the launch and share its
   # process group, so they have to be signalled individually.
-  pgid="$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')"
+  # NOTE: `|| true` is required: with pipefail a failing ps (the process
+  # disappeared between pgrep and ps) would abort the whole script.
+  pgid="$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ' || true)"
   if [ -n "$pgid" ] && [ "$pgid" = "$pid" ]; then
     add_target "$pid" "group" "sweep"
   else
