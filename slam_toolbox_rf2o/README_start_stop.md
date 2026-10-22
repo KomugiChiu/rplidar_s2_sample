@@ -33,7 +33,7 @@ map
 ├── stop_slam_toolbox_rf2o.sh      # 收掉整條流程（含孤兒）
 ├── slam_toolbox_rf2o.yaml         # slam_toolbox 參數
 ├── rf2o_params.yaml               # rf2o 參數
-├── rviz_slam_toolbox_rf2o.rviz    # 這條流程專用的 RViz（map/scan/odom/TF）
+├── rviz_slam_toolbox_rf2o.rviz    # 這條流程專用 RViz（map/scan/odom/TF + costmap/plan/footprint）
 ├── nav2/
 │   ├── start_nav2_rf2o.sh         # 起 Nav2（吃這條流程的 /map + /odom_rf2o）
 │   ├── stop_nav2_rf2o.sh
@@ -128,6 +128,9 @@ SKIP_CHECK=1 ./nav2/start_nav2_rf2o.sh        # 跳過 /map + TF 前置檢查
   節點名稱、`/cmd_vel`、costmap topic 都一樣，會互相打架。
 - PID 檔 `/tmp/slam_toolbox_rf2o_nav2/pids`，log 在
   `/tmp/slam_toolbox_rf2o_nav2/logs/`。
+- `rviz_slam_toolbox_rf2o.rviz` 已含 Nav2 顯示：Global Costmap、Local Costmap、
+  Nav2 Plan（`/plan`）、Robot Footprint（`/local_costmap/published_footprint`）、
+  Goal Pose（`/goal_pose`），工具列多一個 **2D Goal Pose**。
 - 這份 params 沿用 rtabmap 的調參，log 會出現
   `configured inflation radius (0.150) is smaller than the computed inscribed radius (0.225)`
   的 ERROR；那是既有設定（inflation 0.15），不是這條流程新增的問題。
