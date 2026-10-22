@@ -532,13 +532,43 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 **四個坑**：
 - 不要用空值參數（`-p init_pose_from_topic:=` 會被 rcl 拒絕 → node abort），改用 `--params-file`
 - `set -o pipefail` 下 `ps` 失敗會讓 stop script 提早結束 → 記得加 `|| true`
-- **rf2o 只在第一張掃描時讀一次 TF**：static TF 還沒起來就啟動 rf2o 的話，
-  `lookupTransform` 失敗後它會默默假設 `laser == base`，odom 整個轉 180°
-  （往前推 x 變小）→ script 要先等 `tf2_echo base_footprint laser` 成功再啟動 rf2o。
-  正常啟動時 rf2o log 第一行會是 `Laser odom yaw = 3.141593` / `Robot-base odom yaw = 0`
+- **rf2o 只在第一張掃描時讀一次 TF**：static TF 還沒進到 rf2o 自己的 buffer
+  （剛開機 DDS discovery 慢 1～2 秒）時，`lookupTransform` 失敗後它會默默假設
+  `laser == base`，odom 整個轉 180°（往前推 x 變小）。
+  **只等 `tf2_echo` 不夠**（那是別支程式的 buffer，板子重開後實測照樣踩到）→
+  板上已套用 `slam_toolbox_rf2o/patches/rf2o_laser_tf_retry.patch`：
+  取不到 TF 就跳過這張掃描、下一張再試，成功才初始化。
+  正常 log 會先有幾行 `retrying on the next scan`，之後
+  `Laser odom yaw = ±3.1414` / `Robot-base odom yaw ≈ 0`
 - slam_toolbox 的 sync 模式在這塊 4 核 ARM 板上會吃到 ~220% CPU（站著不動也每張掃描都算）；
   改 `online_async_launch.py` + `minimum_travel_distance: 0.2` / `minimum_time_interval: 0.5`
   後降到 ~3%
+
+### Nav2（吃 slam_toolbox + rf2o 這條流程）
+
+腳本在 `slam_toolbox_rf2o/nav2/`（`start_nav2_rf2o.sh` / `stop_nav2_rf2o.sh` /
+`nav2_params_rf2o.yaml`），行為與 rtabmap 那套 Nav2 相同（PID 檔、背景執行、
+`START_DRIVER` / `TRANSLATION_ONLY` / `SKIP_CHECK` 選項）。
+
+```bash
+./start_slam_toolbox_rf2o.sh        # 先起 SLAM
+./nav2/start_nav2_rf2o.sh           # 再起 Nav2（約 18 秒返回）
+./nav2/stop_nav2_rf2o.sh            # 停（KEEP_DRIVER=1 可留 driver）
+```
+
+啟動參數 `slam:=False use_localization:=False`：**不起**第二份 slam_toolbox，
+也不起 amcl / map_server。與 rtabmap 版的差異只有：
+
+| 項目 | rtabmap 版 | 這條流程 |
+|---|---|---|
+| `odom_topic`（controller_server / bt_navigator） | `/odom` | `/odom_rf2o` |
+| global costmap static layer | `/rtabmap/map` | `/map` |
+| BT XML 路徑 | `/nvt_ros2_example/nav2/behavior_trees/` | `/nvt_ros2_example/slam_toolbox_rf2o/nav2/behavior_trees/` |
+
+實測（板上、不送 goal）：6 個 lifecycle node 全部 `active [3]`，
+`controller_server` / `bt_navigator` 訂 `/odom_rf2o`，`global_costmap` 訂 `/map`
+（大小與 slam_toolbox 的 map 一致），local/global costmap 與 collision_monitor 訂 `/scan`。
+**兩套 Nav2 不可同時跑**（節點名稱與 `/cmd_vel` 相同）。
 
 ## 附錄：本次移植實際修改的檔案
 | 檔案 | 修改 |
@@ -549,6 +579,9 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 | `slam_toolbox_rf2o/stop_slam_toolbox_rf2o.sh` | 新增（同上） |
 | `slam_toolbox_rf2o/slam_toolbox_rf2o.yaml`、`rf2o_params.yaml` | 新增（參數） |
 | `slam_toolbox_rf2o/README_start_stop.md` | 新增（流程說明） |
+| `slam_toolbox_rf2o/nav2/start_nav2_rf2o.sh`、`stop_nav2_rf2o.sh` | 新增（吃 `/map` + `/odom_rf2o` 的 Nav2，`slam:=False use_localization:=False`） |
+| `slam_toolbox_rf2o/nav2/nav2_params_rf2o.yaml`、`behavior_trees/navigate_to_pose_bt.xml`、`translation_only.py` | 新增（odom_topic=/odom_rf2o、static layer=/map） |
+| `slam_toolbox_rf2o/patches/rf2o_laser_tf_retry.patch` | 新增（rf2o 取不到雷射 TF 時重試，修開機後 odom 轉 180°） |
 | `rtabmap/lidar/nav2_slam_rviz.rviz` | 新增（SLAM + Nav2 顯示） |
 | `rtabmap/lidar/README.md` | 說明更新 |
 | `porting_readme.md` | 新增（本文件） |

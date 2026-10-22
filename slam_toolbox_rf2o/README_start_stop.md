@@ -33,7 +33,15 @@ map
 ├── stop_slam_toolbox_rf2o.sh      # 收掉整條流程（含孤兒）
 ├── slam_toolbox_rf2o.yaml         # slam_toolbox 參數
 ├── rf2o_params.yaml               # rf2o 參數
-└── rviz_slam_toolbox_rf2o.rviz    # 這條流程專用的 RViz（map/scan/odom/TF）
+├── rviz_slam_toolbox_rf2o.rviz    # 這條流程專用的 RViz（map/scan/odom/TF）
+├── nav2/
+│   ├── start_nav2_rf2o.sh         # 起 Nav2（吃這條流程的 /map + /odom_rf2o）
+│   ├── stop_nav2_rf2o.sh
+│   ├── nav2_params_rf2o.yaml      # odom_topic=/odom_rf2o、static layer 讀 /map
+│   ├── translation_only.py        # /cmd_vel → /cmd_vel_straight（只平移不旋轉）
+│   └── behavior_trees/navigate_to_pose_bt.xml
+└── patches/
+    └── rf2o_laser_tf_retry.patch  # rf2o 取 TF 失敗會重試（見下面坑 3）
 ```
 
 ```bash
@@ -80,6 +88,50 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 （板上已建好，`/root/rf2o_ws/install/rf2o_laser_odometry`；編譯約 3 分 40 秒，
 依賴 rclcpp / sensor_msgs / nav_msgs / tf2 / Eigen / Boost 板上已有，可跳過 rosdep。）
 
+## Nav2（吃這條流程的 topic）
+
+`nav2/start_nav2_rf2o.sh` 起 Nav2，**不吃底圖、也不自己跑 SLAM**：
+
+```bash
+cd /nvt_ros2_example/slam_toolbox_rf2o
+./start_slam_toolbox_rf2o.sh        # 1. 先有 /map 與 map->odom
+./nav2/start_nav2_rf2o.sh           # 2. 再起 Nav2（背景，約 18 秒返回）
+./nav2/stop_nav2_rf2o.sh            # 停 Nav2（預設連底盤 driver 一起收）
+KEEP_DRIVER=1 ./nav2/stop_nav2_rf2o.sh   # driver 留著
+DRY_RUN=1 ./nav2/stop_nav2_rf2o.sh       # 只列出會停哪些程序
+```
+
+啟動參數是 `slam:=False use_localization:=False` → 不會起第二份 slam_toolbox，
+也不會起 amcl / map_server。Nav2 直接吃這條流程的 topic：
+
+| Nav2 端 | 來源 |
+|---|---|
+| `odom_topic`（controller_server / bt_navigator） | `/odom_rf2o` |
+| global costmap static layer | `/map`（slam_toolbox，transient local） |
+| local/global costmap obstacle layer、collision_monitor | `/scan` |
+| TF | `map → odom → base_footprint → base_link → laser` |
+
+其他選項：
+
+```bash
+START_DRIVER=0 ./nav2/start_nav2_rf2o.sh      # 底盤 driver 已經在跑，不要再起一份
+TRANSLATION_ONLY=0 ./nav2/start_nav2_rf2o.sh  # 允許原地旋轉（預設只平移）
+SKIP_CHECK=1 ./nav2/start_nav2_rf2o.sh        # 跳過 /map + TF 前置檢查
+```
+
+預設 `TRANSLATION_ONLY=1`：`translation_only.py` 把 `/cmd_vel` 的角速度歸零後
+送到 `/cmd_vel_straight`，底盤 driver 訂這個 topic。純平移（mecanum 橫移）對
+雷射 odom 最友善；要測旋轉再設 0。
+
+注意：
+- **不要同時跑 rtabmap 那套 Nav2**（`/nvt_ros2_example/nav2/start_nav2_rtabmap.sh`）：
+  節點名稱、`/cmd_vel`、costmap topic 都一樣，會互相打架。
+- PID 檔 `/tmp/slam_toolbox_rf2o_nav2/pids`，log 在
+  `/tmp/slam_toolbox_rf2o_nav2/logs/`。
+- 這份 params 沿用 rtabmap 的調參，log 會出現
+  `configured inflation radius (0.150) is smaller than the computed inscribed radius (0.225)`
+  的 ERROR；那是既有設定（inflation 0.15），不是這條流程新增的問題。
+
 ## 三個踩過的坑
 
 1. **不要用空值參數**：`ros2 run ... -p init_pose_from_topic:=` 會被 rcl 的參數解析器
@@ -87,13 +139,24 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 2. **`set -o pipefail` + 會失敗的 `ps`**：stop script 裡
    `pgid="$(ps -o pgid= -p "$pid" | tr -d ' ')"` 在行程剛好消失時會讓整支腳本提早結束
    → 必須加 `|| true`。
-3. **rf2o 只在第一張掃描時讀一次 TF**：static TF 還沒起來就啟動的話，log 會出現
-   `"base_footprint" passed to lookupTransform argument target_frame does not exist`，
-   然後它默默假設 `laser == base`，odom 就整個轉了 180°（往前推 x 變小）。
-   → start script 現在會先等 `tf2_echo base_footprint laser` 成功才啟動 rf2o。
-   驗證方式：rf2o log 第一行應該是
-   `Laser odom [x,y,yaw]=[0.000000 0.000000 3.141593]` +
-   `Robot-base odom [x,y,yaw]=[0.000000 0.000000 0.000000]`。
+3. **rf2o 只在第一張掃描時讀一次 TF**：static TF 還沒進到 rf2o 自己的 TF buffer
+   （剛開機 DDS discovery 可能慢個 1～2 秒）時，log 會出現
+   `"base_footprint" passed to lookupTransform argument target_frame does not exist`；
+   原版程式接著默默假設 `laser == base`，odom 就整個轉了 180°（往前推 x 變小）。
+   → 只靠 start script 的 `tf2_echo` 等待**不夠**（那是另一支程式的 TF buffer，證明不了
+   rf2o 自己的 buffer 已有資料；板子重開後實測還是會踩到）。
+   正解是 `patches/rf2o_laser_tf_retry.patch`：`setLaserPoseFromTf()` 失敗就
+   `return`，下一張掃描再試，直到成功才初始化。板上已套用並重新編譯。
+   驗證方式：rf2o log 會先出現幾行 `retrying on the next scan`，之後
+   `Laser odom [x,y,yaw]=[0.000 0.000 ±3.1414]` + `Robot-base odom [x,y,yaw]=[0.000 0.000 ~0]`。
+   套用方式（板上）：
+
+   ```bash
+   cd /root/rf2o_ws/src/rf2o_laser_odometry
+   patch -p1 < /path/to/rf2o_laser_tf_retry.patch
+   cd /root/rf2o_ws && source /opt/ros/jazzy/setup.bash
+   colcon build --packages-select rf2o_laser_odometry --parallel-workers 1   # 約 1 分 20 秒
+   ```
 
 ## 驗收
 
@@ -102,4 +165,11 @@ ros2 topic hz /scan          # ~10 Hz
 ros2 topic hz /odom_rf2o     # ~10 Hz
 ros2 topic echo /map --once  # 有 width/height/resolution
 ros2 run tf2_ros tf2_echo map laser   # z = 0.20
+
+# Nav2 起來後（不用送 goal）
+ros2 lifecycle get /controller_server    # active [3]
+ros2 param get /controller_server odom_topic   # /odom_rf2o
+ros2 topic info /odom_rf2o -v            # controller_server / bt_navigator 有訂
+ros2 topic info /map -v                  # global_costmap 有訂
+ros2 topic echo /global_costmap/costmap --once --field info   # 跟 /map 一樣大
 ```
