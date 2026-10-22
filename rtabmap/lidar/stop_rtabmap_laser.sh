@@ -24,6 +24,8 @@ KEEP_DRIVER="${KEEP_DRIVER:-0}"
 DRY_RUN="${DRY_RUN:-0}"
 WAIT_SECS="${WAIT_SECS:-10}"
 PID_FILE="${PID_FILE:-/tmp/rtabmap_laser/pids}"
+# extra PID files of the other flows of this project (e.g. the icp_odom flow)
+EXTRA_PID_FILES="${EXTRA_PID_FILES:-/tmp/icp_odom/pids}"
 
 # Command line patterns of this flow (matched with pgrep/pkill -f).
 # `ros2 run` and `ros2 launch` fork the real node, so both the wrapper and
@@ -118,14 +120,15 @@ add_target() {  # pid mode name
 echo "== laser-mapping processes =="
 
 HAVE_PID_FILE=0
-if [ -s "$PID_FILE" ]; then
+for pf in $PID_FILE $EXTRA_PID_FILES; do
+  [ -s "$pf" ] || continue
   HAVE_PID_FILE=1
   while read -r pid name mode; do
     [ -n "${pid:-}" ] || continue
     [ -d "/proc/$pid" ] || continue
     add_target "$pid" "${mode:-proc}" "${name:-pid$pid}"
-  done < "$PID_FILE"
-fi
+  done < "$pf"
+done
 
 # Pattern sweep: the rtabmap family always, the driver only when there is no
 # PID file (then we cannot know whether we started it).
@@ -156,7 +159,7 @@ done
 
 if [ "${#TARGET_PIDS[@]}" -eq 0 ]; then
   echo "  (nothing running)"
-  [ "$HAVE_PID_FILE" = "1" ] && rm -f "$PID_FILE"
+  for pf in $PID_FILE $EXTRA_PID_FILES; do rm -f "$pf"; done
   exit 0
 fi
 
@@ -230,7 +233,7 @@ if [ -n "$STUCK" ]; then
   exit 1
 fi
 
-rm -f "$PID_FILE"
+for pf in $PID_FILE $EXTRA_PID_FILES; do rm -f "$pf"; done
 echo "== all stopped =="
 if [ -f /opt/ros/jazzy/setup.bash ]; then
   # shellcheck disable=SC1091
