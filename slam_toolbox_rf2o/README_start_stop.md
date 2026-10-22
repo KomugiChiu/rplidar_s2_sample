@@ -80,13 +80,20 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 （板上已建好，`/root/rf2o_ws/install/rf2o_laser_odometry`；編譯約 3 分 40 秒，
 依賴 rclcpp / sensor_msgs / nav_msgs / tf2 / Eigen / Boost 板上已有，可跳過 rosdep。）
 
-## 兩個踩過的坑
+## 三個踩過的坑
 
 1. **不要用空值參數**：`ros2 run ... -p init_pose_from_topic:=` 會被 rcl 的參數解析器
    拒絕（`RCLInvalidROSArgsError`）→ node 直接 abort。改成用 `--params-file`。
 2. **`set -o pipefail` + 會失敗的 `ps`**：stop script 裡
    `pgid="$(ps -o pgid= -p "$pid" | tr -d ' ')"` 在行程剛好消失時會讓整支腳本提早結束
    → 必須加 `|| true`。
+3. **rf2o 只在第一張掃描時讀一次 TF**：static TF 還沒起來就啟動的話，log 會出現
+   `"base_footprint" passed to lookupTransform argument target_frame does not exist`，
+   然後它默默假設 `laser == base`，odom 就整個轉了 180°（往前推 x 變小）。
+   → start script 現在會先等 `tf2_echo base_footprint laser` 成功才啟動 rf2o。
+   驗證方式：rf2o log 第一行應該是
+   `Laser odom [x,y,yaw]=[0.000000 0.000000 3.141593]` +
+   `Robot-base odom [x,y,yaw]=[0.000000 0.000000 0.000000]`。
 
 ## 驗收
 

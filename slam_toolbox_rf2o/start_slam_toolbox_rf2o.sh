@@ -176,6 +176,28 @@ remember_pid "$!" tf_laser group
 sleep 1
 
 # --- rf2o: laser odometry -> /odom_rf2o + odom->base_footprint ---
+# rf2o reads the laser mounting (base_footprint <- laser) from TF exactly ONCE,
+# when the first scan arrives.  If the static TF is not up yet it logs
+#   'base_footprint passed to lookupTransform argument target_frame does not exist'
+# and silently falls back to "laser == base": the odometry then comes out
+# rotated by the mounting angle (180 deg on this robot) and driving forward
+# decreases odom x.  Wait for the TF chain before starting the node.
+TF_WAIT="${TF_WAIT:-30}"
+waited=0
+while [ "$waited" -lt "$TF_WAIT" ]; do
+  # `|| true` keeps pipefail from turning timeout's 124 (it never exits) into
+  # a "not ready" verdict when the lookup actually succeeded.
+  if ( timeout 3 ros2 run tf2_ros tf2_echo "$BASE_FRAME" "$LASER_FRAME" 2>&1 || true ) \
+       | grep -q "Translation"; then
+    break
+  fi
+  sleep 2
+  waited=$((waited + 2))
+done
+if [ "$waited" -ge "$TF_WAIT" ]; then
+  echo "WARN: TF $BASE_FRAME -> $LASER_FRAME not ready after ${TF_WAIT}s (odom may be rotated)"
+fi
+
 # NOTE: the parameters come from a file; an empty value on the command line
 # (e.g. -p init_pose_from_topic:=) is rejected by the rcl argument parser.
 RF2O_PARAMS="${RF2O_PARAMS:-$SCRIPT_DIR/rf2o_params.yaml}"

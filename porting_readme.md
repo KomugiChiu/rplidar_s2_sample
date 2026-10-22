@@ -529,9 +529,13 @@ git clone -b ros2 https://github.com/MAPIRlab/rf2o_laser_odometry.git
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
 
-**三個坑**：
+**四個坑**：
 - 不要用空值參數（`-p init_pose_from_topic:=` 會被 rcl 拒絕 → node abort），改用 `--params-file`
 - `set -o pipefail` 下 `ps` 失敗會讓 stop script 提早結束 → 記得加 `|| true`
+- **rf2o 只在第一張掃描時讀一次 TF**：static TF 還沒起來就啟動 rf2o 的話，
+  `lookupTransform` 失敗後它會默默假設 `laser == base`，odom 整個轉 180°
+  （往前推 x 變小）→ script 要先等 `tf2_echo base_footprint laser` 成功再啟動 rf2o。
+  正常啟動時 rf2o log 第一行會是 `Laser odom yaw = 3.141593` / `Robot-base odom yaw = 0`
 - slam_toolbox 的 sync 模式在這塊 4 核 ARM 板上會吃到 ~220% CPU（站著不動也每張掃描都算）；
   改 `online_async_launch.py` + `minimum_travel_distance: 0.2` / `minimum_time_interval: 0.5`
   後降到 ~3%
