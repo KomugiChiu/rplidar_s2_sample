@@ -73,11 +73,23 @@ ancestor_pids() {
   echo "${out# }"
 }
 
-# Still existing subset of a PID list.
+# A pid counts as alive only if the process exists and is not a zombie.
+pid_alive() {
+  local st
+  st="$(ps -o stat= -p "$1" 2>/dev/null | tr -d ' ')" || return 1
+  [ -n "$st" ] || return 1
+  case "$st" in Z*) return 1 ;; esac
+  return 0
+}
+
+# Still existing subset of a PID list (zombies are already dead).
 alive_pids() {
-  local pid out=""
+  local pid st out=""
   for pid in $1; do
-    [ -d "/proc/$pid" ] && out="$out $pid"
+    st="$(ps -o stat= -p "$pid" 2>/dev/null | tr -d ' ')" || continue
+    [ -n "$st" ] || continue
+    case "$st" in Z*) continue ;; esac
+    out="$out $pid"
   done
   echo "${out# }"
 }
@@ -125,7 +137,7 @@ for pf in $PID_FILE $EXTRA_PID_FILES; do
   HAVE_PID_FILE=1
   while read -r pid name mode; do
     [ -n "${pid:-}" ] || continue
-    [ -d "/proc/$pid" ] || continue
+    pid_alive "$pid" || continue
     add_target "$pid" "${mode:-proc}" "${name:-pid$pid}"
   done < "$pf"
 done
@@ -183,7 +195,7 @@ end=$((SECONDS + WAIT_SECS))
 while [ "$SECONDS" -lt "$end" ]; do
   remaining=""
   for pid in "${TARGET_PIDS[@]}"; do
-    [ -d "/proc/$pid" ] && remaining="$remaining $pid"
+    pid_alive "$pid" && remaining="$remaining $pid"
   done
   [ -z "$remaining" ] && break
   sleep 0.5
@@ -192,7 +204,7 @@ done
 # still alive?
 STUCK=""
 for i in "${!TARGET_PIDS[@]}"; do
-  [ -d "/proc/${TARGET_PIDS[$i]}" ] && STUCK="$STUCK ${TARGET_PIDS[$i]}"
+  pid_alive "${TARGET_PIDS[$i]}" && STUCK="$STUCK ${TARGET_PIDS[$i]}"
 done
 if [ -n "$STUCK" ]; then
   stopped="$(stopped_pids "$STUCK")"
@@ -206,7 +218,7 @@ fi
 
 STUCK=""
 for i in "${!TARGET_PIDS[@]}"; do
-  [ -d "/proc/${TARGET_PIDS[$i]}" ] && STUCK="$STUCK ${TARGET_PIDS[$i]}"
+  pid_alive "${TARGET_PIDS[$i]}" && STUCK="$STUCK ${TARGET_PIDS[$i]}"
 done
 if [ -n "$STUCK" ]; then
   echo "-- sending SIGKILL to$STUCK"
@@ -218,7 +230,7 @@ if [ -n "$STUCK" ]; then
     sleep 0.5
     STUCK=""
     for i in "${!TARGET_PIDS[@]}"; do
-      [ -d "/proc/${TARGET_PIDS[$i]}" ] && STUCK="$STUCK ${TARGET_PIDS[$i]}"
+      pid_alive "${TARGET_PIDS[$i]}" && STUCK="$STUCK ${TARGET_PIDS[$i]}"
     done
     [ -z "$STUCK" ] && break
   done
@@ -226,7 +238,7 @@ fi
 
 STUCK=""
 for i in "${!TARGET_PIDS[@]}"; do
-  [ -d "/proc/${TARGET_PIDS[$i]}" ] && STUCK="$STUCK ${TARGET_PIDS[$i]}"
+  pid_alive "${TARGET_PIDS[$i]}" && STUCK="$STUCK ${TARGET_PIDS[$i]}"
 done
 if [ -n "$STUCK" ]; then
   echo "STILL RUNNING:$STUCK"
