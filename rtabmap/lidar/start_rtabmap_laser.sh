@@ -47,6 +47,8 @@ BAG="${BAG:-}"
 # plain "odom" (a frame id must not start with a slash).
 ODOM_TOPIC="${ODOM_TOPIC:-/odom}"
 VO_FRAME_ID="${VO_FRAME_ID:-odom}"
+# dummy topic for the scan_cloud input of icp_odometry (nothing publishes it)
+SCAN_CLOUD_UNUSED="${SCAN_CLOUD_UNUSED:-/scan_cloud_unused}"
 case "$ODOM_TOPIC" in
   /*) ODOM_TOPIC_ABS="$ODOM_TOPIC" ;;
   *)  ODOM_TOPIC_ABS="/rtabmap/$ODOM_TOPIC" ;;
@@ -230,6 +232,11 @@ LAUNCH_ARGS=(
   icp_odometry:=true
   subscribe_scan:=true
   scan_topic:="$SCAN_TOPIC"
+  # icp_odometry also subscribes to /scan_cloud by default.  Nothing publishes
+  # it (only the rtabmap node could, and it waits for the odometry) -> the
+  # odometry never starts.  Point that input to a dummy topic, as rtabmap's own
+  # warning suggests ("remap one to a dummy topic name").
+  scan_cloud_topic:="$SCAN_CLOUD_UNUSED"
   frame_id:="$BASE_FRAME"
   odom_topic:="$ODOM_TOPIC"
   vo_frame_id:="$VO_FRAME_ID"

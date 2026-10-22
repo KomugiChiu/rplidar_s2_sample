@@ -409,14 +409,109 @@ rviz2 -d ~/Downloads/komugi/lidar/rtabmap/lidar/nav2_slam_rviz.rviz
 
 ---
 
-## 附錄：本次移植實際修改的檔案
+## 11. Nav2 這條鏈路的四個關鍵修正（都已實測成功）
 
+在這台 4 核板子上跑 `navigate_to_pose` 要同時滿足四件事，缺一個就會失敗：
+
+### 11.1 costmap 的 transform_tolerance 要蓋住 ICP 延遲
+
+雷射的 scan timestamp 比現在時間舊約 **120 ms**，而 `icp_odometry` 算完才發 TF
+（再多約 **100 ms** 的運算延遲）→ costmap 拿 scan 的 timestamp 去查 TF 永遠會
+「要求未來的資料」→ 訊息被丟 → costmap 沒有 observation → planner 等不到 → goal 失敗。
+
+```yaml
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      transform_tolerance: 0.5      # 預設 0.2 → 不夠
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      transform_tolerance: 0.5
+collision_monitor:
+  ros__parameters:
+    transform_tolerance: 0.5
+controller_server:
+  ros__parameters:
+    FollowPath:
+      transform_tolerance: 0.5      # MPPI plugin 內
+```
+
+> `transform_tolerance` 在 tf2 裡是「等待」逾時，不是外推容許；
+> 值必須 ≥ odom TF 相對於 scan 的落後量。
+
+### 11.2 地圖的 unknown 不能當成障礙
+
+slam_toolbox 的地圖有 80% 以上是 unknown；若 `track_unknown_space: true`，
+static layer 會把 unknown 全部變成 **致命障礙**，NavFn 完全找不到路。
+
+```yaml
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      track_unknown_space: false    # 預設 true → 改成 false
+```
+搭配 NavFn 的 `allow_unknown: true`（預設就是 true）才能讓 planner 穿過未掃描區。
+
+另外走道很窄時，`inflation_radius` 0.7 m 會把走道整個inflation 掉 → 降到 0.3。
+
+### 11.3 BT 的 action 等待要給夠時間
+
+板子負載（load 40~50 / 4 核）時，action server 的就緒檢查（service round trip）
+會超過預設逾時，BT 直接 abort：
+
+```
+Timed out while waiting for action server to acknowledge goal request for follow_path
+```
+
+`bt_loop_duration` 調大只是治標（BT 變慢）。正確做法是**自訂 BT XML**，
+在 action node 上給 `server_timeout`：
+
+```xml
+<!-- /nvt_ros2_example/nav2/behavior_trees/navigate_to_pose_bt.xml -->
+<ComputePathToPose server_timeout="20" goal="{goal}" path="{path}" .../>
+<FollowPath     server_timeout="20" path="{path}" .../>
+```
+```yaml
+bt_navigator:
+  ros__parameters:
+    bt_loop_duration: 20
+    bt_xml_dir: /nvt_ros2_example/nav2/behavior_trees
+    default_nav_to_pose_bt_xml: /nvt_ros2_example/nav2/behavior_trees/navigate_to_pose_bt.xml
+```
+> `default_nav_to_pose_bt_xml` 要寫**絕對路徑**；只寫檔名會報
+> `Couldn't open input XML file`（不會自動接 `bt_xml_dir`）。
+
+### 11.4 rtabmap 與 icp_odometry 的 scan_cloud 死鎖
+
+`icp_odometry` 預設同時訂閱 `/scan` 與 `/scan_cloud`；而 `/scan_cloud` 只有
+rtabmap SLAM node 會發，而它又要等 odom → **互相等待，odom 永遠不出來**，
+連帶 `odom→base_footprint` 的 TF 也沒有 → costmap 無法啟用。
+
+```bash
+# start_rtabmap_laser.sh 的 launch 參數加這行
+scan_cloud_topic:=/scan_cloud_unused     # 啞的 topic，rtabmap 官方建議的作法
+```
+判斷方式：`ros2 node info /rtabmap/icp_odometry` 會看到它訂閱 `/scan_cloud`，
+而 `ros2 topic hz /scan_cloud` 沒有資料。
+
+### 11.5 減負：不要同時跑兩套 SLAM
+
+nav2 用 slam_toolbox 的 `/map` 與 `map→odom`，rtabmap 只需要提供
+`odom→base_footprint`。同時跑 rtabmap 的 SLAM node 只是白燒 CPU
+（4 核板負載會到 40~50，planner 只剩 1.2 Hz）。
+把 rtabmap 的 SLAM node 關掉、或用 scan-only 的 launch，負載立刻下降。
+
+## 附錄：本次移植實際修改的檔案
 | 檔案 | 修改 |
 |---|---|
-| `rtabmap/lidar/start_rtabmap_laser.sh` | 移除 `exec`、改用 PID 檔記錄程序、ini/停止腳本改相對腳本位置解析、`QUIET`/`NO_LOG`/`LOG_LEVEL`/`LOG_DIR`、`odom_topic:=/odom` |
+| `rtabmap/lidar/start_rtabmap_laser.sh` | 移除 `exec`、改用 PID 檔記錄程序、ini/停止腳本改相對腳本位置解析、`QUIET`/`NO_LOG`/`LOG_LEVEL`/`LOG_DIR`、`odom_topic:=/odom`、`scan_cloud_topic:=/scan_cloud_unused`（解死鎖） |
 | `rtabmap/lidar/stop_rtabmap_laser.sh` | 新增（PID 檔 + pattern 雙機制、stopped 行程 SIGCONT、群組/單行程判斷） |
 | `rtabmap/lidar/nav2_slam_rviz.rviz` | 新增（SLAM + Nav2 顯示） |
 | `rtabmap/lidar/README.md` | 說明更新 |
+| `porting_readme.md` | 新增（本文件） |
+| 板上 `nav2_params.yaml` | `transform_tolerance` 0.1/0.2→0.5、`track_unknown_space` true→false、`inflation_radius` 0.7→0.3、`bt_loop_duration` 10→20 + 自訂 BT XML |
+| 板上 `nav2/behavior_trees/navigate_to_pose_bt.xml` | 新增（action node 加 `server_timeout="20"`） |
 | 板上 `Raspbot_Lib.py` ×4 | I2C bus 參數化（預設 19）、`read_byte()`、印出真正 I2C 錯誤 |
 | 板上 `Mcnamu_driver.py` ×2 | 讀值為 None 時記 log 跳過，不再 crash |
 | 板上 `/etc/ssh/sshd_config` | `PermitRootLogin yes`、`PasswordAuthentication yes` |
