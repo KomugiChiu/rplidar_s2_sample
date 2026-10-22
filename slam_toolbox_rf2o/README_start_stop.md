@@ -32,23 +32,40 @@ map
 ├── start_slam_toolbox_rf2o.sh     # 起整條流程（PID 檔 + 乾淨輸出選項）
 ├── stop_slam_toolbox_rf2o.sh      # 收掉整條流程（含孤兒）
 ├── slam_toolbox_rf2o.yaml         # slam_toolbox 參數
-└── rf2o_params.yaml               # rf2o 參數
+├── rf2o_params.yaml               # rf2o 參數
+└── rviz_slam_toolbox_rf2o.rviz    # 這條流程專用的 RViz（map/scan/odom/TF）
 ```
 
 ```bash
 cd /nvt_ros2_example/slam_toolbox_rf2o
-./start_slam_toolbox_rf2o.sh          # 建圖
-QUIET=1 ./start_slam_toolbox_rf2o.sh   # 主控台乾淨，node 輸出寫檔
+./start_slam_toolbox_rf2o.sh           # 建圖（背景執行，腳本立刻返回）
+QUIET=0 ./start_slam_toolbox_rf2o.sh   # 把 node 輸出顯示在主控台
 NO_LOG=1 ./start_slam_toolbox_rf2o.sh  # 完全不產生 log
 SLAM_MODE=localization ./start_slam_toolbox_rf2o.sh
-./stop_slam_toolbox_rf2o.sh           # 停止
+./stop_slam_toolbox_rf2o.sh            # 停止
 ```
 
 與 rtabmap 那套相同的行為：
 - 每個啟動的程序都記在 `/tmp/slam_toolbox_rf2o/pids`（`pid name mode`）
 - 已經有實例在跑時會拒絕啟動第二份
-- `Ctrl+C` 會觸發 trap → 呼叫 stop script → 全部收乾淨
-- 可從任何工作目錄執行（ini/yaml 與 stop script 都相對於腳本本身解析）
+- **啟動後立即返回，不佔住 console**（`setsid` + 背景），要停請跑 stop script
+- 可從任何工作目錄執行（yaml 與 stop script 都相對於腳本本身解析）
+- 只有啟動過程失敗（process 死掉）時，EXIT trap 才會把已起的東西收回來
+
+## 重要參數
+
+| 參數 | 預設 | 說明 |
+|---|---|---|
+| `LASER_YAW_DEG` | **180** | S2 實際安裝方向；與 `start_rtabmap_laser.sh` 相同（實測：往前推 20 cm，odom x 由 -0.150 → +0.386）。設 0 會讓 odom／地圖左右前後鏡像 |
+| `BASE_LINK_Z` / `LASER_Z` | 0.10 / 0.20 | `base_footprint → base_link → laser` 的高度 |
+| `QUIET` | 1 | 1 = 主控台只留摘要，node 輸出寫檔 |
+| `SLAM_MODE` | mapping | `mapping` = `online_async_launch.py`；`localization` = `localization_launch.py` |
+
+slam_toolbox 參數（`slam_toolbox_rf2o.yaml`）刻意調低負載：
+`online_async`（同步模式在這塊 4 核 ARM 板上會吃到 220% CPU）、
+`transform_publish_period: 0.1`、`minimum_travel_distance: 0.2`、
+`minimum_travel_heading: 0.2`、`minimum_time_interval: 0.5`
+（原本 0.0 = 站著不動也每張掃描都進 SLAM）。調整後 slam_toolbox 約 3% CPU。
 
 ## rf2o_laser_odometry 安裝（板上）
 

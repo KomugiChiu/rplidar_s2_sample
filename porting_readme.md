@@ -507,7 +507,8 @@ nav2 用 slam_toolbox 的 `/map` 與 `map→odom`，rtabmap 只需要提供
 除了 rtabmap 那套，板上還有一條 **`rf2o 提供 odom`、`slam_toolbox 提供地圖`** 的流程，
 腳本在 `/nvt_ros2_example/slam_toolbox_rf2o/`（`start_slam_toolbox_rf2o.sh` /
 `stop_slam_toolbox_rf2o.sh`，骨架與 rtabmap 那套相同：PID 檔、QUIET/NO_LOG、
-路徑與腳本位置無關、Ctrl+C 自動收乾淨）。細節見 `slam_toolbox_rf2o/README_start_stop.md`。
+路徑與腳本位置無關、**啟動後背景執行不佔 console**）。細節見
+`slam_toolbox_rf2o/README_start_stop.md`。
 
 分工與 TF 樹：
 
@@ -515,8 +516,12 @@ nav2 用 slam_toolbox 的 `/map` 與 `map→odom`，rtabmap 只需要提供
 rplidar_ros   -> /scan
 rf2o          -> /odom_rf2o + odom -> base_footprint   (動態)
 slam_toolbox  -> /map        + map   -> odom            (動態)
-static tf     -> base_footprint -> base_link -> laser
+static tf     -> base_footprint -> base_link -> laser   (LASER_YAW_DEG=180)
 ```
+
+**方向很重要**：`LASER_YAW_DEG` 預設 **180**（與 `start_rtabmap_laser.sh` 相同，
+實測往前推 odom x 會變大）。設成 0 會讓 odom／地圖鏡像，看起來就像
+「base_link 與 base_footprint 方向相反」。
 
 ```bash
 # rf2o_laser_odometry 需自行編譯（板上已建於 /root/rf2o_ws）
@@ -524,9 +529,12 @@ git clone -b ros2 https://github.com/MAPIRlab/rf2o_laser_odometry.git
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
 
-**兩個坑**：
+**三個坑**：
 - 不要用空值參數（`-p init_pose_from_topic:=` 會被 rcl 拒絕 → node abort），改用 `--params-file`
 - `set -o pipefail` 下 `ps` 失敗會讓 stop script 提早結束 → 記得加 `|| true`
+- slam_toolbox 的 sync 模式在這塊 4 核 ARM 板上會吃到 ~220% CPU（站著不動也每張掃描都算）；
+  改 `online_async_launch.py` + `minimum_travel_distance: 0.2` / `minimum_time_interval: 0.5`
+  後降到 ~3%
 
 ## 附錄：本次移植實際修改的檔案
 | 檔案 | 修改 |
