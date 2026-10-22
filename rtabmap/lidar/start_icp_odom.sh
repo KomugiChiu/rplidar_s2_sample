@@ -27,11 +27,11 @@ BASE_FRAME="${BASE_FRAME:-base_footprint}"
 BASE_LINK_FRAME="${BASE_LINK_FRAME:-base_link}"
 BASE_LINK_Z="${BASE_LINK_Z:-0.10}"     # base_footprint -> base_link height
 LASER_Z="${LASER_Z:-0.20}"              # lidar height above the floor
-# LASER_YAW_DEG: 0 or 180.  Default 0: the S2 is mounted with its printed
-# arrow pointing forward, so the laser's angle 0 IS the driving direction.
-# Use 180 only if the S2 is mounted with the arrow pointing backwards - the
-# TF must describe the real mounting, otherwise the odometry is mirrored.
-LASER_YAW_DEG="${LASER_YAW_DEG:-0}"
+# LASER_YAW_DEG: 0 or 180.  The TF must describe the real mounting of the S2,
+# otherwise the odometry is mirrored (driving forward would decrease the odom
+# x).  Default 180 - VERIFIED on this robot (pushing it forward increased
+# /odom's x).  To re-check: push the robot forward and watch /odom's x.
+LASER_YAW_DEG="${LASER_YAW_DEG:-180}"
 SERIAL_PORT="${SERIAL_PORT:-/dev/ttyUSB0}"
 ANGLE_COMPENSATE="${ANGLE_COMPENSATE:-true}"
 SCAN_MODE="${SCAN_MODE:-DenseBoost}"
