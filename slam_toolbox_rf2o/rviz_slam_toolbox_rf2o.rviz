@@ -83,6 +83,7 @@ Visualization Manager:
     Min Color: 0; 0; 0
     Min Intensity: 0
     Name: LaserScan (/scan)
+    Queue Size: 30
     Position Transformer: XYZ
     Selectable: true
     Size (Pixels): 3
@@ -116,6 +117,7 @@ Visualization Manager:
     Enabled: true
     Keep: 100
     Name: Odometry (rf2o /odom_rf2o)
+    Queue Size: 30
     Position Tolerance: 0.10000000149011612
     Shape:
       Alpha: 1
