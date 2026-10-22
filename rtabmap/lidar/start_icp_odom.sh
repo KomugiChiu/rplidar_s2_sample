@@ -27,11 +27,10 @@ BASE_FRAME="${BASE_FRAME:-base_footprint}"
 BASE_LINK_FRAME="${BASE_LINK_FRAME:-base_link}"
 BASE_LINK_Z="${BASE_LINK_Z:-0.10}"     # base_footprint -> base_link height
 LASER_Z="${LASER_Z:-0.20}"              # lidar height above the floor
-# LASER_YAW_DEG: 0 or 180.  The S2's scan angle 0 points along the arrow
-# printed on the device.  If that arrow points backwards relative to the
-# robot's driving direction, the pose in RViz ends up opposite to the S2
-# arrow -> use 180 so the laser's X axis (and with it the odometry and the
-# map) is aligned with the direction the robot actually drives.
+# LASER_YAW_DEG: 0 or 180.  Default 0: the S2 is mounted with its printed
+# arrow pointing forward, so the laser's angle 0 IS the driving direction.
+# Use 180 only if the S2 is mounted with the arrow pointing backwards - the
+# TF must describe the real mounting, otherwise the odometry is mirrored.
 LASER_YAW_DEG="${LASER_YAW_DEG:-0}"
 SERIAL_PORT="${SERIAL_PORT:-/dev/ttyUSB0}"
 ANGLE_COMPENSATE="${ANGLE_COMPENSATE:-true}"

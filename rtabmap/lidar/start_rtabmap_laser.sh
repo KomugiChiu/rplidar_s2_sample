@@ -186,11 +186,12 @@ fi
 
 # static TF chain: base_footprint -> base_link -> laser
 # (rtabmap needs TF scan->frame_id; nav2 consumes base_link).
-# LASER_YAW_DEG: 0 or 180.  Default 180 because the S2 on this board is
-# mounted with its printed arrow pointing backwards: the odom/map would then
-# be mirrored relative to the driving direction.  Use 0 if your S2 points
-# forward (or if you want the old behaviour).
-LASER_YAW_DEG="${LASER_YAW_DEG:-180}"
+# LASER_YAW_DEG: 0 or 180.  Default 0: the S2 is mounted with its printed
+# arrow pointing forward, so the laser's angle 0 IS the driving direction.
+# Use 180 only if you mount the S2 upside down (arrow pointing backwards) -
+# the TF must describe the real mounting, otherwise the odometry is mirrored
+# (driving forward would decrease the odom x).
+LASER_YAW_DEG="${LASER_YAW_DEG:-0}"
 if [ "$LASER_YAW_DEG" = "180" ]; then LQZ=1; LQW=0; else LQZ=0; LQW=1; fi
 # Static TF chain: base_footprint -> base_link -> laser.
 # LASER_Z is the lidar height above ground (footprint z=0); the laser
