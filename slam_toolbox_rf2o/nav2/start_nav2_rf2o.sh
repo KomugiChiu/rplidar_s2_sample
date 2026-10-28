@@ -17,9 +17,9 @@
 # does not occupy the console.  Stop it with stop_nav2_rf2o.sh.
 #
 # Usage (on board):
-#   ./start_nav2_rf2o.sh
+#   ./start_nav2_rf2o.sh                       # normal start (nav2 may rotate)
 #   START_DRIVER=0 ./start_nav2_rf2o.sh        # do not start the chassis driver
-#   TRANSLATION_ONLY=0 ./start_nav2_rf2o.sh    # allow rotation again (raw /cmd_vel)
+#   TRANSLATION_ONLY=1 ./start_nav2_rf2o.sh    # strip angular.z again (no rotation)
 #   SKIP_CHECK=1 ./start_nav2_rf2o.sh          # skip the /map + TF preflight
 #   ./stop_nav2_rf2o.sh                        # stop everything
 set -eo pipefail   # NOTE: no -u (ROS setup files need unset vars)
@@ -43,8 +43,34 @@ START_DRIVER="${START_DRIVER:-true}"
 # TRANSLATION_ONLY=true -> the chassis may only translate: forward/backward
 # and sideways (mecanum), never a rotation.  A small node sits between the
 # collision monitor and the driver and forces the angular velocity to zero.
+# This is the default because the chassis MCU can only rotate in >=0.4 s
+# bursts (11-15 deg per burst), so closed-loop yaw control oscillates.
+# TRANSLATION_ONLY=false -> the same node passes angular.z through (capped at
+# WZ_MAX_OUT) so nav2 may turn; it still acts as the cmd_vel watchdog.
 TRANSLATION_ONLY="${TRANSLATION_ONLY:-${STRAIGHT_ONLY:-true}}"
+# measured chassis gain compensation (wheels ~1.2x faster than commanded)
+VX_SCALE="${VX_SCALE:-0.85}"
+# rotation command cap when TRANSLATION_ONLY=false (MCU soft-start limit)
+WZ_MAX_OUT="${WZ_MAX_OUT:-0.20}"
+# strafing is off by default: the single forward ultrasonic is blind to the sides
+ALLOW_STRAFE="${ALLOW_STRAFE:-false}"
+# safety stops in metres (gate defaults are the same)
+SONAR_STOP="${SONAR_STOP:-0.65}"
+SCAN_STOP="${SCAN_STOP:-0.45}"
+# enable the laser forward-sector safety stop (tall obstacles).  Set
+# SCAN_STOP_ENABLED=false to exclude it (testing only).
+SCAN_STOP_ENABLED="${SCAN_STOP_ENABLED:-true}"
+# enable the forward ultrasonic safety stop (low obstacles invisible to the 2D
+# lidar).  Set USE_ULTRASONIC=false to exclude it (testing only).
+USE_ULTRASONIC="${USE_ULTRASONIC:-true}"
+# zero the chassis command after this long without nav2 input (s).  The
+# smoother's velocity_timeout already stops 0.1 s after the upstream stops;
+# 0.2 s here is ~4 control periods and adds only ~11 deg at 1 rad/s.
+WATCHDOG_TIMEOUT="${WATCHDOG_TIMEOUT:-0.1}"
 GATE_TOPIC="${GATE_TOPIC:-/cmd_vel_straight}"
+# gate input topic (default /cmd_vel; use /cmd_vel_smoothed to bypass the
+# collision_monitor, which publishes at only ~5 Hz on this board)
+GATE_INPUT="${GATE_INPUT:-/cmd_vel}"
 SKIP_CHECK="${SKIP_CHECK:-0}"
 
 mkdir -p "$LOG_DIR"
@@ -129,12 +155,34 @@ start_process() {
 if [ "$START_DRIVER" = "true" ]; then
   if pgrep -f "[M]cnamu_driver" >/dev/null 2>&1; then
     echo "chassis driver already running - leaving it alone"
-  elif [ "$TRANSLATION_ONLY" = "true" ]; then
-    # Gate first: it republishes /cmd_vel as /cmd_vel_straight with the
-    # angular velocity forced to zero, and the driver is remapped to that
-    # topic.  (ros2 run instead of ros2 launch: "ros2 launch" in jazzy does
-    # not accept --ros-args; the yahboomcar launch sets no parameters.)
-    start_process translation_gate python3 "$GATE_SCRIPT"
+  elif [ -f "$GATE_SCRIPT" ]; then
+    # The gate always sits between nav2 and the driver: besides stripping or
+    # passing the angular velocity it is the cmd_vel watchdog (the driver has
+    # no timeout of its own).  (ros2 run instead of ros2 launch: "ros2 launch"
+    # in jazzy does not accept --ros-args; the yahboomcar launch sets no
+    # parameters.)
+    if [ "$TRANSLATION_ONLY" = "true" ]; then
+      start_process translation_gate python3 "$GATE_SCRIPT" \
+        --ros-args -p input_topic:="$GATE_INPUT" \
+                   -p vx_scale:="$VX_SCALE" \
+                   -p allow_strafe:="$ALLOW_STRAFE" \
+                   -p ultrasonic_stop_distance:="$SONAR_STOP" \
+                   -p use_ultrasonic:="$USE_ULTRASONIC" \
+                   -p scan_stop_distance:="$SCAN_STOP" \
+                   -p use_scan_stop:="$SCAN_STOP_ENABLED" \
+                   -p watchdog_timeout:="$WATCHDOG_TIMEOUT"
+    else
+      start_process translation_gate python3 "$GATE_SCRIPT" \
+        --ros-args -p input_topic:="$GATE_INPUT" \
+                   -p allow_rotation:=true -p vx_scale:="$VX_SCALE" \
+                   -p wz_max_out:="$WZ_MAX_OUT" \
+                   -p allow_strafe:="$ALLOW_STRAFE" \
+                   -p ultrasonic_stop_distance:="$SONAR_STOP" \
+                   -p use_ultrasonic:="$USE_ULTRASONIC" \
+                   -p scan_stop_distance:="$SCAN_STOP" \
+                   -p use_scan_stop:="$SCAN_STOP_ENABLED" \
+                   -p watchdog_timeout:="$WATCHDOG_TIMEOUT"
+    fi
     start_process yahboomcar \
       ros2 run yahboomcar_bringup Mcnamu_driver \
         --ros-args -r "cmd_vel:=$GATE_TOPIC"

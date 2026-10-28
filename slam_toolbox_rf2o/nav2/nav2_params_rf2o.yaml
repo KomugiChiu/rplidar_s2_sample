@@ -14,12 +14,13 @@
 #       slam:=False use_localization:=False
 #   so neither slam_toolbox nor amcl nor map_server is started: the map and
 #   map->odom come from the already running slam_toolbox, the odometry from
-#   rf2o.  Hence odom_topic is /odom_rf2o and the static layer reads /map.
+#   ekf (rf2o + D455 gyro).  Hence odom_topic is /odometry/filtered and
+#   the static layer reads /map.
 bt_navigator:
   ros__parameters:
     global_frame: map
     robot_base_frame: base_link
-    odom_topic: /odom_rf2o
+    odom_topic: /odometry/filtered
     bt_loop_duration: 20
     # custom BT: the action nodes get a real server_timeout (the board is
     # heavily loaded, the default derived from bt_loop_duration is too short)
@@ -50,7 +51,7 @@ controller_server:
   ros__parameters:
     controller_frequency: 20.0
     # the odometry comes from rf2o (default would be /odom)
-    odom_topic: /odom_rf2o
+    odom_topic: /odometry/filtered
     costmap_update_timeout: 0.30
     min_x_velocity_threshold: 0.001
     # 0.0 = keep small sideways velocities (the base slides sideways instead
@@ -66,7 +67,8 @@ controller_server:
     # Progress checker parameters
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.5
+      # 50 cm test goals need a radius well below the goal distance
+      required_movement_radius: 0.15
       movement_time_allowance: 10.0
     # Goal checker parameters
     #precise_goal_checker:
@@ -77,37 +79,35 @@ controller_server:
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.25
-      yaw_goal_tolerance: 0.25
-    # Translation only: the robot may drive forward/backward and slide
-    # sideways (the Yahboomcar is a mecanum chassis), but it must never
-    # rotate.  MPPI is used with the "Omni" motion model so that vy is
-    # allowed, and every rotation limit is set to zero:
-    #   motion_model: Omni   -> (vx, vy, wz) instead of (vx, wz)
-    #   az_max/az_min = 0    -> no angular acceleration
-    #   wz_std = 0           -> every sampled trajectory keeps wz = 0
-    #   wz_max = 0           -> no angular velocity at all
-    # The critics that compare the robot's heading with the path or with the
-    # goal are switched off: the heading can never change, so they would
-    # only fight the translation.
+      xy_goal_tolerance: 0.10
+      # translation-only default: the heading cannot be controlled (see the
+      # gate) so accept any final yaw
+      yaw_goal_tolerance: 3.14
+    # The Yahboomcar is a mecanum chassis and MPPI uses the "Omni" motion
+    # model, so vx, vy and wz are all available.  Rotation is DISABLED by
+    # default here (and stripped by translation_only.py): the MCU needs a
+    # >=0.4 s burst (11-15 deg) before it turns and has no slow speed, so a
+    # closed-loop yaw controller oscillates.  Run the start script with
+    # TRANSLATION_ONLY=false to re-enable rotation (the gate then caps the
+    # command) and put the angle critics + a non-zero wz back.
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
       time_steps: 56
       model_dt: 0.05
       batch_size: 2000
-      ax_max: 3.0
-      ax_min: -3.0
-      ay_max: 3.0
-      ay_min: -3.0
+      ax_max: 1.0
+      ax_min: -1.0
+      ay_max: 1.0
+      ay_min: -1.0
       az_max: 0.0
       az_min: 0.0
-      vx_std: 0.2
-      vy_std: 0.2
+      vx_std: 0.1
+      vy_std: 0.1
       wz_std: 0.0
-      vx_max: 0.4
-      vx_min: -0.4
-      vy_max: 0.3
-      vy_min: -0.3
+      vx_max: 0.15
+      vx_min: -0.15
+      vy_max: 0.0
+      vy_min: 0.0
       wz_max: 0.0
       iteration_count: 1
       prune_distance: 1.7
@@ -132,6 +132,19 @@ controller_server:
         cost_power: 1
         cost_weight: 5.0
         threshold_to_consider: 1.4
+      GoalAngleCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 3.0
+        threshold_to_consider: 0.5
+      PathAngleCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 2.0
+        mode: 0
+        max_angle_to_furthest: 1.0
+        threshold_to_consider: 0.4
+        offset_from_furthest: 4
       CostCritic:
         enabled: true
         cost_power: 1
@@ -332,15 +345,19 @@ velocity_smoother:
     stamp_smoothed_velocity_with_smoothing_time: False
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    # translation only: x and y are free, the angular velocity is clamped to 0
-    max_velocity: [0.4, 0.3, 0.0]
-    min_velocity: [-0.4, -0.3, 0.0]
-    max_accel: [2.5, 2.0, 0.0]
-    max_decel: [-2.5, -2.0, 0.0]
-    odom_topic: "/odom_rf2o"
+    # translation-only default: yaw clamped to 0 here as well.
+    # For rotation mode raise the third value back to 0.8.
+    max_velocity: [0.15, 0.0, 0.0]
+    min_velocity: [-0.15, 0.0, 0.0]
+    max_accel: [0.8, 0.8, 0.0]
+    max_decel: [-0.8, -0.8, 0.0]
+    odom_topic: "/odometry/filtered"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
-    velocity_timeout: 1.0
+    # 1.0 s (nav2 default) keeps the last command alive for a full second
+    # after the controller/behavior stops: measured +~60 deg rotation and
+    # +~10 cm straight travel.  0.1 s stops as soon as the upstream stops.
+    velocity_timeout: 0.1
 
 collision_monitor:
   ros__parameters:
@@ -364,7 +381,13 @@ collision_monitor:
       simulation_time_step: 0.1
       min_points: 6
       visualize: False
-      enabled: True
+      # NOTE: the S2 sees the robot's own rear structure / a wall at 0.15-0.26 m,
+      # which is inside the 0.225 m footprint.  The "approach" action then
+      # swallows every cmd_vel (the controller's /cmd_vel_smoothed output never
+      # reaches /cmd_vel) and the goal aborts with FAILED_TO_MAKE_PROGRESS.
+      # Disabled for this flow on purpose; the MPPI costmap still checks
+      # collisions.  Re-enable once the scan is cleared of self-returns.
+      enabled: False
     observation_sources: ["scan"]
     scan:
       type: "scan"

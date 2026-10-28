@@ -561,7 +561,7 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 | 項目 | rtabmap 版 | 這條流程 |
 |---|---|---|
-| `odom_topic`（controller_server / bt_navigator） | `/odom` | `/odom_rf2o` |
+| `odom_topic`（controller_server / bt_navigator / smoother） | `/odom` | `/odometry/filtered`（ekf：rf2o + D455 gyro） |
 | global costmap static layer | `/rtabmap/map` | `/map` |
 | BT XML 路徑 | `/nvt_ros2_example/nav2/behavior_trees/` | `/nvt_ros2_example/slam_toolbox_rf2o/nav2/behavior_trees/` |
 
@@ -569,6 +569,41 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 `controller_server` / `bt_navigator` 訂 `/odom_rf2o`，`global_costmap` 訂 `/map`
 （大小與 slam_toolbox 的 map 一致），local/global costmap 與 collision_monitor 訂 `/scan`。
 **兩套 Nav2 不可同時跑**（節點名稱與 `/cmd_vel` 相同）。
+
+### 安全停止與實測限制（2026-10-27）
+
+`translation_only.py` 現在是最後一道安全層：`allow_strafe=False`（MPPI 也設
+`vy_max=0`），`/ultrasonic < 0.65 m` 或 `/scan` 前方 ±35° `< 0.45 m` 時把
+`/cmd_vel_straight` 歸零（hold 0.5 s；`vx < 0` 後退不受限）。靜態測試
+（假 topic，不動車）涵蓋前進/橫移、兩個停止、後退、watchdog，全部 PASS。
+
+實測 0.15 m/s：0.5 m 目標實際走 0.603 m（側偏 0.069 m、yaw −2.4°）；
+0.3 m 目標走 0.418 m（側偏 0.111 m、yaw +16°）。map→odom 只漂 <3 cm/3°，
+SLAM 是穩的；但底盤開環會走不直，長距離導航要先補 IMU/輪編碼器 yaw 回饋。
+
+### 旋轉、coast 與 ekf（2026-10-28）
+
+driver 混控 `speed_spin = -vz × 31.125`、`speed_fb = vx × 255`：
+wz=0.2 只拿到 ±6 PWM，剛好壓在馬達啟動閾值（隨電池浮動），0.10/0.15
+完全不動，**最小可轉 0.20**。`nav2_params_rf2o_rotation.yaml` 定版 0.2
+（MPPI/smoother/behavior theta 上限、gate `WZ_MAX_OUT` 預設都 0.20），
+`/spin` ±45° 實測 overshoot：0.2 → +8~+13°（容差 20° 內）；0.3 →
++14~+24°（常超標）。coast 修正：smoother z `max_decel 0.6→1.2`、
+`velocity_timeout 1.0→0.1`、gate `WATCHDOG_TIMEOUT 0.5→0.1`，
+停命令後殘留 +19.7°→+12.3°，剩下的是 MCU 斷電滑行。
+
+ekf（`slam_toolbox_rf2o/ekf/`）：robot_localization 融合 `/odom_rf2o` +
+D455 gyro（200 Hz，bias −0.19°/s），輸出 `/odometry/filtered` 20 Hz，
+`odom→base` 改由 ekf 發佈（rf2o `publish_tf: false`；注意板上舊 binary
+會無視此參數，已重編）。靜態 TF `base_footprint→camera_link`
+(0.08, 0, 0.10)。Nav2 三處 `odom_topic` 改吃 filtered。
+另：collision_monitor 在板上只能跑 ~5 Hz，測旋轉時 gate 改接
+`/cmd_vel_smoothed`（`GATE_INPUT`，預設仍是 `/cmd_vel`）。
+
+硬體教訓：雷射頭旁 5 cm 的鬆動線材會讓 planner 回傳原地假路徑
+（costmap 被 inflation 包住）；電池 sag 會先殺轉向（PWM 裕度最小），
+再殺前進，嚴重時連 Nav2 goal 都 SUCCEED-but-no-motion；
+板子在動態測試中重開過數次，導航中重開要先查供電。
 
 ## 附錄：本次移植實際修改的檔案
 | 檔案 | 修改 |
@@ -581,6 +616,11 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 | `slam_toolbox_rf2o/README_start_stop.md` | 新增（流程說明） |
 | `slam_toolbox_rf2o/nav2/start_nav2_rf2o.sh`、`stop_nav2_rf2o.sh` | 新增（吃 `/map` + `/odom_rf2o` 的 Nav2，`slam:=False use_localization:=False`） |
 | `slam_toolbox_rf2o/nav2/nav2_params_rf2o.yaml`、`behavior_trees/navigate_to_pose_bt.xml`、`translation_only.py` | 新增（odom_topic=/odom_rf2o、static layer=/map） |
+| `slam_toolbox_rf2o/nav2/nav2_params_rf2o_rotation.yaml` | 新增（旋轉 profile 定版 0.2：yaw 容差 0.35、theta 上限 0.20、smoother z decel −1.2） |
+| `slam_toolbox_rf2o/ekf/`（`ekf_params.yaml`、`start_ekf.sh`、`stop_ekf.sh`） | 新增（robot_localization 融合 rf2o + D455 gyro → `/odometry/filtered` 20 Hz；靜態 TF base→camera_link (0.08,0,0.10)） |
+| `slam_toolbox_rf2o/rf2o_params.yaml`、`nav2_params_rf2o{,_rotation}.yaml` | `publish_tf: false`（ekf 接手 odom→base）、三處 `odom_topic` 改 `/odometry/filtered` |
+| `slam_toolbox_rf2o/nav2/translation_only.py`、`start_nav2_rf2o.sh` | gate 加 `input_topic`（`GATE_INPUT`，預設 `/cmd_vel`）、`watchdog_timeout`（`WATCHDOG_TIMEOUT` 預設 0.1）、`use_ultrasonic`/`use_scan_stop` 開關（`USE_ULTRASONIC`/`SCAN_STOP_ENABLED`，預設全開）、`WZ_MAX_OUT` 預設 0.20 |
+| 板上 rf2o binary（`/root/rf2o_ws` 重編） | 舊 binary 無視 `publish_tf`（source 有 guard 但 install 是舊的），重編後生效 |
 | `slam_toolbox_rf2o/patches/rf2o_laser_tf_retry.patch` | 新增（rf2o 取不到雷射 TF 時重試，修開機後 odom 轉 180°） |
 | `rtabmap/lidar/nav2_slam_rviz.rviz` | 新增（SLAM + Nav2 顯示） |
 | `rtabmap/lidar/README.md` | 說明更新 |
