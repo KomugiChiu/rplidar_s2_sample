@@ -20,6 +20,9 @@
 # background: this script returns immediately and the console stays free.
 set -eo pipefail   # NOTE: no -u (ROS setup files need unset vars)
 
+# Every node of this stack must run in the same DDS domain.
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-99}"
+
 SCAN_TOPIC="${SCAN_TOPIC:-/scan}"
 LASER_FRAME="${LASER_FRAME:-laser}"
 BASE_FRAME="${BASE_FRAME:-base_footprint}"

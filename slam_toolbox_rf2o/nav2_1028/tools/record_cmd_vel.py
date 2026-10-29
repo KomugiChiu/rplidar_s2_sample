@@ -4,7 +4,8 @@
 Topics:
   /cmd_vel_nav       controller_server (MPPI/shim) raw output
   /cmd_vel_smoothed  velocity_smoother output
-  /cmd_vel           collision_monitor output (what the chassis driver gets)
+  /cmd_vel           collision_monitor output
+  /cmd_vel_floor     speed_floor output (what the chassis driver gets)
 
 Also records /odometry/filtered so the commands can be compared with motion.
 
@@ -20,8 +21,12 @@ CSV columns:
 """
 import csv
 import math
+import os
 import sys
 import time
+
+# Match the board stack domain unless the caller overrides it.
+os.environ.setdefault("ROS_DOMAIN_ID", "99")
 
 import rclpy
 from geometry_msgs.msg import Twist
@@ -41,6 +46,8 @@ class CmdLogger(Node):
         self.create_subscription(
             Twist, "/cmd_vel_smoothed", lambda m: self.cb("smoothed", m), 50)
         self.create_subscription(Twist, "/cmd_vel", lambda m: self.cb("out", m), 50)
+        self.create_subscription(
+            Twist, "/cmd_vel_floor", lambda m: self.cb("floor", m), 50)
         self.create_subscription(
             Odometry, "/odometry/filtered", self.cb_odom, 50)
         self.get_logger().info("recording to %s" % path)

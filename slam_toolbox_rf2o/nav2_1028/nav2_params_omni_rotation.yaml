@@ -419,7 +419,9 @@ collision_monitor:
   ros__parameters:
     base_frame_id: "base_footprint"
     odom_frame_id: "odom"
-    cmd_vel_in_topic: "cmd_vel_smoothed"
+    # speed_floor is BEFORE this node: it raises sub-deadband commands,
+    # then collision_monitor has the final authority (slowdown/stop).
+    cmd_vel_in_topic: "cmd_vel_floor"
     cmd_vel_out_topic: "cmd_vel"
     state_topic: "collision_monitor_state"
     transform_tolerance: 0.5
@@ -428,7 +430,7 @@ collision_monitor:
     stop_pub_timeout: 2.0
     # Polygons represent zone around the robot for "stop", "slowdown" and "limit" action types,
     # and robot footprint for "approach" action type.
-    polygons: ["FootprintApproach"]
+    polygons: ["FootprintApproach", "StopZone"]
     FootprintApproach:
       type: "polygon"
       action_type: "approach"
@@ -438,6 +440,12 @@ collision_monitor:
       min_points: 6
       visualize: False
       enabled: True
+    # hard stop if an obstacle is inside this box (robot frame, metres)
+    StopZone:
+      type: "polygon"
+      action_type: "stop"
+      points: "[[0.30, 0.22], [0.30, -0.22], [-0.20, -0.22], [-0.20, 0.22]]"
+      visualize: False
     observation_sources: ["scan"]
     scan:
       type: "scan"

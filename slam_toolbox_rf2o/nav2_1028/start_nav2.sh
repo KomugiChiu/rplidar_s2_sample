@@ -9,6 +9,9 @@
 #        -> nav2_bringup (slam:=False use_localization:=False)
 set -eo pipefail
 
+# Every node of this stack must run in the same DDS domain.
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-99}"
+
 ROS_DISTRO="${ROS_DISTRO:-jazzy}"
 ROBOT_WS="${ROBOT_WS:-/root/raspybot/yahboomcar_ws}"
 LIBRARY_WS="${LIBRARY_WS:-/root/raspybot/library_ws/py_install}"
@@ -25,6 +28,13 @@ STOP_SCRIPT="${STOP_SCRIPT:-$SCRIPT_DIR/stop_nav2.sh}"
 USE_SIM_TIME="${USE_SIM_TIME:-false}"
 START_DRIVER="${START_DRIVER:-true}"
 SKIP_CHECK="${SKIP_CHECK:-0}"
+# minimum-command floor between collision_monitor and the chassis driver
+FLOOR_SCRIPT="${FLOOR_SCRIPT:-$SCRIPT_DIR/tools/speed_floor.py}"
+VX_FLOOR="${VX_FLOOR:-0.16}"
+WZ_FLOOR="${WZ_FLOOR:-0.52}"
+# floor sits BEFORE collision_monitor so the safety layer keeps the final say
+FLOOR_INPUT="${FLOOR_INPUT:-/cmd_vel_smoothed}"
+FLOOR_OUTPUT="${FLOOR_OUTPUT:-/cmd_vel_floor}"
 
 mkdir -p "$LOG_DIR"
 
@@ -112,11 +122,27 @@ start_process() {
 }
 
 if [ "$START_DRIVER" = "true" ]; then
+    # collision_monitor publishes the final /cmd_vel; the driver consumes it.
+    DRIVER_TOPIC="/cmd_vel"
+    if [ -f "$FLOOR_SCRIPT" ]; then
+        if pgrep -f "[s]peed_floor.py" >/dev/null 2>&1; then
+            echo "speed_floor already running - skipping"
+        else
+            start_process speed_floor python3 "$FLOOR_SCRIPT" \
+                --ros-args -p input_topic:="$FLOOR_INPUT" \
+                           -p output_topic:="$FLOOR_OUTPUT" \
+                           -p vx_floor:="$VX_FLOOR" \
+                           -p wz_floor:="$WZ_FLOOR"
+        fi
+    else
+        echo "WARN: $FLOOR_SCRIPT not found - no deadband compensation"
+    fi
     if pgrep -f "[M]cnamu_driver" >/dev/null 2>&1; then
         echo "yahboomcar driver already running - skipping"
     else
         start_process yahboomcar \
-            ros2 launch yahboomcar_bringup bringup.launch.py
+            ros2 run yahboomcar_bringup Mcnamu_driver \
+                --ros-args -r cmd_vel:="$DRIVER_TOPIC"
     fi
 fi
 
@@ -134,5 +160,6 @@ echo "Nav2 stack started."
 echo "  params : $PARAMS_FILE"
 echo "  odom   : /odometry/filtered (ekf)"
 echo "  map    : /map (slam_toolbox)"
+echo "  cmd_vel: $FLOOR_INPUT -> speed_floor (vx>=$VX_FLOOR, wz>=$WZ_FLOOR) -> $FLOOR_OUTPUT -> collision_monitor -> /cmd_vel -> driver"
 echo "  logs   : $LOG_DIR"
 echo "Stop with: $STOP_SCRIPT"

@@ -2,6 +2,8 @@
 # 啟動 D455 IMU + base->camera 靜態 TF + ekf（跟隨 start_*_rf2o.sh 風格）。
 # 前提：SLAM（rf2o publish_tf=false）已啟動。
 set -u
+# Every node of this stack must run in the same DDS domain.
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-99}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUN_DIR="${RUN_DIR:-/tmp/slam_toolbox_rf2o_ekf}"
 PID_FILE="${PID_FILE:-$RUN_DIR/pids}"
