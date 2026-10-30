@@ -19,15 +19,20 @@ ekf_filter_node:
     world_frame: odom
     use_control: false
     stamped_control: false
-    # rf2o：絕對位姿 x/y/yaw + 線速度/角速度（gyro 負責短期平滑 yaw）
+    # rf2o：只用絕對位姿 x/y/yaw（gyro 負責短期平滑 yaw）。
+    # rf2o 的 twist 在雷達 yaw 180° 安裝下方向是反的（前進時 vx≈-0.4），
+    # 融合它會讓 EKF 與位姿互相拉扯，所以不吃 rf2o 的速度。
     odom0: /odom_rf2o
     odom0_config: [true,  true,  false,
                    false, false, true,
-                   true,  true,  false,
-                   false, false, true,
+                   false, false, false,
+                   false, false, false,
                    false, false, false]
     odom0_queue_size: 10
-    odom0_differential: false
+    # differential: EKF turns successive rf2o poses into velocity (right sign,
+    # drops to 0 when stopped).  Without it the filtered vx decayed for ~1 s
+    # after a stop and the pose kept creeping, which faked an overshoot.
+    odom0_differential: true
     odom0_relative: false
     # D455 gyro：只取 yaw 角速度（its frame 經 static TF 轉到 base）
     imu0: /camera/camera/gyro/sample

@@ -1,0 +1,35 @@
+--- a/Mcnamu_driver.py
++++ b/Mcnamu_driver.py
+@@ -13,6 +13,7 @@
+         super().__init__(name)
+         self.car = Raspbot()
+         self.car.Ctrl_Ulatist_Switch(1)
++        self.last_cmd_time = time.time()
+         self.light_show = LightShow()
+         # Create subscribers
+         self.sub_cmd_vel = self.create_subscription(Twist, "cmd_vel", self.cmd_vel_callback, 1)
+@@ -27,9 +28,11 @@
+ 
+         # Timer to publish all sensor data
+         self.timer = self.create_timer(0.1, self.pub_data)
++        self.watchdog_timer = self.create_timer(0.1, self.watchdog)
+ 
+     def cmd_vel_callback(self, msg):
+         if not isinstance(msg, Twist): return
++        self.last_cmd_time = time.time()
+         # Issue linear vel and angular vel
+         vx = msg.linear.x * 1.0
+         vy = msg.linear.y * 1.0
+@@ -72,6 +75,12 @@
+         self.car.Ctrl_Servo(1, msg.servo_s1)
+         self.car.Ctrl_Servo(2, msg.servo_s2)
+ 
++    def watchdog(self):
++        # Stop the motors if Nav2 stops publishing cmd_vel.
++        if time.time() - self.last_cmd_time > 0.3:
++            for i in range(4):
++                self.car.Ctrl_Muto(i, 0)
++
+     def pub_data(self):
+         # Read and publish all sensor data
+         # Example: Read line sensor data

@@ -103,16 +103,16 @@ controller_server:
       # the chassis gain (measured ~1.15 rad/s at a 0.30 command) makes the
       # real yaw rate close to 1.0 rad/s, so the model uses 1.0.
       # limited to 0.1 rad/s (MCU min ~0.3 cmd; may be jerky)
-      az_max: 0.20
-      az_min: -0.20
+      az_max: 0.40
+      az_min: -0.40
       vx_std: 0.1
       vy_std: 0.1
-      wz_std: 0.10
+      wz_std: 0.20
       vx_max: 0.15
       vx_min: -0.15
       vy_max: 0.0
       vy_min: 0.0
-      wz_max: 0.20
+      wz_max: 0.40
       iteration_count: 1
       prune_distance: 1.7
       transform_tolerance: 0.5
@@ -306,9 +306,9 @@ behavior_server:
     robot_base_frame: base_link
     transform_tolerance: 0.3
     simulate_ahead_time: 2.0
-    max_rotational_vel: 0.20
-    min_rotational_vel: 0.10
-    rotational_acc_lim: 1.0
+    max_rotational_vel: 0.40
+    min_rotational_vel: 0.15
+    rotational_acc_lim: 2.0
 
 waypoint_follower:
   ros__parameters:
@@ -351,8 +351,8 @@ velocity_smoother:
     scale_velocities: False
     feedback: "OPEN_LOOP"
     # rotation profile: yaw allowed (gate still caps the command at 0.30)
-    max_velocity: [0.15, 0.0, 0.20]
-    min_velocity: [-0.15, 0.0, -0.20]
+    max_velocity: [0.15, 0.0, 0.40]
+    min_velocity: [-0.15, 0.0, -0.40]
     max_accel: [0.8, 0.8, 0.60]
     # faster yaw ramp-down: 0.33 s -> 0.17 s coast after the upstream stops
     max_decel: [-0.8, -0.8, -1.2]

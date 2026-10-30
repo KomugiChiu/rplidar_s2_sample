@@ -97,30 +97,72 @@ controller_server:
     #  yaw_goal_tolerance: 0.25
     #  stateful: True
     general_goal_checker:
+      # StoppedGoalChecker: only succeed once the base has stopped inside the
+      # tolerance.  With ~0.45 s loop lag, SimpleGoalChecker fired mid-motion
+      # and the robot coasted 10+ cm past the goal.
       stateful: True
-      plugin: "nav2_controller::SimpleGoalChecker"
-      # rotation profile: the chassis arcs while turning, so a 0.10 m radius
-      # is missed when it passes the goal; 0.20 m is realistic
-      xy_goal_tolerance: 0.20
-      # accept a 20 deg final heading error (the MCU turns in ~11-15 deg
-      # bursts, a tighter tolerance just oscillates)
+      plugin: "nav2_controller::StoppedGoalChecker"
+      # must equal FollowPath.xy_retry_distance and be < the shortest goal (10 cm)
+      xy_goal_tolerance: 0.05
       yaw_goal_tolerance: 0.35
+      trans_stopped_velocity: 0.03
+      rot_stopped_velocity: 0.10
+
     FollowPath:
       # controller plugin: deadband floor + forward-only stop inside Nav2
       plugin: "nav2_deadband_controller::DeadbandController"
+      # mode: simple = pursuit tuned to this chassis (default); mppi = old MPPI + floors
+      mode: "simple"
       primary_controller: "nav2_mppi_controller::MPPIController"
       vx_floor: 0.16
       vy_floor: 0.0
-      wz_floor: 0.52
+      # measured 2026-10-30: wz 0.52/0.70 does not turn the base, 0.80 is marginal
+      wz_floor: 0.90
+      # --- simple mode (measured: vx 0.13 is the lowest that moves, real ~0.3 m/s,
+      #     ~0.2 s actuation lag, ~4 cm coast after stop, vy unusable) ---
+      drive_speed: 0.14
+      steer_gain: 0.8
+      steer_max: 0.30
+      align_angle: 0.6
+      reverse_distance: 0.25
+      brake_distance: 0.045
+      xy_retry_distance: 0.05
+      yaw_tolerance: 0.30
+      settle_time: 0.70
+      # goals < ff_max_distance: one timed pulse T = ff_dead_time + d / ff_speed
+      # (fit 2026-10-30 at drive_speed 0.14: 0.42 s -> 0.068 m, 0.54 s -> 0.117 m, 0.60 s -> ~0.158 m)
+      ff_max_distance: 0.30
+      ff_dead_time: 0.28
+      # starting value only: adapt_gain re-learns ff_speed / rot_rate from every
+      # settled pulse (PWM speed follows battery voltage and driver wheel trim).
+      # 0.50 was a drained battery w/o trim; 0.80 = charged + trim (2026-10-30 15:58)
+      ff_speed: 0.80
+      adapt_gain: 0.2
+      # longer goals: drive closed loop, stop this far out, finish with a pulse
+      cruise_stop_distance: 0.20
+      # within this distance never turn in place for position: if lateral offset
+      # < 0.9*xy_retry_distance, pulse straight forward/back along the heading
+      near_goal_distance: 0.15
+      # turn pulse T = rot_dead_time + |err| / rot_rate (wz 0.9: 0.6 s -> 1.1 rad)
+      rot_dead_time: 0.05
+      rot_rate: 2.0
+      # cap one turn at ~0.5 rad: on a charged battery 0.45 s turned 0.7-0.9 rad
+      # and the fast spin made rf2o mis-track
+      rotate_pulse: 0.30
       deadband: 0.005
       stop_distance: 0.20
-      stop_half_width: 0.15
+      # robot footprint half width 0.05 + 2 cm; lethal cells only (wider box blocked
+      # paths the planner allows near walls -> robot stuck mid-way, 2026-10-30)
+      stop_half_width: 0.07
       sonar_topic: /ultrasonic
       sonar_stop_distance: 0.20
       sonar_hold_time: 0.3
       rotate_start_angle: 0.4
       rotate_stop_angle: 0.35
       lookahead_distance: 0.3
+      goal_rotate_distance: 0.30
+      path_min_distance: 0.10
+      cmd_vel_timeout: 0.5
       angular_dist_threshold: 0.15
       rotate_to_heading_angular_vel: 0.20
       max_angular_accel: 0.40
@@ -232,7 +274,9 @@ controller_server:
 local_costmap:
   local_costmap:
     ros__parameters:
-      transform_tolerance: 0.5
+      # slam_toolbox map->odom sometimes lags 0.5-0.6 s on this SoC
+      # ("Transform data too old ... map to odom" aborted a goal)
+      transform_tolerance: 1.0
       update_frequency: 5.0
       publish_frequency: 2.0
       global_frame: odom
@@ -244,13 +288,12 @@ local_costmap:
       # rectangular footprint: 15 cm (x, front-back) x 10 cm (y, left-right)
       # corners: front-left, front-right, rear-right, rear-left (clockwise)
       footprint: "[[0.075, 0.05], [0.075, -0.05], [-0.075, -0.05], [-0.075, 0.05]]"
-      footprint_padding: 0.01
-      # inflation_layer temporarily disabled (kept below for restore)
-      plugins: ["voxel_layer"]
+      footprint_padding: 0.0
+      plugins: ["voxel_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        inflation_radius: 0.35
+        inflation_radius: 0.10
       voxel_layer:
         plugin: "nav2_costmap_2d::VoxelLayer"
         enabled: True
@@ -279,18 +322,19 @@ local_costmap:
 global_costmap:
   global_costmap:
     ros__parameters:
-      transform_tolerance: 0.5
+      # slam_toolbox map->odom sometimes lags 0.5-0.6 s on this SoC
+      # ("Transform data too old ... map to odom" aborted a goal)
+      transform_tolerance: 1.0
       update_frequency: 1.0
       publish_frequency: 1.0
       global_frame: map
       robot_base_frame: base_link
       # same 15 x 10 cm rectangular footprint as the local costmap
       footprint: "[[0.075, 0.05], [0.075, -0.05], [-0.075, -0.05], [-0.075, 0.05]]"
-      footprint_padding: 0.01
+      footprint_padding: 0.0
       resolution: 0.05
       track_unknown_space: false
-      # inflation_layer temporarily disabled (kept below for restore)
-      plugins: ["static_layer", "obstacle_layer"]
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
@@ -312,7 +356,7 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        inflation_radius: 0.30
+        inflation_radius: 0.10
       always_send_full_costmap: True
 
 # The yaml_filename does not need to be specified since it going to be set by defaults in launch.
@@ -418,12 +462,12 @@ velocity_smoother:
     stamp_smoothed_velocity_with_smoothing_time: False
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    # must be >= the controller plugin floors (0.16 / 0.52)
-    max_velocity: [0.16, 0.0, 0.52]
-    min_velocity: [-0.16, 0.0, -0.52]
-    max_accel: [0.8, 0.0, 0.6]
-    # fast yaw ramp-down to cut the MCU coast
-    max_decel: [-0.8, 0.0, -1.2]
+    # the plugin already outputs chassis-ready steps; do not ramp or clip them
+    # (ramping delayed every stop by ~0.2 s and clipped wz below the deadband)
+    max_velocity: [0.20, 0.0, 1.0]
+    min_velocity: [-0.20, 0.0, -1.0]
+    max_accel: [5.0, 0.0, 10.0]
+    max_decel: [-5.0, 0.0, -10.0]
     odom_topic: "/odometry/filtered"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
