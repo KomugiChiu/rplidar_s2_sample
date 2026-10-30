@@ -15,7 +15,7 @@ done < "$PID_FILE"
 sleep 2
 # 保險：按名字再掃一次
 pkill -f "[r]ealsense2_camera_node" 2>/dev/null || true
-pkill -f "[e]kf_node.*ekf_params" 2>/dev/null || true
+pkill -f "[e]kf_node" 2>/dev/null || true
 pkill -f "static_transform_publisher.*camera_link" 2>/dev/null || true
 rm -f "$PID_FILE"
 echo "== ekf stopped =="

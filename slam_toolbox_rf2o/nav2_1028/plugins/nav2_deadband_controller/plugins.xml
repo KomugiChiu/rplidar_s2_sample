@@ -1,0 +1,11 @@
+<library path="nav2_deadband_controller">
+  <class
+    name="nav2_deadband_controller::DeadbandController"
+    type="nav2_deadband_controller::DeadbandController"
+    base_class_type="nav2_core::Controller">
+    <description>
+      Wraps a primary Nav2 controller, applies the chassis deadband floor and
+      a directional (forward-only) stop based on the local costmap.
+    </description>
+  </class>
+</library>

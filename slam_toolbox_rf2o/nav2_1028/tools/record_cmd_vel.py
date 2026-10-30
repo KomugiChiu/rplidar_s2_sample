@@ -5,7 +5,8 @@ Topics:
   /cmd_vel_nav       controller_server (MPPI/shim) raw output
   /cmd_vel_smoothed  velocity_smoother output
   /cmd_vel           collision_monitor output
-  /cmd_vel_floor     speed_floor output (what the chassis driver gets)
+  /cmd_vel_floor     speed_floor output
+  /cmd_vel_safe      directional_stop output (what the chassis driver gets)
 
 Also records /odometry/filtered so the commands can be compared with motion.
 
@@ -48,6 +49,8 @@ class CmdLogger(Node):
         self.create_subscription(Twist, "/cmd_vel", lambda m: self.cb("out", m), 50)
         self.create_subscription(
             Twist, "/cmd_vel_floor", lambda m: self.cb("floor", m), 50)
+        self.create_subscription(
+            Twist, "/cmd_vel_safe", lambda m: self.cb("safe", m), 50)
         self.create_subscription(
             Odometry, "/odometry/filtered", self.cb_odom, 50)
         self.get_logger().info("recording to %s" % path)

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Start the whole slam_toolbox_rf2o + EKF + Nav2 (nav2_1028) stack.
 #
-#   ./start_all.sh
-#   PARAMS_FILE=.../nav2_params_omni.yaml ./start_all.sh
+#   ./start_all.sh                          # plugin mode (default)
+#   USE_EXTERNAL_SAFETY=1 NAV2_PARAMS_FILE=.../nav2_params_omni_rotation.yaml ./start_all.sh
 #   RECORD=0 ./start_all.sh                 # do not start the cmd_vel logger
 #
 # Order: lidar+rf2o+slam_toolbox -> RealSense+EKF -> Nav2+speed_floor+driver.
@@ -14,13 +14,18 @@ export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-99}"
 SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]:-$0}" 2>/dev/null || echo "${BASH_SOURCE[0]:-$0}")"
 SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"
 
-PARAMS_FILE="${PARAMS_FILE:-$SCRIPT_DIR/nav2_1028/nav2_params_omni_rotation.yaml}"
+# NOTE: do not leak this name into ekf/start_ekf.sh (it also uses PARAMS_FILE).
+NAV2_PARAMS_FILE="${NAV2_PARAMS_FILE:-${PARAMS_FILE:-$SCRIPT_DIR/nav2_1028/nav2_params_plugin.yaml}}"
+unset PARAMS_FILE
+# default: controller plugin does floor/stop; set 1 for the external chain
+USE_EXTERNAL_SAFETY="${USE_EXTERNAL_SAFETY:-0}"
+export USE_EXTERNAL_SAFETY
 RECORD="${RECORD:-1}"
 LOG_DIR="${LOG_DIR:-/tmp/nav2_logs}"
 RECORDER="$SCRIPT_DIR/nav2_1028/tools/record_cmd_vel.py"
 
 echo "== start_all (ROS_DOMAIN_ID=$ROS_DOMAIN_ID) =="
-echo "   params: $PARAMS_FILE"
+echo "   params: $NAV2_PARAMS_FILE"
 
 # --- 1. lidar + rf2o + slam_toolbox -----------------------------------------
 echo "[1/3] lidar + rf2o + slam_toolbox"
@@ -55,7 +60,7 @@ echo "      SLAM/EKF ready"
 
 # --- 3. Nav2 + speed_floor + chassis driver ---------------------------------
 echo "[3/3] Nav2 + speed_floor + chassis driver"
-PARAMS_FILE="$PARAMS_FILE" "$SCRIPT_DIR/nav2_1028/start_nav2.sh"
+PARAMS_FILE="$NAV2_PARAMS_FILE" "$SCRIPT_DIR/nav2_1028/start_nav2.sh"
 
 # --- optional cmd_vel logger ------------------------------------------------
 if [ "$RECORD" = "1" ] && [ -f "$RECORDER" ]; then
@@ -71,6 +76,11 @@ fi
 echo
 echo "== all started =="
 echo "   domain : $ROS_DOMAIN_ID"
-echo "   params : $PARAMS_FILE"
+echo "   params : $NAV2_PARAMS_FILE"
+if [ "$USE_EXTERNAL_SAFETY" = "1" ]; then
+    echo "   cmd_vel: external speed_floor + directional_stop"
+else
+    echo "   cmd_vel: controller plugin (DeadbandController + MPPI)"
+fi
 echo "   logs   : /tmp/raspybot_nav2/logs , /tmp/lidar_*.log , $LOG_DIR"
 echo "   stop   : $SCRIPT_DIR/stop_all.sh"
