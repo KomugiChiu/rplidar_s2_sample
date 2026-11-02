@@ -5,7 +5,7 @@
 #   USE_EXTERNAL_SAFETY=1 NAV2_PARAMS_FILE=.../nav2_params_omni_rotation.yaml ./start_all.sh
 #   RECORD=0 ./start_all.sh                 # do not start the cmd_vel logger
 #
-# Order: lidar+rf2o+slam_toolbox -> RealSense+EKF -> Nav2+speed_floor+driver.
+# Order: lidar+rf2o+slam_toolbox -> RealSense+EKF -> Nav2 (+ plugin safety) + driver.
 set -eo pipefail
 
 # Whole stack runs on one DDS domain (override with ROS_DOMAIN_ID=...).
@@ -58,8 +58,8 @@ if [ "$READY" != "1" ]; then
 fi
 echo "      SLAM/EKF ready"
 
-# --- 3. Nav2 + speed_floor + chassis driver ---------------------------------
-echo "[3/3] Nav2 + speed_floor + chassis driver"
+# --- 3. Nav2 (+ plugin safety) + chassis driver -----------------------------
+echo "[3/3] Nav2 + chassis driver"
 PARAMS_FILE="$NAV2_PARAMS_FILE" "$SCRIPT_DIR/nav2_1028/start_nav2.sh"
 
 # --- optional cmd_vel logger ------------------------------------------------
