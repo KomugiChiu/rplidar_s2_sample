@@ -38,12 +38,15 @@ start_process() {
   echo "  $name started with PID $pid"
 }
 
-# D455：只開 gyro+accel，不開 depth（省 CPU）
+# D455：gyro+accel + RGBD 在同一個 node（EKF 與 AI 共用，避免 IMU-only 衝突）
 start_process realsense \
   ros2 launch realsense2_camera rs_launch.py \
-    enable_depth:=false enable_color:=false \
+    enable_gyro:=true enable_accel:=true \
+    enable_rgbd:=true enable_sync:=true align_depth.enable:=true \
+    enable_color:=true enable_depth:=true \
     enable_infra1:=false enable_infra2:=false \
-    enable_gyro:=true enable_accel:=true
+    rgb_camera.color_profile:=424x240x15 \
+    depth_module.depth_profile:=424x240x15
 
 # base_footprint -> camera_link（D455 朝前水平置中：高 0.10、前 0.08）
 start_process static_tf \
