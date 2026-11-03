@@ -97,6 +97,7 @@ var noiseRules = []struct {
 		regexp.MustCompile(`^(execution time|Laser odom|Robot-base odom)`)},
 	{"AI per-person position INFO", regexp.MustCompile(`^ai_human_detection$`), regexp.MustCompile(`^Person -?\d+:`)},
 	{"AI 'Couldn't find any detections'", regexp.MustCompile(`.*`), regexp.MustCompile(`^Couldn't find any detections`)},
+	{"AI per-frame 'MJPG frame'", regexp.MustCompile(`^ai_human_detection$`), regexp.MustCompile(`MJPG frame: \d+ x \d+$`)},
 	{"controller 'path downsampled'", regexp.MustCompile(`^controller_server$`), regexp.MustCompile(`^path downsampled`)},
 	{"controller 'Passing new path'", regexp.MustCompile(`^controller_server$`), regexp.MustCompile(`^Passing new path`)},
 }

@@ -334,9 +334,12 @@ func (s *SysMon) sample(n int) {
 	out["dmesg"] = s.dmesg
 
 	out["gateway"] = s.gw.Status()
-	if !s.gw.Status().Up {
+	if gs := s.gw.Status(); !gs.Up {
 		add(Check{"console:gateway", "CONSOLE", "Console ROS gateway", "ERROR", "down",
 			"the web console cannot see ROS; see stderr in the System tab"})
+	} else {
+		add(Check{"console:gateway", "CONSOLE", "Console ROS gateway", "OK", "up",
+			fmt.Sprintf("restarts %d", gs.Restarts)})
 	}
 	out["clients"] = s.hub.ClientCount()
 	out["checks"] = checks

@@ -17,9 +17,12 @@ source /opt/ros/jazzy/setup.bash >&2
 if [ -f "$DEMO_WS/install/local_setup.bash" ]; then source "$DEMO_WS/install/local_setup.bash" >&2; fi
 if [ -f "$AI_WS/local_setup.bash" ]; then source "$AI_WS/local_setup.bash" >&2; fi
 
-BIN="$SCRIPT_DIR/build/robot_console_gateway"
+# cross-compiled binary dropped into gateway/, else a local build
+BIN="$SCRIPT_DIR/robot_console_gateway"
+[ -x "$BIN" ] || BIN="$SCRIPT_DIR/build/robot_console_gateway"
 if [ ! -x "$BIN" ]; then
-  echo "gateway binary missing: run $SCRIPT_DIR/build.sh" >&2
+  echo "gateway binary missing: put the cross-compiled robot_console_gateway in $SCRIPT_DIR" >&2
+  echo "(or use ../start_console_py.sh for the Python gateway)" >&2
   exit 1
 fi
 exec "$BIN"

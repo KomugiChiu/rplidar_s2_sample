@@ -92,6 +92,10 @@ function renderHeader() {
     chip(s.cpu && s.cpu.total > 85 ? 'ERROR' : (s.cpu && s.cpu.total > 75 ? 'WARN' : 'OK'), 'CPU', s.cpu ? f(s.cpu.total, 0) + '%' : '–'),
     chip(tmax > 85 ? 'WARN' : 'OK', 'temp', tmax ? f(tmax, 0) + '°C' : '–'),
   ].join('');
+  const conn = $('#conn');
+  conn.classList.toggle('ok', S.connected);
+  conn.classList.toggle('bad', !S.connected);
+  conn.title = S.connected ? 'connected' : 'disconnected';
   const ban = $('#banner');
   let text = '', err = false;
   if (!S.connected) { text = 'Disconnected from the robot — reconnecting…'; err = true; }

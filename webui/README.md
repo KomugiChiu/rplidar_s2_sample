@@ -17,13 +17,27 @@ browser ──HTTP :8080──► console/robot-console   (Go, stdlib only)
                                         └─ topic inspector (any type, via typesupport introspection)
 ```
 
-The gateway is C++ because rclpy costs ~2 ms CPU per callback on this SoC
-(measured: one 200 Hz subscription = 39 % of a core).
+There are two interchangeable gateways with the same stdio protocol and channels:
+
+| Gateway | Where | Start with | CPU (stack running, measured 2026-11-03) |
+|---|---|---|---|
+| C++ (rclcpp) | `gateway/` — the cross-compiled binary goes to `gateway/robot_console_gateway` | `start_console.sh` | expected a few % |
+| Python (rclpy) | `gateway_py/` — no build | `start_console_py.sh` | ~30 % of one core idle, ~46 % with map + both cameras + inspector open |
+
+rclpy costs ~2 ms CPU per callback on this SoC (one 200 Hz subscription = 39 % of a core),
+so the Python gateway samples instead of watching everything: gyro, camera_info,
+`/odometry/filtered` and rf2o are measured 1 s every 15 s (shown as "sampled"); the
+`/cmd_vel_nav` / `/cmd_vel_smoothed` chain is sampled while idle and switches to continuous
+as soon as a Nav2 goal or manual drive starts; `/scan` is continuous only while the map is
+open; rf2o's per-scan INFO is filtered out of `/rosout` inside DDS.
 
 ## Run
 
 ```bash
-/root/rplidar_s2_sample/webui/start_console.sh     # builds what is missing, then http://<board-ip>:8080
+/root/rplidar_s2_sample/webui/start_console_py.sh  # Python gateway → http://<board-ip>:8080
+/root/rplidar_s2_sample/webui/stop_console_py.sh
+
+/root/rplidar_s2_sample/webui/start_console.sh     # C++ gateway (needs gateway/robot_console_gateway)
 /root/rplidar_s2_sample/webui/stop_console.sh
 ```
 
@@ -35,16 +49,15 @@ Boot-time start (optional): `systemd/robot-console.service` (see the comment in 
 
 ## Build
 
-```bash
-gateway/build.sh                     # C++ gateway, ~15 min, -j1, memory capped at 1.3 GB
-cd console && go build -p 1 -o robot-console .
-```
+* Go server: `start_console*.sh` rebuilds `console/robot-console` when a `.go` or `web/` file
+  is newer (one package at a time, `nice 19`, memory capped at 900 MB).
+* C++ gateway: **cross-compile it** (aarch64, ROS 2 Jazzy, sources in `gateway/src`, deps in
+  `gateway/package.xml`) and copy the binary to `gateway/robot_console_gateway`;
+  `gateway/run_gateway.sh` uses it from there.  Building on the board is not practical:
+  `gateway/build.sh` (one job, memory capped at 1.3 GB) did not finish in reasonable time.
 
 **The board has 2.9 GB RAM and no swap.**  An unbounded `-j4` C++ build next to the
-running stack crashed it (2026-11-03).  `build.sh` therefore runs one compile job at
-`nice 19` inside a `systemd-run --scope -p MemoryMax=1300M` cgroup, so if it does not
-fit only the compiler is killed.  Build while the stack is stopped when possible
-(`MEM_MAX=1800M gateway/build.sh` then).
+running stack crashed it (2026-11-03).  Run one heavy job at a time.
 
 UI development without rebuilding Go: `console/robot-console -web console/web -addr :8090`.
 

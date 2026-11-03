@@ -448,10 +448,12 @@ public:
       [this](std_msgs::msg::String::ConstSharedPtr m) {on_ai_debug(*m);}));
     subs_.push_back(create_subscription<nav2_msgs::msg::BehaviorTreeLog>("/behavior_tree_log",
       make_qos("reliable", 20), [this](nav2_msgs::msg::BehaviorTreeLog::ConstSharedPtr m) {on_bt(*m);}));
-    subs_.push_back(create_subscription<std_msgs::msg::String>("/demo/state", make_qos("latched"),
+    // volatile: the installed demo_manager publishes these volatile (its source
+    // says transient_local); a transient_local subscriber would get nothing
+    subs_.push_back(create_subscription<std_msgs::msg::String>("/demo/state", make_qos("reliable"),
       [this](std_msgs::msg::String::ConstSharedPtr m) {on_demo_state(m->data);}));
     subs_.push_back(create_subscription<std_msgs::msg::Int32>("/demo/selected_tracking_id",
-      make_qos("latched"), [this](std_msgs::msg::Int32::ConstSharedPtr m) {demo_selected_ = m->data;}));
+      make_qos("reliable"), [this](std_msgs::msg::Int32::ConstSharedPtr m) {demo_selected_ = m->data;}));
     subs_.push_back(create_subscription<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics",
       make_qos("reliable"), [this](diagnostic_msgs::msg::DiagnosticArray::ConstSharedPtr m) {on_diag(*m);}));
     subs_.push_back(create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", make_qos("reliable", 5),

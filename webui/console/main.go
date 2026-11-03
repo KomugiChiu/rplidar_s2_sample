@@ -257,7 +257,8 @@ func (s *Server) handleCamera(w http.ResponseWriter, r *http.Request) {
 }
 
 var cmdTimeouts = map[string]time.Duration{
-	"goal": 3 * time.Second, "waypoints": 3 * time.Second, "cancel": 3 * time.Second,
+	// goal/waypoints: the Python gateway creates its action client on first use
+	"goal": 6 * time.Second, "waypoints": 6 * time.Second, "cancel": 3 * time.Second,
 	"estop": 3 * time.Second, "initialpose": 3 * time.Second, "clear_costmaps": 3 * time.Second,
 	"node_info": 5 * time.Second,
 }

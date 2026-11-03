@@ -623,7 +623,7 @@ export function renderTopics() {
         <td><div class="name">${b ? `<span class="dot ${esc(b.level)}"></span> ` : ''}${esc(t.name)}</div><div class="type">${esc(t.type)}</div></td>
         <td class="num">${t.pubs}/${t.subs}</td>
         <td class="num">${r ? f(r.hz, 1) + ' Hz' : '<span class="muted">·</span>'}</td>
-        <td class="num">${r ? fAge(r.age) : ''}</td>
+        <td class="num">${r ? (r.sampled ? '<span class="muted" title="sampled 1 s every 15 s">sampled</span>' : fAge(r.age)) : ''}</td>
         <td>${ownerBadge(topicOwner(t.name))}</td></tr>`;
     }).join('')}</tbody></table>`;
   $('#topicTable').scrollTop = scroll;

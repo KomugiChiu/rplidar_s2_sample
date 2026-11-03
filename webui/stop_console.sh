@@ -20,5 +20,6 @@ if [ -s "$PID_FILE" ]; then
 fi
 # leftovers (console started by hand)
 pkill -TERM -f '[c]onsole/robot-console' 2>/dev/null || true
-pkill -TERM -f '[b]uild/robot_console_gateway' 2>/dev/null || true
+pkill -TERM -f '[g]ateway/robot_console_gateway|[b]uild/robot_console_gateway' 2>/dev/null || true
+pkill -TERM -f '[g]ateway_py/robot_console_gateway.py' 2>/dev/null || true
 echo "robot-console stopped"
