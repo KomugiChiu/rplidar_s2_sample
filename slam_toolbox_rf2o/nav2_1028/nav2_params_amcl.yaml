@@ -35,11 +35,13 @@ amcl:
     # If the robot is parked somewhere else, either edit these three values or
     # run: tools/set_initial_pose.py X Y YAW_DEG
     set_initial_pose: true
+    # corrected 2026-11-03 18:20 by global scan match (96.8% hit, 0.016 m):
+    # the robot had been rotated ~180 deg since the map was saved
     initial_pose:
-      x: 0.078
-      y: 1.173
+      x: 0.042
+      y: -0.110
       z: 0.0
-      yaw: -1.236
+      yaw: -0.192
     always_reset_initial_pose: false
     first_map_only: false
     odom_frame_id: "odom"
@@ -47,8 +49,10 @@ amcl:
     pf_z: 0.99
     # re-enable the random-particle recovery: a 20 m corridor is symmetric
     # enough that a wrong initial guess never recovers with 0.0 / 0.0
-    recovery_alpha_fast: 0.1
-    recovery_alpha_slow: 0.001
+    # recovery disabled for the corridor test (2026-11-03): random particle
+    # injection caused map->odom teleports of several metres
+    recovery_alpha_fast: 0.0
+    recovery_alpha_slow: 0.0
     resample_interval: 1
     robot_model_type: "nav2_amcl::DifferentialMotionModel"
     save_pose_rate: 0.5
@@ -389,7 +393,7 @@ map_server:
   ros__parameters:
     # static map saved from slam_toolbox on 2026-11-02
     # override at launch with: map:=/path/other_map.yaml
-    yaml_filename: "/nvt_ros2_example/slam_toolbox_rf2o/maps/slam_map_20261102.yaml"
+    yaml_filename: "/nvt_ros2_example/slam_toolbox_rf2o/maps/slam_map_20261103.yaml"
     topic_name: "map"
     frame_id: "map"
 

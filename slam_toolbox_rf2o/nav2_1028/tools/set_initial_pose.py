@@ -12,6 +12,7 @@ Covariance defaults: 0.25 m^2 in x/y, 0.0685 rad^2 in yaw (= 15 deg std).
 import argparse
 import math
 import sys
+import time
 
 import rclpy
 from geometry_msgs.msg import PoseWithCovarianceStamped
@@ -26,7 +27,7 @@ class InitialPosePublisher(Node):
             depth=1,
             history=QoSHistoryPolicy.KEEP_LAST,
             reliability=QoSReliabilityPolicy.RELIABLE,
-            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+            durability=QoSDurabilityPolicy.VOLATILE,
         )
         self.pub = self.create_publisher(PoseWithCovarianceStamped, "/initialpose", qos)
 
@@ -57,13 +58,20 @@ def main() -> int:
     cov[35] = args.yaw_cov
     msg.pose.covariance = cov
 
-    # give discovery a moment, then send a few times (AMCL keeps the last one)
-    for _ in range(5):
+    # Wait until AMCL has matched the subscription (its /initialpose
+    # subscription is VOLATILE, so samples published before matching are lost),
+    # then publish repeatedly for a few seconds.
+    deadline = time.time() + 10.0
+    while time.time() < deadline and node.pub.get_subscription_count() == 0:
+        rclpy.spin_once(node, timeout_sec=0.1)
+    matched = node.pub.get_subscription_count()
+    end = time.time() + 3.0
+    while time.time() < end:
         node.pub.publish(msg)
         rclpy.spin_once(node, timeout_sec=0.2)
     node.get_logger().info(
         f"sent initial pose x={args.x:.3f} y={args.y:.3f} yaw={args.yaw_deg:.1f} deg "
-        f"(frame {args.frame})"
+        f"(frame {args.frame}, subscribers matched={matched})"
     )
     node.destroy_node()
     rclpy.shutdown()
