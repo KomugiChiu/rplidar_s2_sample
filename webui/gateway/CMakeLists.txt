@@ -1,0 +1,43 @@
+cmake_minimum_required(VERSION 3.8)
+project(robot_console_gateway)
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options(-Wall -Wextra)
+endif()
+
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(rcpputils REQUIRED)
+find_package(rmw REQUIRED)
+find_package(rosidl_typesupport_introspection_cpp REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_msgs REQUIRED)
+find_package(action_msgs REQUIRED)
+find_package(diagnostic_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(lifecycle_msgs REQUIRED)
+find_package(nav2_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(rcl_interfaces REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(vision_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(nlohmann_json REQUIRED)
+
+add_executable(robot_console_gateway src/gateway.cpp)
+target_compile_features(robot_console_gateway PUBLIC cxx_std_17)
+ament_target_dependencies(robot_console_gateway
+  rclcpp rclcpp_action rcpputils rmw rosidl_typesupport_introspection_cpp tf2 tf2_ros tf2_msgs
+  action_msgs diagnostic_msgs geometry_msgs lifecycle_msgs nav2_msgs nav_msgs rcl_interfaces
+  sensor_msgs std_msgs std_srvs vision_msgs visualization_msgs)
+target_link_libraries(robot_console_gateway nlohmann_json::nlohmann_json)
+
+install(TARGETS robot_console_gateway DESTINATION lib/${PROJECT_NAME})
+ament_package()

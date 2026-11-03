@@ -1,0 +1,20 @@
+# Optional: start the console at boot.
+#   cp systemd/robot-console.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now robot-console
+[Unit]
+Description=Robot web console (:8080)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=ROS_DOMAIN_ID=99
+ExecStart=/root/rplidar_s2_sample/webui/console/robot-console -addr :8080 -stack-dir /nvt_ros2_example/slam_toolbox_rf2o
+Restart=on-failure
+RestartSec=3
+Nice=5
+# Only kill the console itself on stop/restart: a ROS stack started from the
+# System tab lives in this unit's cgroup and must keep running.
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
