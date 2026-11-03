@@ -6,7 +6,11 @@
 #        -> D455 IMU, TF base_footprint->camera_link, /odometry/filtered, TF odom->base_footprint
 #   3. This script (start_nav2.sh)
 #        -> yahboomcar Mcnamu_driver (directly on /cmd_vel, no gate)
-#        -> nav2_bringup (slam:=False use_localization:=False)
+#        -> nav2_bringup (slam:=False)
+#
+# Localization source:
+#   USE_LOCALIZATION=0 (default) : /map + map->odom come from slam_toolbox
+#   USE_LOCALIZATION=1           : map_server + AMCL from $MAP_FILE
 set -eo pipefail
 
 # Every node of this stack must run in the same DDS domain.
@@ -26,6 +30,9 @@ PID_FILE="${PID_FILE:-$RUN_DIR/pids}"
 PARAMS_FILE="${PARAMS_FILE:-$SCRIPT_DIR/nav2_params.yaml}"
 STOP_SCRIPT="${STOP_SCRIPT:-$SCRIPT_DIR/stop_nav2.sh}"
 USE_SIM_TIME="${USE_SIM_TIME:-false}"
+# 1 = static map + AMCL (map_server owns /map, AMCL owns map->odom)
+USE_LOCALIZATION="${USE_LOCALIZATION:-0}"
+MAP_FILE="${MAP_FILE:-}"
 START_DRIVER="${START_DRIVER:-true}"
 SKIP_CHECK="${SKIP_CHECK:-0}"
 # minimum-command floor between collision_monitor and the chassis driver
@@ -51,6 +58,17 @@ if [ ! -f "$PARAMS_FILE" ]; then
     exit 1
 fi
 
+if [ "$USE_LOCALIZATION" = "1" ]; then
+    if [ -z "$MAP_FILE" ] || [ ! -f "$MAP_FILE" ]; then
+        echo "ERROR: USE_LOCALIZATION=1 needs an existing MAP_FILE (got: '${MAP_FILE:-}')"
+        exit 1
+    fi
+    echo "localization: static map + AMCL"
+    echo "  map file: $MAP_FILE"
+else
+    echo "localization: slam_toolbox (/map + map->odom)"
+fi
+
 source "/opt/ros/$ROS_DISTRO/setup.bash"
 if [ -f "$PLUGIN_WS/install/local_setup.bash" ]; then
     source "$PLUGIN_WS/install/local_setup.bash"
@@ -62,15 +80,23 @@ export PYTHONPATH="$LIBRARY_WS:${PYTHONPATH:-}"
 export ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET
 unset ROS_LOCALHOST_ONLY
 
-# Preflight: ensure slam_toolbox_rf2o (/map) and ekf (/odometry/filtered + TF) are up
+# Preflight: in mapping mode wait for slam_toolbox's /map + map->base_link;
+# in AMCL mode wait for /scan + odom->base_link (AMCL itself creates map->odom).
 check_prerequisites() {
-    local map_info odom_info tf_out
-    map_info="$(timeout 10 ros2 topic info /map 2>/dev/null || true)"
-    [[ "$map_info" =~ Publisher\ count:\ [1-9] ]] || return 1
+    local map_info odom_info scan_info tf_out
     odom_info="$(timeout 10 ros2 topic info /odometry/filtered 2>/dev/null || true)"
     [[ "$odom_info" =~ Publisher\ count:\ [1-9] ]] || return 1
-    tf_out="$(timeout 6 ros2 run tf2_ros tf2_echo map base_link 2>&1 || true)"
-    [[ "$tf_out" == *Translation* ]] || return 1
+    if [ "$USE_LOCALIZATION" = "1" ]; then
+        scan_info="$(timeout 10 ros2 topic info /scan 2>/dev/null || true)"
+        [[ "$scan_info" =~ Publisher\ count:\ [1-9] ]] || return 1
+        tf_out="$(timeout 6 ros2 run tf2_ros tf2_echo odom base_link 2>&1 || true)"
+        [[ "$tf_out" == *Translation* ]] || return 1
+    else
+        map_info="$(timeout 10 ros2 topic info /map 2>/dev/null || true)"
+        [[ "$map_info" =~ Publisher\ count:\ [1-9] ]] || return 1
+        tf_out="$(timeout 6 ros2 run tf2_ros tf2_echo map base_link 2>&1 || true)"
+        [[ "$tf_out" == *Translation* ]] || return 1
+    fi
     return 0
 }
 
@@ -81,11 +107,15 @@ if [ "$SKIP_CHECK" != "1" ]; then
             CHECK_OK=1
             break
         fi
-        echo "preflight: waiting for /map, /odometry/filtered, and TF map -> base_link ($attempt/3)..."
+        if [ "$USE_LOCALIZATION" = "1" ]; then
+            echo "preflight: waiting for /scan, /odometry/filtered, and TF odom -> base_link ($attempt/3)..."
+        else
+            echo "preflight: waiting for /map, /odometry/filtered, and TF map -> base_link ($attempt/3)..."
+        fi
         sleep 3
     done
     if [ "$CHECK_OK" != "1" ]; then
-        echo "ERROR: prerequisites not ready (/map, /odometry/filtered, or TF map -> base_link missing)."
+        echo "ERROR: prerequisites not ready."
         echo "       Please start:"
         echo "         1) /nvt_ros2_example/slam_toolbox_rf2o/start_slam_toolbox_rf2o.sh"
         echo "         2) /nvt_ros2_example/slam_toolbox_rf2o/ekf/start_ekf.sh"
@@ -175,20 +205,32 @@ if [ "$START_DRIVER" = "true" ]; then
     fi
 fi
 
+NAV2_ARGS=(
+    slam:=False
+    params_file:="$PARAMS_FILE"
+    use_sim_time:="$USE_SIM_TIME"
+    autostart:=True
+    use_composition:=False
+)
+if [ "$USE_LOCALIZATION" = "1" ]; then
+    NAV2_ARGS+=(use_localization:=True map:="$MAP_FILE")
+else
+    NAV2_ARGS+=(use_localization:=False)
+fi
+
 start_process nav2 \
-    ros2 launch nav2_bringup bringup_launch.py \
-        slam:=False \
-        use_localization:=False \
-        params_file:="$PARAMS_FILE" \
-        use_sim_time:="$USE_SIM_TIME" \
-        autostart:=True \
-        use_composition:=False
+    ros2 launch nav2_bringup bringup_launch.py "${NAV2_ARGS[@]}"
 
 echo
 echo "Nav2 stack started."
 echo "  params : $PARAMS_FILE"
 echo "  odom   : /odometry/filtered (ekf)"
-echo "  map    : /map (slam_toolbox)"
+if [ "$USE_LOCALIZATION" = "1" ]; then
+    echo "  map    : /map (map_server: $MAP_FILE)"
+    echo "  tf     : map->odom (AMCL), odom->base_footprint (ekf)"
+else
+    echo "  map    : /map (slam_toolbox)"
+fi
 if [ "$USE_EXTERNAL_SAFETY" = "1" ]; then
     echo "  cmd_vel: $FLOOR_INPUT -> speed_floor (vx>=$VX_FLOOR, wz>=$WZ_FLOOR) -> $FLOOR_OUTPUT -> collision_monitor -> /cmd_vel -> directional_stop -> $SAFE_TOPIC -> driver"
 else

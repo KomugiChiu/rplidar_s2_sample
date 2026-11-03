@@ -15,6 +15,7 @@
 #   ./start_slam_toolbox_rf2o.sh                       # map only (runs in background)
 #   QUIET=0 ./start_slam_toolbox_rf2o.sh               # show the node output in the console
 #   SLAM_MODE=localization ./start_slam_toolbox_rf2o.sh
+#   SLAM_MODE=none ./start_slam_toolbox_rf2o.sh        # lidar + rf2o only (AMCL does map->odom)
 #   ./stop_slam_toolbox_rf2o.sh                        # stop everything
 # Defaults: LASER_YAW_DEG=180, QUIET=1.  The stack is started in the
 # background: this script returns immediately and the console stays free.
@@ -35,7 +36,7 @@ SCAN_MODE="${SCAN_MODE:-DenseBoost}"
 RPLIDAR_WS="${RPLIDAR_WS:-/nvt_ros2_example/rplidar_ros/}"
 RF2O_WS="${RF2O_WS:-/root/rf2o_ws}"
 SKIP_LIDAR="${SKIP_LIDAR:-0}"
-SLAM_MODE="${SLAM_MODE:-mapping}"          # mapping | localization
+SLAM_MODE="${SLAM_MODE:-mapping}"          # mapping | localization | none
 ODOM_TOPIC="${ODOM_TOPIC:-/odom_rf2o}"
 VO_FRAME_ID="${VO_FRAME_ID:-odom}"
 # --- logging ---
@@ -217,18 +218,23 @@ echo "rf2o odometry starting (${ODOM_TOPIC}) ..."
 # --- slam_toolbox: /map + map->odom ---
 # async (mapping) / localization: the SLAM node publishes map->odom itself,
 # the odom->base_footprint part comes from rf2o.
-if [ "$SLAM_MODE" = "localization" ]; then
+# none: do NOT start slam_toolbox - map_server + AMCL (start_all_amcl.sh)
+#       own /map and map->odom instead.
+if [ "$SLAM_MODE" = "none" ]; then
+  echo "slam_toolbox disabled (SLAM_MODE=none): expecting map_server + AMCL for /map and map->odom"
+elif [ "$SLAM_MODE" = "localization" ]; then
   setsid ros2 launch slam_toolbox localization_launch.py \
     slam_params_file:="$SLAM_PARAMS" use_sim_time:=false \
     </dev/null >"$SLAM_LOG" 2>&1 &
+  remember_pid "$!" slam_toolbox group
 else
   # async: scan processing runs in its own thread instead of the message
   # callback - on this 4-core ARM board sync mode pegs the CPU at ~220%.
   setsid ros2 launch slam_toolbox online_async_launch.py \
     slam_params_file:="$SLAM_PARAMS" use_sim_time:=false \
     </dev/null >"$SLAM_LOG" 2>&1 &
+  remember_pid "$!" slam_toolbox group
 fi
-remember_pid "$!" slam_toolbox group
 
 sleep 4
 if [ "$QUIET" = "1" ]; then
@@ -265,6 +271,10 @@ echo
 echo "slam_toolbox_rf2o started in the background:"
 echo "  scan topic : $SCAN_TOPIC"
 echo "  odom topic : $ODOM_TOPIC"
-echo "  tf         : map->$VO_FRAME_ID ($SLAM_MODE) / $VO_FRAME_ID->$BASE_FRAME->$BASE_LINK_FRAME->$LASER_FRAME (yaw ${LASER_YAW_DEG} deg)"
+if [ "$SLAM_MODE" = "none" ]; then
+  echo "  tf         : map->$VO_FRAME_ID (external: map_server + AMCL) / $VO_FRAME_ID->$BASE_FRAME->$BASE_LINK_FRAME->$LASER_FRAME (yaw ${LASER_YAW_DEG} deg)"
+else
+  echo "  tf         : map->$VO_FRAME_ID ($SLAM_MODE) / $VO_FRAME_ID->$BASE_FRAME->$BASE_LINK_FRAME->$LASER_FRAME (yaw ${LASER_YAW_DEG} deg)"
+fi
 echo "  pids       : $PID_FILE"
 echo "stop it with: $STOP_SCRIPT"

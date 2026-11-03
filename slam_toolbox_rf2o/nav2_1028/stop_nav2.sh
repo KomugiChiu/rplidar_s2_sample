@@ -49,6 +49,8 @@ PATTERNS=(
     "nav2_docking/docking_server"
     "nav2_collision_monitor/collision_monitor"
     "nav2_lifecycle_manager/lifecycle_manager"
+    "nav2_map_server/map_server"
+    "nav2_amcl/amcl"
 )
 if [ "$KEEP_DRIVER" != "1" ]; then
     PATTERNS+=(

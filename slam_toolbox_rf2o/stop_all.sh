@@ -31,13 +31,15 @@ pkill -f '[r]ecord_cmd_vel.py' 2>/dev/null || true
 # --- leftovers (old/partial sessions, no PID file) ---------------------------
 for pat in '[r]plidar_node' '[s]tatic_transform_publisher' \
            '[r]f2o_laser_odometry_node' '[a]sync_slam_toolbox_node' \
-           '[s]peed_floor.py' '[t]ranslation_only.py'; do
+           '[s]peed_floor.py' '[t]ranslation_only.py' \
+           '[n]av2_map_server/map_server' '[n]av2_amcl/amcl'; do
     pkill -TERM -f "$pat" 2>/dev/null || true
 done
 sleep 2
 for pat in '[r]plidar_node' '[s]tatic_transform_publisher' \
            '[r]f2o_laser_odometry_node' '[a]sync_slam_toolbox_node' \
-           '[s]peed_floor.py' '[t]ranslation_only.py'; do
+           '[s]peed_floor.py' '[t]ranslation_only.py' \
+           '[n]av2_map_server/map_server' '[n]av2_amcl/amcl'; do
     pkill -KILL -f "$pat" 2>/dev/null || true
 done
 

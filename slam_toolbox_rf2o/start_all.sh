@@ -4,6 +4,7 @@
 #   ./start_all.sh                          # plugin mode (default)
 #   USE_EXTERNAL_SAFETY=1 NAV2_PARAMS_FILE=.../nav2_params_omni_rotation.yaml ./start_all.sh
 #   RECORD=0 ./start_all.sh                 # do not start the cmd_vel logger
+#   USE_LOCALIZATION=1 MAP_FILE=.../maps/x.yaml ./start_all.sh   # static map + AMCL
 #
 # Order: lidar+rf2o+slam_toolbox -> RealSense+EKF -> Nav2 (+ plugin safety) + driver.
 set -eo pipefail
@@ -20,15 +21,31 @@ unset PARAMS_FILE
 # default: controller plugin does floor/stop; set 1 for the external chain
 USE_EXTERNAL_SAFETY="${USE_EXTERNAL_SAFETY:-0}"
 export USE_EXTERNAL_SAFETY
+# 0 = slam_toolbox provides /map + map->odom; 1 = map_server + AMCL from MAP_FILE
+USE_LOCALIZATION="${USE_LOCALIZATION:-0}"
+MAP_FILE="${MAP_FILE:-}"
+export USE_LOCALIZATION MAP_FILE
+# SLAM_MODE=none is used by the AMCL flow (start_all_amcl.sh)
+SLAM_MODE="${SLAM_MODE:-mapping}"
+export SLAM_MODE
 RECORD="${RECORD:-1}"
 LOG_DIR="${LOG_DIR:-/tmp/nav2_logs}"
 RECORDER="$SCRIPT_DIR/nav2_1028/tools/record_cmd_vel.py"
 
 echo "== start_all (ROS_DOMAIN_ID=$ROS_DOMAIN_ID) =="
 echo "   params: $NAV2_PARAMS_FILE"
+if [ "$USE_LOCALIZATION" = "1" ]; then
+    echo "   map   : $MAP_FILE (map_server + AMCL)"
+else
+    echo "   map   : slam_toolbox"
+fi
 
 # --- 1. lidar + rf2o + slam_toolbox -----------------------------------------
-echo "[1/3] lidar + rf2o + slam_toolbox"
+if [ "$SLAM_MODE" = "none" ]; then
+    echo "[1/3] lidar + rf2o (slam_toolbox disabled: AMCL mode)"
+else
+    echo "[1/3] lidar + rf2o + slam_toolbox"
+fi
 "$SCRIPT_DIR/start_slam_toolbox_rf2o.sh"
 
 # --- 2. RealSense IMU + EKF -------------------------------------------------
@@ -37,12 +54,21 @@ echo "[2/3] RealSense IMU + EKF"
 
 # --- wait until SLAM/EKF are actually visible -------------------------------
 source /opt/ros/jazzy/setup.bash
-echo "      waiting for /map, /odometry/filtered and TF map -> base_link ..."
+if [ "$USE_LOCALIZATION" = "1" ]; then
+    echo "      waiting for /scan, /odometry/filtered and TF odom -> base_link ..."
+else
+    echo "      waiting for /map, /odometry/filtered and TF map -> base_link ..."
+fi
 READY=0
 for _ in $(seq 1 30); do
-    MAP_INFO="$(timeout 8 ros2 topic info /map 2>/dev/null || true)"
     ODOM_INFO="$(timeout 8 ros2 topic info /odometry/filtered 2>/dev/null || true)"
-    TF_OUT="$(timeout 5 ros2 run tf2_ros tf2_echo map base_link 2>&1 || true)"
+    if [ "$USE_LOCALIZATION" = "1" ]; then
+        MAP_INFO="$(timeout 8 ros2 topic info /scan 2>/dev/null || true)"
+        TF_OUT="$(timeout 5 ros2 run tf2_ros tf2_echo odom base_link 2>&1 || true)"
+    else
+        MAP_INFO="$(timeout 8 ros2 topic info /map 2>/dev/null || true)"
+        TF_OUT="$(timeout 5 ros2 run tf2_ros tf2_echo map base_link 2>&1 || true)"
+    fi
     if [[ "$MAP_INFO" =~ Publisher\ count:\ [1-9] ]] && \
        [[ "$ODOM_INFO" =~ Publisher\ count:\ [1-9] ]] && \
        [[ "$TF_OUT" == *Translation* ]]; then
@@ -52,11 +78,11 @@ for _ in $(seq 1 30); do
     sleep 2
 done
 if [ "$READY" != "1" ]; then
-    echo "ERROR: SLAM/EKF not ready after 60 s"
+    echo "ERROR: lidar/EKF not ready after 60 s"
     echo "       check /tmp/lidar_slam_toolbox.log and /tmp/slam_toolbox_rf2o_ekf/logs/"
     exit 1
 fi
-echo "      SLAM/EKF ready"
+echo "      lidar/EKF ready"
 
 # --- 3. Nav2 (+ plugin safety) + chassis driver -----------------------------
 echo "[3/3] Nav2 + chassis driver"
