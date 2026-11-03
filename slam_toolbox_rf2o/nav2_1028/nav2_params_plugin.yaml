@@ -157,6 +157,15 @@ controller_server:
       sonar_topic: /ultrasonic
       sonar_stop_distance: 0.20
       sonar_hold_time: 0.3
+      # escape recovery: forward stop held > escape_after s (2026-11-02: robot
+      # wedged 5 cm from a chair leg at map (-2.7,-0.35), BackUp refused with
+      # "Collision Ahead") -> turn away from the obstacle side, then drive
+      # escape_distance; after escape_max_turns turns, reverse if the rear is clear
+      escape_enabled: true
+      escape_after: 3.0
+      escape_angle: 0.5
+      escape_distance: 0.15
+      escape_max_turns: 3
       rotate_start_angle: 0.4
       rotate_stop_angle: 0.35
       lookahead_distance: 0.3

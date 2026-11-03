@@ -103,6 +103,16 @@ void DeadbandController::configure(
     node, name_ + ".rot_dead_time", rclcpp::ParameterValue(0.05));
   nav2_util::declare_parameter_if_not_declared(
     node, name_ + ".rot_rate", rclcpp::ParameterValue(2.0));
+  nav2_util::declare_parameter_if_not_declared(
+    node, name_ + ".escape_enabled", rclcpp::ParameterValue(true));
+  nav2_util::declare_parameter_if_not_declared(
+    node, name_ + ".escape_after", rclcpp::ParameterValue(3.0));
+  nav2_util::declare_parameter_if_not_declared(
+    node, name_ + ".escape_angle", rclcpp::ParameterValue(0.5));
+  nav2_util::declare_parameter_if_not_declared(
+    node, name_ + ".escape_distance", rclcpp::ParameterValue(0.15));
+  nav2_util::declare_parameter_if_not_declared(
+    node, name_ + ".escape_max_turns", rclcpp::ParameterValue(3));
 
   node->get_parameter(name_ + ".primary_controller", primary_controller_name_);
   node->get_parameter(name_ + ".vx_floor", vx_floor_);
@@ -139,6 +149,11 @@ void DeadbandController::configure(
   node->get_parameter(name_ + ".adapt_gain", adapt_gain_);
   node->get_parameter(name_ + ".rot_dead_time", rot_dead_time_);
   node->get_parameter(name_ + ".rot_rate", rot_rate_);
+  node->get_parameter(name_ + ".escape_enabled", escape_enabled_);
+  node->get_parameter(name_ + ".escape_after", escape_after_);
+  node->get_parameter(name_ + ".escape_angle", escape_angle_);
+  node->get_parameter(name_ + ".escape_distance", escape_distance_);
+  node->get_parameter(name_ + ".escape_max_turns", escape_max_turns_);
   if (mode_ != "simple" && mode_ != "mppi") {
     throw std::runtime_error("DeadbandController: mode must be 'simple' or 'mppi'");
   }
@@ -244,6 +259,10 @@ void DeadbandController::setPlan(const nav_msgs::msg::Path & path)
       pulse_kind_ = PulseKind::NONE;
       settle_until_ = {};
       was_moving_ = false;
+      escape_step_ = EscapeStep::NONE;
+      escape_pulse_until_ = {};
+      escape_settle_until_ = {};
+      blocked_since_ = {};
     }
     last_goal_ = g;
     last_goal_.header = path_.header;
@@ -337,6 +356,186 @@ bool DeadbandController::forwardBlocked(const geometry_msgs::msg::PoseStamped & 
     }
   }
   return false;
+}
+
+bool DeadbandController::rearBlocked(
+  const geometry_msgs::msg::PoseStamped & pose, double distance)
+{
+  if (!costmap_ros_) {
+    return false;
+  }
+  auto * costmap = costmap_ros_->getCostmap();
+  if (!costmap) {
+    return false;
+  }
+  const double yaw = tf2::getYaw(pose.pose.orientation);
+  const double cy = std::cos(yaw);
+  const double sy = std::sin(yaw);
+  const double step = costmap->getResolution() * 0.5;
+  for (double dx = -0.05; dx >= -(0.075 + distance) - 1e-6; dx -= step) {
+    for (double dy = -stop_half_width_; dy <= stop_half_width_ + 1e-6; dy += step) {
+      const double wx = pose.pose.position.x + dx * cy - dy * sy;
+      const double wy = pose.pose.position.y + dx * sy + dy * cy;
+      unsigned int mx = 0;
+      unsigned int my = 0;
+      if (costmap->worldToMap(wx, wy, mx, my) &&
+        costmap->getCost(mx, my) == nav2_costmap_2d::LETHAL_OBSTACLE)
+      {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+double DeadbandController::obstacleSide(const geometry_msgs::msg::PoseStamped & pose)
+{
+  // Lethal cells ahead, weighted by closeness: > 0 means more obstacle on the
+  // left (+y), < 0 more on the right, 0 nothing seen (e.g. sonar-only stop).
+  if (!costmap_ros_) {
+    return 0.0;
+  }
+  auto * costmap = costmap_ros_->getCostmap();
+  if (!costmap) {
+    return 0.0;
+  }
+  const double yaw = tf2::getYaw(pose.pose.orientation);
+  const double cy = std::cos(yaw);
+  const double sy = std::sin(yaw);
+  const double step = costmap->getResolution() * 0.5;
+  double side = 0.0;
+  for (double dx = -0.05; dx <= stop_distance_ + 0.10 + 1e-6; dx += step) {
+    for (double dy = -0.30; dy <= 0.30 + 1e-6; dy += step) {
+      if (std::abs(dy) < 1e-6) {
+        continue;
+      }
+      const double wx = pose.pose.position.x + dx * cy - dy * sy;
+      const double wy = pose.pose.position.y + dx * sy + dy * cy;
+      unsigned int mx = 0;
+      unsigned int my = 0;
+      if (costmap->worldToMap(wx, wy, mx, my) &&
+        costmap->getCost(mx, my) == nav2_costmap_2d::LETHAL_OBSTACLE)
+      {
+        side += std::copysign(1.0 / (0.05 + std::hypot(dx, dy)), dy);
+      }
+    }
+  }
+  return side;
+}
+
+void DeadbandController::startEscape(const geometry_msgs::msg::PoseStamped & pose)
+{
+  const double side = obstacleSide(pose);
+  if (std::abs(side) > 1e-6) {
+    escape_dir_ = side > 0.0 ? -1.0 : 1.0;  // obstacle left -> turn right
+  } else {
+    // Nothing in the costmap (sonar stop): turn towards the path.
+    const double err = headingError(pose);
+    escape_dir_ = err >= 0.0 ? 1.0 : -1.0;
+  }
+  escape_step_ = EscapeStep::TURN;
+  escape_turns_ = 1;
+  escape_vx_ = 0.0;
+  escape_wz_ = escape_dir_ * wz_floor_;
+  const double dur = std::clamp(rot_dead_time_ + escape_angle_ / rot_rate_, 0.12, rotate_pulse_);
+  const auto now = std::chrono::steady_clock::now();
+  escape_pulse_until_ = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+    std::chrono::duration<double>(dur));
+  pulse_until_ = {};
+  pulse_kind_ = PulseKind::NONE;
+  was_moving_ = false;
+  auto node = parent_.lock();
+  if (node) {
+    RCLCPP_WARN(
+      node->get_logger(),
+      "escape: forward blocked %.1f s, obstacle %s -> turning %s (%.2f s pulse)",
+      escape_after_, side > 0.0 ? "left" : side < 0.0 ? "right" : "unknown (sonar)",
+      escape_dir_ < 0.0 ? "right" : "left", dur);
+  }
+}
+
+geometry_msgs::msg::TwistStamped DeadbandController::computeEscape(
+  const geometry_msgs::msg::PoseStamped & pose)
+{
+  geometry_msgs::msg::TwistStamped cmd;
+  cmd.header.stamp = pose.header.stamp;
+  cmd.header.frame_id = costmap_ros_ ? costmap_ros_->getBaseFrameID() : "base_link";
+  auto node = parent_.lock();
+  const auto now = std::chrono::steady_clock::now();
+  const auto secs = [](double s) {
+      return std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+        std::chrono::duration<double>(s));
+    };
+
+  if (now < escape_pulse_until_) {
+    if (escape_vx_ > 0.0 && forwardBlocked(pose)) {
+      escape_pulse_until_ = now;  // something appeared ahead: cut the pulse
+    } else {
+      cmd.twist.linear.x = escape_vx_;
+      cmd.twist.angular.z = escape_wz_;
+      return cmd;
+    }
+  }
+  if (escape_pulse_until_ != std::chrono::steady_clock::time_point{}) {
+    escape_pulse_until_ = {};
+    escape_settle_until_ = now + secs(settle_time_);
+  }
+  if (now < escape_settle_until_) {
+    return cmd;
+  }
+
+  const auto start = [&](double vx, double wz, double dur) {
+      escape_vx_ = vx;
+      escape_wz_ = wz;
+      escape_pulse_until_ = now + secs(dur);
+      cmd.twist.linear.x = vx;
+      cmd.twist.angular.z = wz;
+    };
+  const double drive_dur = ff_dead_time_ + escape_distance_ / ff_speed_;
+
+  if (escape_step_ == EscapeStep::TURN) {
+    if (!forwardBlocked(pose)) {
+      escape_step_ = EscapeStep::DRIVE;
+      start(drive_speed_, 0.0, drive_dur);
+      if (node) {
+        RCLCPP_WARN(
+          node->get_logger(), "escape: way ahead clear after %d turn(s), driving %.2f m",
+          escape_turns_, escape_distance_);
+      }
+      return cmd;
+    }
+    if (escape_turns_ < escape_max_turns_) {
+      ++escape_turns_;
+      start(0.0, escape_dir_ * wz_floor_,
+        std::clamp(rot_dead_time_ + escape_angle_ / rot_rate_, 0.12, rotate_pulse_));
+      return cmd;
+    }
+    if (!rearBlocked(pose, escape_distance_)) {
+      escape_step_ = EscapeStep::DRIVE;
+      start(-drive_speed_, 0.0, drive_dur);
+      if (node) {
+        RCLCPP_WARN(
+          node->get_logger(), "escape: still blocked after %d turns, reversing %.2f m",
+          escape_turns_, escape_distance_);
+      }
+      return cmd;
+    }
+    if (node) {
+      RCLCPP_ERROR(
+        node->get_logger(), "escape: blocked ahead and behind, leaving it to the BT recoveries");
+    }
+    escape_step_ = EscapeStep::NONE;
+    blocked_since_ = {};
+    return cmd;
+  }
+
+  // DRIVE pulse finished and settled: hand back to the normal controller.
+  if (node) {
+    RCLCPP_INFO(node->get_logger(), "escape: done, resuming path");
+  }
+  escape_step_ = EscapeStep::NONE;
+  blocked_since_ = {};
+  return cmd;
 }
 
 double DeadbandController::goalDistance(const geometry_msgs::msg::PoseStamped & pose)
@@ -447,13 +646,32 @@ geometry_msgs::msg::TwistStamped DeadbandController::computeVelocityCommands(
   last_cmd_time_ = std::chrono::steady_clock::now();
 
   if (mode_ == "simple") {
+    if (escape_step_ != EscapeStep::NONE) {
+      auto cmd = computeEscape(pose);
+      if (escape_step_ != EscapeStep::NONE) {
+        return cmd;
+      }
+    }
     auto cmd = computeSimple(pose);
-    if (cmd.twist.linear.x > 0.0 && forwardBlocked(pose)) {
-      cmd.twist.linear.x = 0.0;
-      cmd.twist.angular.z = 0.0;
-      pulse_until_ = {};
-      pulse_kind_ = PulseKind::NONE;
-      was_moving_ = false;
+    if (cmd.twist.linear.x > 0.0) {
+      if (forwardBlocked(pose)) {
+        cmd.twist.linear.x = 0.0;
+        cmd.twist.angular.z = 0.0;
+        pulse_until_ = {};
+        pulse_kind_ = PulseKind::NONE;
+        was_moving_ = false;
+        const auto now = std::chrono::steady_clock::now();
+        if (blocked_since_ == std::chrono::steady_clock::time_point{}) {
+          blocked_since_ = now;
+        } else if (escape_enabled_ &&
+          now - blocked_since_ > std::chrono::duration<double>(escape_after_))
+        {
+          startEscape(pose);
+          cmd.twist.angular.z = escape_wz_;
+        }
+      } else {
+        blocked_since_ = {};
+      }
     }
     return cmd;
   }
@@ -789,6 +1007,10 @@ void DeadbandController::reset()
   was_moving_ = false;
   have_goal_ = false;
   pulse_kind_ = PulseKind::NONE;
+  escape_step_ = EscapeStep::NONE;
+  escape_pulse_until_ = {};
+  escape_settle_until_ = {};
+  blocked_since_ = {};
   if (primary_controller_) {
     primary_controller_->reset();
   }

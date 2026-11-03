@@ -48,6 +48,11 @@ public:
 
 private:
   bool forwardBlocked(const geometry_msgs::msg::PoseStamped & pose);
+  bool rearBlocked(const geometry_msgs::msg::PoseStamped & pose, double distance);
+  double obstacleSide(const geometry_msgs::msg::PoseStamped & pose);
+  void startEscape(const geometry_msgs::msg::PoseStamped & pose);
+  geometry_msgs::msg::TwistStamped computeEscape(
+    const geometry_msgs::msg::PoseStamped & pose);
   double floorAxis(double value, double floor) const;
   double headingError(const geometry_msgs::msg::PoseStamped & pose);
   double goalDistance(const geometry_msgs::msg::PoseStamped & pose);
@@ -143,6 +148,26 @@ private:
   double sonar_dist_{-1.0};
   std::chrono::steady_clock::time_point sonar_blocked_until_{};
   std::chrono::steady_clock::time_point last_sonar_log_{};
+
+  // Escape recovery (simple mode): when the forward stop holds the robot for
+  // escape_after seconds (e.g. squeezed past a chair leg the planner routes
+  // 5 cm away from), turn away from the obstacle side and drive a short pulse
+  // out of the pinch.  BackUp cannot do this: its footprint check fails as
+  // soon as the footprint already touches the lethal cells.
+  enum class EscapeStep { NONE, TURN, DRIVE };
+  bool escape_enabled_{true};
+  double escape_after_{3.0};       // forward blocked this long -> escape (s)
+  double escape_angle_{0.5};       // one escape turn (rad)
+  double escape_distance_{0.15};   // escape drive / reverse length (m)
+  int escape_max_turns_{3};        // turns before falling back to reverse
+  EscapeStep escape_step_{EscapeStep::NONE};
+  int escape_turns_{0};
+  double escape_dir_{-1.0};        // wz sign of the escape turns
+  double escape_vx_{0.0};
+  double escape_wz_{0.0};
+  std::chrono::steady_clock::time_point escape_pulse_until_{};
+  std::chrono::steady_clock::time_point escape_settle_until_{};
+  std::chrono::steady_clock::time_point blocked_since_{};
 };
 
 }  // namespace nav2_deadband_controller
