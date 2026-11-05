@@ -710,6 +710,8 @@ export function initSystem() {
     const what = {
       start_all: 'start lidar + rf2o + slam_toolbox, RealSense + EKF, Nav2 + chassis driver',
       stop_all: 'stop SLAM, EKF, RealSense, Nav2 and the chassis driver (the map is lost)',
+      start_all_amcl: 'start lidar + rf2o + static map + AMCL + Nav2 + chassis driver',
+      stop_all_amcl: 'stop AMCL, map_server, Nav2, EKF, RealSense and the chassis driver',
       start_ai: 'start the AI node, AI TF and demo_manager',
       stop_ai: 'stop the AI node, AI TF and demo_manager',
     }[name];
