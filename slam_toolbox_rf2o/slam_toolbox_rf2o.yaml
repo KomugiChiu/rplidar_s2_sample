@@ -18,8 +18,8 @@ slam_toolbox:
     # --- 機器人模型（手持／全向）---
     # 20 Hz -> 10 Hz：map->odom 不用發那麼密，省 ARM 板的 CPU
     transform_publish_period: 0.1
-    enable_loop_closure: true
-    do_loop_closure: true
+    # real slam_toolbox parameter name (was enable_loop_closure / do_loop_closure)
+    do_loop_closing: true
 
     # 地圖更新策略
     map_update_interval: 5.0

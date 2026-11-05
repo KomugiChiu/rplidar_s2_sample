@@ -50,6 +50,9 @@ STOP_DISTANCE="${STOP_DISTANCE:-0.30}"
 USE_EXTERNAL_SAFETY="${USE_EXTERNAL_SAFETY:-0}"
 # workspace containing nav2_deadband_controller (plugin mode)
 PLUGIN_WS="${PLUGIN_WS:-/root/nav2_deadband_ws}"
+# keep-out zones (costmap KeepoutFilter); mask is drawn in the web console Map tab
+KEEPOUT="${KEEPOUT:-1}"
+KEEPOUT_MASK="${KEEPOUT_MASK:-$(dirname -- "$SCRIPT_DIR")/maps/keepout_mask.yaml}"
 
 mkdir -p "$LOG_DIR"
 
@@ -205,6 +208,19 @@ if [ "$START_DRIVER" = "true" ]; then
     fi
 fi
 
+if [ "$KEEPOUT" = "1" ]; then
+    if [ ! -f "$KEEPOUT_MASK" ]; then
+        # no zones drawn yet: 1x1 free mask so the mask server can start
+        mkdir -p "$(dirname -- "$KEEPOUT_MASK")"
+        printf 'P5\n1 1\n255\n\xfe' > "${KEEPOUT_MASK%.yaml}.pgm"
+        printf 'image: %s\nmode: trinary\nresolution: 0.05\norigin: [0.0, 0.0, 0.0]\nnegate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.25\n' \
+            "$(basename -- "${KEEPOUT_MASK%.yaml}.pgm")" > "$KEEPOUT_MASK"
+        echo "keepout: created empty mask $KEEPOUT_MASK"
+    fi
+    start_process keepout \
+        ros2 launch "$SCRIPT_DIR/keepout_filter_launch.py" mask:="$KEEPOUT_MASK" use_sim_time:="$USE_SIM_TIME"
+fi
+
 NAV2_ARGS=(
     slam:=False
     params_file:="$PARAMS_FILE"
@@ -225,6 +241,9 @@ echo
 echo "Nav2 stack started."
 echo "  params : $PARAMS_FILE"
 echo "  odom   : /odometry/filtered (ekf)"
+if [ "$KEEPOUT" = "1" ]; then
+    echo "  keepout: $KEEPOUT_MASK -> /keepout_filter_mask (KeepoutFilter in both costmaps)"
+fi
 if [ "$USE_LOCALIZATION" = "1" ]; then
     echo "  map    : /map (map_server: $MAP_FILE)"
     echo "  tf     : map->odom (AMCL), odom->base_footprint (ekf)"

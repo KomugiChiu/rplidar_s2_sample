@@ -221,12 +221,13 @@ export function initMap() {
   const canvas = $('#mapCanvas');
   mapView = new MapView(canvas, {
     onPick: onMapPick,
-    onCursor: (w) => { mapView._cursor = w; renderHud(); },
+    onZone: onMapZone,
+    onCursor: (w) => { mapView._cursor = w; renderHud(); if (mapView.d.zonePoly.length) mapView.dirty(); },
   });
   const saved = store('layers');
   if (saved) Object.assign(mapView.layers, saved);
   const LAYERS = { map: 'Map', costmap_global: 'Global costmap', costmap_local: 'Local costmap', scan: 'Laser scan',
-    plan: 'Global plan', people: 'People (AI + demo)', trail: 'Trail', grid: '1 m grid' };
+    plan: 'Global plan', people: 'People (AI + demo)', trail: 'Trail', keepout: 'Keep-out zones', grid: '1 m grid' };
   $('#mapLayers').innerHTML = Object.entries(LAYERS).map(([k, l]) =>
     `<label><input type="checkbox" data-layer="${k}" ${mapView.layers[k] ? 'checked' : ''}> ${esc(l)}</label>`).join('');
   $('#mapLayers').addEventListener('change', (e) => {
@@ -241,8 +242,14 @@ export function initMap() {
     const b = e.target.closest('button');
     if (!b) return;
     $$('#mapTool button').forEach((x) => x.classList.toggle('on', x === b));
+    if (mapView.tool === 'keepout' && b.dataset.tool !== 'keepout') zonePolyCancel();
     mapView.setTool(b.dataset.tool);
     if (b.dataset.tool === 'wp') renderWaypoints();
+    if (b.dataset.tool === 'keepout') {
+      $('#mapSide').classList.remove('collapsed');
+      if (!ko.dirty) loadKeepout();
+      else renderKeepout();
+    }
   });
   const followBtn = $('#mapFollow');
   followBtn.onclick = () => { mapView.follow = !mapView.follow; followBtn.classList.toggle('on', mapView.follow); mapView.dirty(); };
@@ -255,7 +262,7 @@ export function initMap() {
       return;
     }
     if (!await confirmDialog('Save map?',
-      'Save the current <code>/map</code> to <code>maps/slam_map_latest.yaml</code>? This overwrites the previous file.', 'Save')) return;
+      'Save the current <code>/map</code> and posegraph to <code>maps/slam_map_latest.*</code>? This overwrites the previous files.', 'Save')) return;
     const b = $('#mapSaveBtn');
     const old = b.textContent;
     b.disabled = true;
@@ -263,7 +270,8 @@ export function initMap() {
     try {
       const r = await post('/api/save_map');
       if (r.ok) {
-        toast(`Map saved: ${r.path || 'maps/slam_map_latest.yaml'}`, 'OK', 5000);
+        const pg = r.posegraph ? ' + posegraph' : ' (posegraph skipped)';
+        toast(`Map saved${pg}: ${r.path || 'maps/slam_map_latest.yaml'}`, r.posegraph ? 'OK' : 'WARN', 6000);
       } else {
         console.error('save map failed', r);
         toast(`Save map failed: ${r.msg || 'unknown error'}`, 'ERROR', 7000);
@@ -288,11 +296,13 @@ export function initMap() {
     <span style="color:var(--robot)">▲</span> robot · <span style="color:var(--scan)">■</span> scan ·
     <span style="color:var(--plan)">━</span> plan · <span style="color:var(--goal)">●</span> goal ·
     <span style="color:#13b5c9">○</span> AI person (TF) · ● demo_manager marker ·
-    <span style="color:#ff006e">■</span> lethal · <span style="color:#a050ff">■</span> inscribed`;
+    <span style="color:#ff006e">■</span> lethal · <span style="color:#a050ff">■</span> inscribed ·
+    <span style="color:var(--err)">▨</span> keep-out zone`;
 
   S._pending = store('pendingWps') || [];
   mapView.set('pending', S._pending);
   for (const ch of ['map', 'costmap_local', 'costmap_global']) on(ch, (g) => mapView.setGrid(ch, g));
+  loadKeepout();
 }
 
 export function mapChannels() {
@@ -390,6 +400,126 @@ export function renderMapSide() {
       <span>Collision</span><span>${esc(m.collision ? m.collision.action : '–')}</span>
     </div>${blockersHtml(m.blockers)}`;
   if (!$('#mapWps').innerHTML) renderWaypoints();
+}
+
+// ---------------------------------------------------------- keep-out zones
+// ko.zones = working copy shown on the map; ko.saved = what the robot has.
+const ko = { saved: [], zones: [], dirty: false, server: null, updated: 0, by: '', busy: false };
+const cloneZones = (zs) => zs.map((z) => ({ name: z.name, pts: z.pts.map((p) => [p[0], p[1]]) }));
+
+async function loadKeepout() {
+  try {
+    const r = await (await fetch('/api/keepout')).json();
+    if (!r.ok) throw new Error(r.msg);
+    Object.assign(ko, { saved: r.zones || [], server: r.server, updated: r.updated, by: r.by });
+    if (!ko.dirty) ko.zones = cloneZones(ko.saved);
+  } catch (e) {
+    toast(`Keep-out zones: ${e.message || e}`, 'ERROR');
+  }
+  mapView.set('zones', ko.zones);
+  renderKeepout();
+}
+
+function zoneEdited() {
+  ko.dirty = true;
+  mapView.set('zones', ko.zones);
+  renderKeepout();
+}
+
+function zoneAdd(pts) {
+  ko.zones.push({ name: `zone ${ko.zones.length + 1}`, pts });
+  zoneEdited();
+}
+
+function zonePolyCancel() {
+  mapView.d.zonePoly = [];
+  mapView.dirty();
+  zonePolyBar();
+}
+
+function zonePolyFinish() {
+  const poly = mapView.d.zonePoly;
+  mapView.d.zonePoly = [];
+  if (poly.length >= 3) zoneAdd(poly);
+  else mapView.dirty();
+  zonePolyBar();
+}
+
+// confirm bar while a polygon is being drawn
+function zonePolyBar() {
+  const box = $('#mapConfirm');
+  const n = mapView.d.zonePoly.length;
+  if (!n) { box.classList.add('hidden'); return; }
+  box.innerHTML = `<span>Keep-out polygon: <b>${n}</b> point${n > 1 ? 's' : ''} <span class="muted small">· tap the first point to close</span></span>
+    <button class="btn primary" data-act="fin" ${n >= 3 ? '' : 'disabled'}>Finish</button>
+    <button class="btn" data-act="undo">Undo</button><button class="btn" data-act="no">Cancel</button>`;
+  box.classList.remove('hidden');
+  box.onclick = (e) => {
+    const act = e.target.closest('[data-act]');
+    if (!act) return;
+    if (act.dataset.act === 'fin') zonePolyFinish();
+    else if (act.dataset.act === 'undo') { mapView.d.zonePoly.pop(); mapView.dirty(); zonePolyBar(); }
+    else zonePolyCancel();
+  };
+}
+
+function onMapZone(kind, a, b) {
+  if (kind === 'rect') {
+    if (Math.abs(b[0] - a[0]) < 0.05 || Math.abs(b[1] - a[1]) < 0.05) return;
+    zoneAdd([[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]]]);
+    return;
+  }
+  // tap: polygon vertex; tapping the first vertex closes the polygon
+  if (b && mapView.d.zonePoly.length >= 3) { zonePolyFinish(); return; }
+  if (mapView.d.zonePoly.length >= 256) return;
+  mapView.d.zonePoly.push([a[0], a[1]]);
+  mapView.dirty();
+  zonePolyBar();
+}
+
+async function applyKeepout() {
+  const n = ko.zones.length;
+  if (!await confirmDialog('Apply keep-out zones?',
+    `Send ${n ? `<b>${n}</b> keep-out zone${n > 1 ? 's' : ''}` : '<b>no</b> keep-out zones (clears all)'} to Nav2? ` +
+    'This rewrites <code>maps/keepout_mask.yaml</code> and reloads the mask in both costmaps. ' +
+    'Zones are in the <code>map</code> frame, so they only line up with the map they were drawn on.', 'Apply')) return;
+  ko.busy = true;
+  renderKeepout();
+  const r = await post('/api/keepout', { zones: ko.zones });
+  ko.busy = false;
+  if (r.saved) {
+    ko.dirty = false;
+    toast(r.msg || 'saved', r.applied ? 'OK' : 'WARN', r.applied ? 4000 : 8000);
+    if (r.output) console.warn('keep-out reload output', r.output);
+    await loadKeepout();
+  } else {
+    toast(`Keep-out save failed: ${r.msg || 'unknown error'}`, 'ERROR', 7000);
+    renderKeepout();
+  }
+}
+
+function renderKeepout() {
+  const box = $('#mapKeepout');
+  const editing = mapView.tool === 'keepout';
+  const zs = ko.zones;
+  const status = ko.dirty ? pill('WARN', 'unsaved changes')
+    : (ko.server === false ? pill('WARN', 'Nav2 keep-out server not running') : pill('OK', ko.updated ? 'applied' : 'none saved'));
+  box.innerHTML = `<h3>Keep-out zones <span class="muted small">(${editing ? 'drag = rectangle · tap = polygon point' : '⛔ tool to edit'})</span></h3>
+    <div class="small">${status}${ko.updated && !ko.dirty ? ` <span class="muted">${fTime(ko.updated)}${ko.by ? ' by ' + esc(ko.by) : ''}</span>` : ''}</div>
+    ${zs.length ? `<ol class="wp-list">${zs.map((z, i) => {
+      const xs = z.pts.map((p) => p[0]), ys = z.pts.map((p) => p[1]);
+      return `<li><span>${i + 1}. ${f(Math.max(...xs) - Math.min(...xs))} × ${f(Math.max(...ys) - Math.min(...ys))} m · ${z.pts.length} pts</span>${editing ? `<button data-zrm="${i}" title="remove">✕</button>` : ''}</li>`;
+    }).join('')}</ol>` : '<div class="muted small">no zones</div>'}
+    ${editing || ko.dirty ? `<div class="row gap"><button class="btn primary" id="koApply" ${ko.dirty && !ko.busy ? '' : 'disabled'}>${ko.busy ? 'Applying…' : 'Apply to Nav2'}</button>
+    <button class="btn" id="koRevert" ${ko.dirty && !ko.busy ? '' : 'disabled'}>Revert</button>
+    <button class="btn" id="koClear" ${zs.length && !ko.busy ? '' : 'disabled'}>Remove all</button></div>` : ''}`;
+  box.onclick = (e) => {
+    const rm = e.target.closest('[data-zrm]');
+    if (rm) { zs.splice(Number(rm.dataset.zrm), 1); zoneEdited(); }
+    else if (e.target.id === 'koClear') { zs.length = 0; zoneEdited(); }
+    else if (e.target.id === 'koRevert') { ko.zones = cloneZones(ko.saved); ko.dirty = false; mapView.set('zones', ko.zones); renderKeepout(); }
+    else if (e.target.id === 'koApply') applyKeepout();
+  };
 }
 
 // =================================================================== camera

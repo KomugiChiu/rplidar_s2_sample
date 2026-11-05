@@ -35,13 +35,13 @@ amcl:
     # If the robot is parked somewhere else, either edit these three values or
     # run: tools/set_initial_pose.py X Y YAW_DEG
     set_initial_pose: true
-    # corrected 2026-11-03 18:20 by global scan match (96.8% hit, 0.016 m):
-    # the robot had been rotated ~180 deg since the map was saved
+    # corrected 2026-11-05 from AMCL scan match on slam_map_latest:
+    # prior 0,0,0 -> AMCL estimate 0.065,0.099,0 deg
     initial_pose:
-      x: 0.042
-      y: -0.110
+      x: 0.065
+      y: 0.099
       z: 0.0
-      yaw: -0.192
+      yaw: 0.0
     always_reset_initial_pose: false
     first_map_only: false
     odom_frame_id: "odom"
@@ -320,6 +320,15 @@ local_costmap:
       footprint: "[[0.075, 0.05], [0.075, -0.05], [-0.075, -0.05], [-0.075, 0.05]]"
       footprint_padding: 0.0
       plugins: ["voxel_layer", "inflation_layer"]
+      # keep-out zones drawn in the web console (maps/keepout_mask.yaml, see
+      # keepout_filter_launch.py); no mask published -> filter does nothing
+      filters: ["keepout_filter"]
+      keepout_filter:
+        plugin: "nav2_costmap_2d::KeepoutFilter"
+        enabled: True
+        filter_info_topic: /costmap_filter_info
+        # robot already inside a zone may still plan its way out
+        override_lethal_cost: True
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
@@ -365,6 +374,15 @@ global_costmap:
       resolution: 0.05
       track_unknown_space: false
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      # keep-out zones drawn in the web console (maps/keepout_mask.yaml, see
+      # keepout_filter_launch.py); no mask published -> filter does nothing
+      filters: ["keepout_filter"]
+      keepout_filter:
+        plugin: "nav2_costmap_2d::KeepoutFilter"
+        enabled: True
+        filter_info_topic: /costmap_filter_info
+        # robot already inside a zone may still plan its way out
+        override_lethal_cost: True
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
@@ -393,7 +411,7 @@ map_server:
   ros__parameters:
     # static map saved from slam_toolbox on 2026-11-02
     # override at launch with: map:=/path/other_map.yaml
-    yaml_filename: "/nvt_ros2_example/slam_toolbox_rf2o/maps/slam_map_20261103.yaml"
+    yaml_filename: "/nvt_ros2_example/slam_toolbox_rf2o/maps/slam_map_latest.yaml"
     topic_name: "map"
     frame_id: "map"
 

@@ -1,4 +1,4 @@
-// 2D map view (canvas): occupancy map, costmaps, scan, plan, goals, people, robot.
+// 2D map view (canvas): occupancy map, costmaps, keep-out zones, scan, plan, goals, people, robot.
 // World frame = map; x right, y up.  view.s = pixels per metre.
 
 const FOOTPRINT = [[0.075, 0.05], [0.075, -0.05], [-0.075, -0.05], [-0.075, 0.05]];
@@ -20,18 +20,19 @@ function cssColor(name) {
 }
 
 export class MapView {
-  constructor(canvas, { onPick, onCursor } = {}) {
+  constructor(canvas, { onPick, onCursor, onZone } = {}) {
     this.c = canvas;
     this.ctx = canvas.getContext('2d');
     this.view = { x: 0, y: 0, s: 80 };
     this.layers = { map: true, costmap_global: false, costmap_local: true, scan: true, plan: true,
-      people: true, trail: true, grid: false };
+      people: true, trail: true, grid: false, keepout: true };
     this.follow = true;
     this.tool = 'pan';
     this.grids = {};
     this.d = { pose: null, scan: null, plan: null, people: null, mission: null, extGoal: null, trail: [],
-      pending: [], preview: null };
+      pending: [], preview: null, zones: [], zonePoly: [], zoneRect: null };
     this.onPick = onPick;
+    this.onZone = onZone;
     this.onCursor = onCursor;
     this.pointers = new Map();
     this.fitted = false;
@@ -152,10 +153,14 @@ export class MapView {
         mid: this.world((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) };
       this.drag = null;
       this.d.preview = null;
+      this.d.zoneRect = null;
       return;
     }
     if (this.tool === 'pan') {
       this.drag = { p, x: this.view.x, y: this.view.y };
+    } else if (this.tool === 'keepout') {
+      // drag = rectangle, tap = polygon vertex
+      this.drag = { p, zone: this.world(p[0], p[1]) };
     } else {
       const w = this.world(p[0], p[1]);
       this.drag = { p, pick: w };
@@ -182,6 +187,14 @@ export class MapView {
       return;
     }
     if (!this.drag) return;
+    if (this.drag.zone) {
+      const dx = p[0] - this.drag.p[0], dy = p[1] - this.drag.p[1];
+      if (!this.d.zonePoly.length && (this.d.zoneRect || Math.hypot(dx, dy) > 8)) {
+        this.d.zoneRect = [this.drag.zone, this.world(p[0], p[1])];
+        this.dirty();
+      }
+      return;
+    }
     if (this.drag.pick) {
       const dx = p[0] - this.drag.p[0], dy = p[1] - this.drag.p[1];
       if (Math.hypot(dx, dy) > 10) this.d.preview.yaw = Math.atan2(-dy, dx);
@@ -200,7 +213,18 @@ export class MapView {
     if (this.pointers.size < 2) this.pinch = null;
     const drag = this.drag;
     this.drag = null;
-    if (drag && drag.pick && !cancelled && this.pointers.size === 0) {
+    if (drag && drag.zone) {
+      const rect = this.d.zoneRect;
+      this.d.zoneRect = null;
+      if (!cancelled && this.pointers.size === 0 && this.onZone) {
+        if (rect) this.onZone('rect', rect[0], rect[1]);
+        else {
+          const f = this.d.zonePoly[0];
+          const nearFirst = !!f && Math.hypot(this.sx(f[0]) - drag.p[0], this.sy(f[1]) - drag.p[1]) < 14;
+          this.onZone('tap', drag.zone, nearFirst);
+        }
+      }
+    } else if (drag && drag.pick && !cancelled && this.pointers.size === 0) {
       const pv = this.d.preview;
       let yaw = pv.yaw;
       if (yaw === null) {
@@ -257,6 +281,8 @@ export class MapView {
 
     const css = getComputedStyle(document.documentElement);
     const col = (n) => css.getPropertyValue(n).trim();
+
+    if (this.layers.keepout || this.tool === 'keepout') this.drawZones(col('--err'));
 
     // plan
     const plan = this.d.plan;
@@ -347,6 +373,43 @@ export class MapView {
     }
 
     this.drawScale(col('--text'));
+  }
+
+  // keep-out zones (saved/edited), polygon being drawn, rectangle preview
+  drawZones(color) {
+    const ctx = this.ctx;
+    const path = (pts) => {
+      ctx.beginPath();
+      pts.forEach((p, i) => (i ? ctx.lineTo(this.sx(p[0]), this.sy(p[1])) : ctx.moveTo(this.sx(p[0]), this.sy(p[1]))));
+    };
+    ctx.save();
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    ctx.font = '700 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    this.d.zones.forEach((z, i) => {
+      path(z.pts); ctx.closePath();
+      ctx.globalAlpha = 0.22; ctx.fill();
+      ctx.globalAlpha = 1; ctx.stroke();
+      const cx = z.pts.reduce((a, p) => a + p[0], 0) / z.pts.length, cy = z.pts.reduce((a, p) => a + p[1], 0) / z.pts.length;
+      ctx.fillText(String(i + 1), this.sx(cx), this.sy(cy));
+    });
+    ctx.setLineDash([5, 4]);
+    const r = this.d.zoneRect;
+    if (r) {
+      path([r[0], [r[1][0], r[0][1]], r[1], [r[0][0], r[1][1]]]); ctx.closePath();
+      ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke();
+    }
+    const poly = this.d.zonePoly;
+    if (poly.length) {
+      path(poly);
+      if (this._cursor && this.tool === 'keepout') ctx.lineTo(this.sx(this._cursor[0]), this.sy(this._cursor[1]));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      poly.forEach((p, i) => {
+        ctx.beginPath(); ctx.arc(this.sx(p[0]), this.sy(p[1]), i ? 3.5 : 7, 0, Math.PI * 2);
+        if (i) ctx.fill(); else ctx.stroke();
+      });
+    }
+    ctx.restore();
   }
 
   polyline(pts, color, dash) {

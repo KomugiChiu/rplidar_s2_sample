@@ -63,6 +63,7 @@
           <button data-tool="goal" title="Press, drag for heading, release">🎯 Goal</button>
           <button data-tool="wp" title="Add waypoints (press, drag for heading)">📍 Waypoints</button>
           <button data-tool="init" title="Initial pose (AMCL mode only)">⊕ Init</button>
+          <button data-tool="keepout" title="Keep-out zones: drag for a rectangle, tap points for a polygon">⛔ Keep-out</button>
         </div>
         <div class="seg">
           <button id="mapFollow" class="on" title="Keep robot centred">⌖ Follow</button>
@@ -82,6 +83,7 @@
         <div class="sheet-grip" id="sheetGrip"></div>
         <div id="mapNav"></div>
         <div id="mapWps"></div>
+        <div id="mapKeepout"></div>
         <div class="row gap wrap">
           <button class="btn" data-cmd="cancel">Cancel navigation</button>
           <button class="btn" data-cmd="clear_costmaps">Clear costmaps</button>

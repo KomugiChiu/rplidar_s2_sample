@@ -51,6 +51,8 @@ PATTERNS=(
     "nav2_lifecycle_manager/lifecycle_manager"
     "nav2_map_server/map_server"
     "nav2_amcl/amcl"
+    "keepout_filter_launch.py"
+    "__node:=keepout_container"
 )
 if [ "$KEEP_DRIVER" != "1" ]; then
     PATTERNS+=(

@@ -299,6 +299,15 @@ local_costmap:
       footprint: "[[0.075, 0.05], [0.075, -0.05], [-0.075, -0.05], [-0.075, 0.05]]"
       footprint_padding: 0.0
       plugins: ["voxel_layer", "inflation_layer"]
+      # keep-out zones drawn in the web console (maps/keepout_mask.yaml, see
+      # keepout_filter_launch.py); no mask published -> filter does nothing
+      filters: ["keepout_filter"]
+      keepout_filter:
+        plugin: "nav2_costmap_2d::KeepoutFilter"
+        enabled: True
+        filter_info_topic: /costmap_filter_info
+        # robot already inside a zone may still plan its way out
+        override_lethal_cost: True
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
@@ -344,6 +353,15 @@ global_costmap:
       resolution: 0.05
       track_unknown_space: false
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      # keep-out zones drawn in the web console (maps/keepout_mask.yaml, see
+      # keepout_filter_launch.py); no mask published -> filter does nothing
+      filters: ["keepout_filter"]
+      keepout_filter:
+        plugin: "nav2_costmap_2d::KeepoutFilter"
+        enabled: True
+        filter_info_topic: /costmap_filter_info
+        # robot already inside a zone may still plan its way out
+        override_lethal_cost: True
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True

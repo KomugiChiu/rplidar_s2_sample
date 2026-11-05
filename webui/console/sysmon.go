@@ -37,6 +37,7 @@ var procDefs = []struct {
 	{"waypoint_follower", "NAV2", "nav2_waypoint_follower/waypoint_follower", true},
 	{"lifecycle_manager", "NAV2", "nav2_lifecycle_manager/lifecycle_manager", true},
 	{"route_server", "NAV2", "nav2_route/route_server", false},
+	{"keepout_container", "NAV2", "__node:=keepout_container", false},
 	{"docking_server", "NAV2", "opennav_docking/opennav_docking", false},
 	{"Mcnamu_driver", "CHASSIS", "yahboomcar_bringup/Mcnamu_driver", true},
 	{"record_cmd_vel", "TOOLS", "record_cmd_vel.py", false},
