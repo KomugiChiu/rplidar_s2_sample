@@ -73,6 +73,7 @@ func main() {
 	mux.HandleFunc("POST /api/cmd", s.handleCmd)
 	mux.HandleFunc("POST /api/teleop", s.handleTeleop)
 	mux.HandleFunc("POST /api/stack/{name}", s.handleStack)
+	mux.HandleFunc("POST /api/save_map", s.handleSaveMap)
 	mux.HandleFunc("GET /api/logs.txt", s.handleLogDump)
 	mux.HandleFunc("GET /api/ping", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{"t": nowSec()})

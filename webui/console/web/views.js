@@ -248,6 +248,31 @@ export function initMap() {
   followBtn.onclick = () => { mapView.follow = !mapView.follow; followBtn.classList.toggle('on', mapView.follow); mapView.dirty(); };
   canvas.addEventListener('follow', (e) => followBtn.classList.toggle('on', e.detail));
   $('#mapFit').onclick = () => { mapView.fit(true); followBtn.classList.remove('on'); };
+  $('#mapSaveBtn').onclick = async () => {
+    const sys = S.ch.sys || {};
+    if (!sys.stack_up) {
+      toast('ROS stack is not running — start SLAM first', 'WARN');
+      return;
+    }
+    if (!await confirmDialog('Save map?',
+      'Save the current <code>/map</code> to <code>maps/slam_map_latest.yaml</code>? This overwrites the previous file.', 'Save')) return;
+    const b = $('#mapSaveBtn');
+    const old = b.textContent;
+    b.disabled = true;
+    b.textContent = 'Saving…';
+    try {
+      const r = await post('/api/save_map');
+      if (r.ok) {
+        toast(`Map saved: ${r.path || 'maps/slam_map_latest.yaml'}`, 'OK', 5000);
+      } else {
+        console.error('save map failed', r);
+        toast(`Save map failed: ${r.msg || 'unknown error'}`, 'ERROR', 7000);
+      }
+    } finally {
+      b.disabled = false;
+      b.textContent = old;
+    }
+  };
   $('#mapSide').addEventListener('click', (e) => {
     const b = e.target.closest('[data-cmd]');
     if (b) cmd({ cmd: b.dataset.cmd });
@@ -702,11 +727,17 @@ export function renderTF() {
 }
 
 // =================================================================== system
+// start_all / stop_all buttons run the *_amcl variant when the AMCL stack is selected
+const scriptName = (b) => b.dataset.script + (b.hasAttribute('data-mode') ? $('#stackMode').value : '');
+
 export function initSystem() {
+  const mode = $('#stackMode');
+  mode.value = store('stackMode') || '';
+  mode.addEventListener('change', () => { store('stackMode', mode.value); renderSystem(); });
   $('#stackBtns').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-script]');
     if (!b) return;
-    const name = b.dataset.script;
+    const name = scriptName(b);
     const what = {
       start_all: 'start lidar + rf2o + slam_toolbox, RealSense + EKF, Nav2 + chassis driver',
       stop_all: 'stop SLAM, EKF, RealSense, Nav2 and the chassis driver (the map is lost)',
@@ -726,7 +757,10 @@ export function renderSystem() {
   if (sc) {
     const st = sc.state || {};
     $('#stackDir').textContent = sc.dir || '';
-    $$('#stackBtns [data-script]').forEach((b) => { b.disabled = st.running || !(sc.available || {})[b.dataset.script]; });
+    const avail = sc.available || {};
+    $('#stackMode').disabled = st.running;
+    $$('#stackMode option').forEach((o) => { o.disabled = !avail['start_all' + o.value]; });
+    $$('#stackBtns [data-script]').forEach((b) => { b.disabled = st.running || !avail[scriptName(b)]; });
     const out = $('#scriptOut');
     const atBottom = out.scrollHeight - out.scrollTop - out.clientHeight < 30;
     const head = st.name ? `${st.running ? '▶ running' : `■ exit ${st.exit}`} ${st.name}.sh  (by ${st.by}, ${fTime(st.started)})\n` : 'no script run yet\n';

@@ -16,12 +16,12 @@ import (
 
 // Whitelisted stack scripts (relative to -stack-dir).  Nothing else can be run.
 var stackScripts = map[string]string{
-	"start_all": "start_all.sh",
+	"start_all":      "start_all.sh",
 	"start_all_amcl": "start_all_amcl.sh",
-	"stop_all":  "stop_all.sh",
+	"stop_all":       "stop_all.sh",
 	"stop_all_amcl":  "stop_all_amcl.sh",
-	"start_ai":  "start_ai.sh",
-	"stop_ai":   "stop_ai.sh",
+	"start_ai":       "start_ai.sh",
+	"stop_ai":        "stop_ai.sh",
 }
 
 const scriptTimeout = 4 * time.Minute
