@@ -15,6 +15,7 @@
 #   ./start_ai.sh
 #   CAMERA_X=0.0 CAMERA_Y=0.0 CAMERA_Z=0.0 ./start_ai.sh
 #   KIT_DIR=/path/to/kit ./start_ai.sh
+#   START_REALSENSE=1 ./start_ai.sh   # AI only: start the camera here
 #   DRY_RUN=1 ./start_ai.sh
 #
 # Stop with: ./stop_ai.sh
@@ -36,7 +37,11 @@ LOG_DIR="${LOG_DIR:-/tmp/slam_toolbox_rf2o_ai}"
 PID_FILE="${PID_FILE:-$LOG_DIR/pids}"
 CAMERA_WAIT="${CAMERA_WAIT:-20}"
 TOPIC_WAIT="${TOPIC_WAIT:-20}"
-START_REALSENSE="${START_REALSENSE:-auto}"
+# 0 (default): do NOT start a camera here; reuse the one started by
+#   ekf/start_ekf.sh (start_all.sh).  Starting a second node was the
+#   source of duplicate RealSense processes.
+# 1: start one here (AI-only setup); auto: reuse if a compatible node exists.
+START_REALSENSE="${START_REALSENSE:-0}"
 DRY_RUN="${DRY_RUN:-0}"
 
 SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]:-$0}" 2>/dev/null || echo "${BASH_SOURCE[0]:-$0}")"
@@ -192,13 +197,14 @@ if [ "$START_REALSENSE" = "1" ]; then
 
   log "starting RealSense (domain $ROS_DOMAIN_ID)"
   start_bg realsense ros2 launch realsense2_camera rs_launch.py \
+    enable_gyro:=true enable_accel:=true \
     enable_rgbd:=true \
     enable_sync:=true \
     align_depth.enable:=true \
     enable_color:=true \
     enable_depth:=true \
-    rgb_camera.color_profile:=424x240x15 \
-    depth_module.depth_profile:=424x240x15
+    rgb_camera.color_profile:=424x240x5 \
+    depth_module.depth_profile:=424x240x5
 
   # The AI node uses the compressed color image and aligned depth.
   if [ "$DRY_RUN" != "1" ]; then

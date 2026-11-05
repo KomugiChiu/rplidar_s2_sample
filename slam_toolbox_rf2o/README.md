@@ -197,7 +197,7 @@ SLAM_MODE=none ./start_slam_toolbox_rf2o.sh
 
 ### 4.4 `ekf/start_ekf.sh` / `ekf/stop_ekf.sh`
 
-一個 RealSense node 同時給 EKF（gyro）與 AI（RGBD）：`enable_rgbd + color + depth + align_depth + sync`，profile 目前 **424×240 @ 15 fps**。
+一個 RealSense node 同時給 EKF（gyro）與 AI（RGBD）：`enable_rgbd + color + depth + align_depth + sync`，profile 目前 **424×240 @ 5 fps**。
 
 產出：`/odometry/filtered`、TF `odom → base_footprint`、TF `base_footprint → camera_link`。
 
@@ -278,7 +278,7 @@ RealSense + `ai_human_detection` + AI TF + DemoManager。**不會**停 SLAM / Na
 
 | 變數 | 預設 | 說明 |
 |---|---|---|
-| `START_REALSENSE` | `auto` | `auto` = 已有 RGBD 就用它、IMU-only 會報錯；`1` 強制啟動；`0` 不啟動 |
+| `START_REALSENSE` | `0` | **預設不起相機**（用 `start_all.sh` 起的 node）；`1` = AI-only 時自己起（含 gyro/accel）；`auto` = 偵測現有 node |
 | `REALSENSE_WS` | `/nvt_ros2_example/realsense-ros` | |
 | `AI_WS` | `/nvt_ros2_example/ai_human_detection` | |
 | `DEMO_WS` | `/root/ros2_ws` | DemoManager workspace |
@@ -390,7 +390,7 @@ python3 nav2_1028/tools/monitor_cpu.py --interval 2 --csv /tmp/nav2_logs/cpu.csv
    EKF 與 AI 共用同一個（RGBD + gyro）。`start_ai.sh` 的 `auto` 會偵測：IMU-only 會直接報錯並提示改 `start_ekf.sh`。
 
 7. **改了 camera 解析度沒生效**
-   profile 在 `ekf/start_ekf.sh`（目前 `424x240x15`），要重啟相機（`./ekf/stop_ekf.sh` → `./ekf/start_ekf.sh`）才生效。
+   profile 在 `ekf/start_ekf.sh`（目前 `424x240x5`），要重啟相機（`./ekf/stop_ekf.sh` → `./ekf/start_ekf.sh`）才生效。
 
 8. **`ROS_DOMAIN_ID` 不一致**
    所有 script 預設 99；若某個 terminal 自己 export 了別的值，會看不到彼此的 topic。
