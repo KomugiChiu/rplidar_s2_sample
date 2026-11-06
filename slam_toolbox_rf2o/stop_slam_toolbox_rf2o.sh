@@ -28,7 +28,10 @@ PATTERNS=(
   "sync_slam_toolbox_node"                     # slam_toolbox node
   "ros2 launch slam_toolbox"                  # slam_toolbox launch wrapper
   "rf2o_laser_odometry_node"                  # rf2o odometry node
-  "static_transform_publisher"                # base_footprint -> base_link -> laser
+  # only this flow's TFs; a bare "static_transform_publisher" would also kill
+  # the camera TF started by start_ekf.sh
+  "static_transform_publisher.*base_footprint.*base_link"
+  "static_transform_publisher.*base_link.*laser"
   "ros2 launch rplidar_ros rplidar_s2_launch.py"   # S2 driver wrapper
   "rplidar_ros/rplidar_node"                  # S2 driver node
 )
@@ -37,7 +40,8 @@ PATTERNS_NODRIVER=(
   "sync_slam_toolbox_node"
   "ros2 launch slam_toolbox"
   "rf2o_laser_odometry_node"
-  "static_transform_publisher"
+  "static_transform_publisher.*base_footprint.*base_link"
+  "static_transform_publisher.*base_link.*laser"
 )
 
 # PIDs of this flow (deduped, order preserved).

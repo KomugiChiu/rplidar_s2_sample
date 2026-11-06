@@ -11,6 +11,8 @@ slam_toolbox:
 
     # 掃描配準的迭代次數 / 門檻
     scan_match_threshold: 0.995
+    # robust loss for the graph optimizer (same as the mapping profile)
+    ceres_loss_function: HuberLoss
     loop_match_minimum_chain_size: 10
     loop_match_maximum_variance_coarse: 3.0
     loop_match_maximum_variance_fine: 0.5
@@ -31,8 +33,10 @@ slam_toolbox:
 
     # 只有真的移動了才處理新掃描（0.0 = 每張掃描都進 SLAM，
     # 站著不動也會把 4 核吃到滿載）
-    minimum_travel_distance: 0.3
-    minimum_travel_heading: 0.2
+    minimum_travel_distance: 0.2
+    minimum_travel_heading: 0.1
+    # process scans on pure rotation too (heading check instead of distance only)
+    check_min_dist_and_heading_precisely: true
     minimum_time_interval: 0.5
 
     # 輸出的座標系
