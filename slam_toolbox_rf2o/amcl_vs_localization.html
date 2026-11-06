@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMCL vs slam_toolbox Localization — 實測比較</title>
+<style>
+  :root {
+    --bg: #f6f7fb;
+    --card: #ffffff;
+    --ink: #1f2430;
+    --muted: #5b6472;
+    --line: #e3e6ee;
+    --amcl: #d1495b;
+    --loc: #2a9d8f;
+    --accent: #3a6df0;
+    --warn: #b26a00;
+    --code: #f1f3f8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 "Inter", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 22px 72px; }
+  header.hero {
+    background: linear-gradient(135deg, #1f2430 0%, #2b3a55 60%, #35507a 100%);
+    color: #fff;
+    border-radius: 18px;
+    padding: 36px 36px 30px;
+    box-shadow: 0 12px 32px rgba(31,36,48,.18);
+  }
+  header.hero h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: .5px; }
+  header.hero p { margin: 0; color: #c9d3e6; font-size: 15px; }
+  .pill {
+    display: inline-block; margin-top: 16px; padding: 5px 12px;
+    border-radius: 999px; font-size: 12.5px; letter-spacing: .4px;
+    background: rgba(255,255,255,.14); color: #e8eefb;
+  }
+  h2 {
+    font-size: 22px; margin: 44px 0 14px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--line);
+  }
+  h3 { font-size: 17px; margin: 26px 0 10px; }
+  p.lead { color: var(--muted); margin-top: 0; }
+  .grid { display: grid; gap: 18px; }
+  .grid.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px 22px;
+    box-shadow: 0 2px 8px rgba(31,36,48,.04);
+  }
+  .card.amcl { border-top: 5px solid var(--amcl); }
+  .card.loc  { border-top: 5px solid var(--loc); }
+  .card h3 { margin-top: 0; }
+  .tag {
+    display: inline-block; padding: 2px 9px; border-radius: 6px;
+    font-size: 12px; font-weight: 600; letter-spacing: .3px;
+  }
+  .tag.amcl { background: #fdecef; color: var(--amcl); }
+  .tag.loc  { background: #e7f6f3; color: var(--loc); }
+  .flow {
+    background: var(--code); border-radius: 10px; padding: 14px 16px;
+    font: 13.5px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre; overflow-x: auto; color: #2b3445;
+  }
+  table {
+    width: 100%; border-collapse: collapse; margin: 14px 0 6px;
+    background: var(--card); border-radius: 12px; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(31,36,48,.04);
+    font-size: 14.5px;
+  }
+  th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { background: #eef1f8; font-size: 13.5px; letter-spacing: .3px; }
+  tbody tr:nth-child(even) { background: #fafbfe; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .good { color: var(--loc); font-weight: 600; }
+  .bad  { color: var(--amcl); font-weight: 600; }
+  .warn { color: var(--warn); font-weight: 600; }
+  code {
+    background: var(--code); padding: 2px 6px; border-radius: 5px;
+    font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  pre.code {
+    background: #1f2430; color: #e7ecf6; border-radius: 12px;
+    padding: 16px 18px; overflow-x: auto; font-size: 13.5px; line-height: 1.7;
+  }
+  pre.code .c { color: #8fa3c8; }
+  .bar-row { display: grid; grid-template-columns: 150px 1fr 90px; gap: 12px; align-items: center; margin: 10px 0; }
+  .bar-label { font-size: 14px; color: var(--muted); }
+  .bar-track { background: #e9edf6; border-radius: 999px; height: 18px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; }
+  .bar-fill.amcl { background: linear-gradient(90deg,#e57384,#d1495b); }
+  .bar-fill.loc  { background: linear-gradient(90deg,#5cc4b6,#2a9d8f); }
+  .bar-val { font-size: 13px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .note {
+    border-left: 4px solid var(--accent); background: #eef3ff;
+    padding: 12px 16px; border-radius: 8px; color: #2c3a57; margin: 16px 0;
+  }
+  .note.warn { border-left-color: var(--warn); background: #fff6e8; color: #5c430f; }
+  ul { margin: 8px 0 8px 20px; padding: 0; }
+  li { margin: 5px 0; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 13px; text-align: center; }
+  @media print {
+    body { background: #fff; }
+    header.hero { box-shadow: none; }
+    .card, table { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>AMCL vs slam_toolbox Localization</h1>
+  <p>同一台車、同一張 5.25 × 17.3 m 走廊地圖的實測比較</p>
+  <span class="pill">ROS 2 Jazzy · RPLIDAR S2 · rf2o + EKF · 2026-11-05</span>
+</header>
+
+<h2>1. 結論先講</h2>
+<div class="grid two">
+  <div class="card amcl">
+    <h3><span class="tag amcl">AMCL</span> 不適合這條長走廊</h3>
+    <p>粒子濾波在對稱走廊會出現<strong>多峰翻轉</strong>：實測 <span class="bad">28 次 &gt; 0.3 m</span> 的 <code>map→odom</code> 跳變，最大 <span class="bad">3.33 m / 0.43 rad</span>，每秒在 <code>x = +0.5 / −1.3 / +2.2</code> 之間跳。</p>
+  </div>
+  <div class="card loc">
+    <h3><span class="tag loc">slam_toolbox localization</span> 建議使用</h3>
+    <p>用 <strong>posegraph + 掃描匹配</strong> 定位，有「上次經過這裡的完整掃描」當 prior，走廊段沒有觀察到 AMCL 那種 2~3 m 的多峰翻轉；啟動與定位測試正常。</p>
+  </div>
+</div>
+<div class="note warn">
+  <strong>注意：</strong>slam_toolbox localization 需要先前的 <code>.posegraph</code> + <code>.data</code>。
+  只有 <code>pgm + yaml</code> 時只能用 AMCL。
+</div>
+
+<h2>2. 兩種定位的資料流</h2>
+<div class="grid two">
+  <div class="card amcl">
+    <h3><span class="tag amcl">AMCL</span></h3>
+    <div class="flow">pgm + yaml（靜態佔據圖）
+        │
+/scan ──┼──► 粒子濾波（2000 particles）
+        │        │
+odom ───┘        ▼
+            map → odom（10 Hz 更新）
+                │
+                ▼
+            map → base_link</div>
+    <ul>
+      <li>只拿到「這一格是不是牆」</li>
+      <li>沒有 map 更新、沒有迴環</li>
+      <li>對稱環境 → 多峰 → 跳變</li>
+    </ul>
+  </div>
+  <div class="card loc">
+    <h3><span class="tag loc">slam_toolbox localization</span></h3>
+    <div class="flow">.posegraph + .data（含每個節點的原始掃描）
+        │
+/scan ──┼──► Karto scan matching（對既有圖）
+        │        │
+odom ───┘        ▼
+            map → odom（10 Hz 更新）
+                │
+                ▼
+            map → base_link</div>
+    <ul>
+      <li>比對「整段掃描特徵」而非單一格子</li>
+      <li>不新增節點、不建圖</li>
+      <li>走廊比 AMCL 穩定</li>
+    </ul>
+  </div>
+</div>
+
+<h2>3. 核心差異</h2>
+<table>
+  <thead>
+    <tr><th style="width:26%">項目</th><th style="width:37%">AMCL</th><th style="width:37%">slam_toolbox localization</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>演算法</td><td>粒子濾波（Monte Carlo）</td><td>掃描匹配（Karto）對 posegraph</td></tr>
+    <tr><td>需要的地圖</td><td><code>.pgm</code> + <code>.yaml</code></td><td><strong><code>.posegraph</code> + <code>.data</code></strong></td></tr>
+    <tr><td>參考資料</td><td>佔據格子（是/不是牆）</td><td>每個節點的完整雷射掃描</td></tr>
+    <tr><td>會不會建圖</td><td>不會</td><td>不會（localization 模式）</td></tr>
+    <tr><td><code>map→odom</code> 發佈者</td><td>AMCL</td><td>slam_toolbox</td></tr>
+    <tr><td>啟動初始姿勢</td><td><code>amcl.initial_pose</code></td><td><code>map_start_pose</code></td></tr>
+    <tr><td>RViz 2D Pose Estimate</td><td><span class="good">支援</span> <code>/initialpose</code></td><td><span class="good">支援</span> <code>/initialpose</code></td></tr>
+    <tr><td><code>map_start_at_dock</code></td><td>–</td><td><span class="bad">不支援</span>（會警告）</td></tr>
+    <tr><td>對稱長走廊</td><td><span class="bad">多峰、易跳</span></td><td><span class="good">較穩</span></td></tr>
+    <tr><td>CPU（本板）</td><td>約 18%（單獨）<br>全棧 78~80%</td><td>與 mapping 相近（掃描匹配）</td></tr>
+    <tr><td>環境變動</td><td>只能靠 costmap obstacle layer</td><td>同樣只能靠 obstacle layer</td></tr>
+    <tr><td>重新定位</td><td>給新的 <code>/initialpose</code>、或 global localization</td><td>給新的 <code>/initialpose</code>（清 buffer 重匹配）</td></tr>
+  </tbody>
+</table>
+
+<h2>4. 我們量到的數據</h2>
+
+<h3>4.1 AMCL（2026-11-05 16:45，同一張地圖）</h3>
+<table>
+  <thead><tr><th>指標</th><th>數值</th><th>說明</th></tr></thead>
+  <tbody>
+    <tr><td>地圖</td><td class="num">105 × 346 @ 0.05 m</td><td>5.25 × 17.3 m 長走廊</td></tr>
+    <tr><td>移動距離</td><td class="num">28.55 m</td><td>odom 路徑</td></tr>
+    <tr><td><code>map→odom</code> 跳變 &gt; 0.3 m</td><td class="num bad">28 次</td><td>27 次集中在同一分鐘</td></tr>
+    <tr><td>最大跳變</td><td class="num bad">3.33 m / 0.43 rad</td><td>原地旋轉 <code>wz = 0.90</code> 時</td></tr>
+    <tr><td><code>map→odom</code> 年齡 p50</td><td class="num">−902 ms</td><td>= scan + <code>transform_tolerance 1.0 s</code>（正常設計）</td></tr>
+    <tr><td><code>odom→base</code> 年齡 p50</td><td class="num good">25.1 ms</td><td>EKF 正常</td></tr>
+    <tr><td>CPU</td><td class="num">78 ~ 80%</td><td>AMCL + Nav2 + keepout + lidar</td></tr>
+  </tbody>
+</table>
+
+<h3>4.2 跳變的樣子（AMCL，節錄）</h3>
+<div class="flow">16:46:14.807  x=+1.03   ← 跳
+16:46:15.107  x=+0.47   ← 跳回
+16:46:16.806  x=−1.26   ← 跳 1.5 m
+16:46:17.307  x=−0.16
+16:46:18.308  x=+0.37   ← 跳回
+16:46:19.107  x=−2.21   ← 跳 2.4 m
+16:46:19.207  x=+0.94   ← 再跳 3.3 m</div>
+<p class="lead">同一個位置反覆出現 <code>+0.5 / −1.3 / +1.0 / −2.2</code> 幾個值，是典型 particle filter 多峰，不是 TF 延遲。</p>
+
+<h3>4.3 跳變幅度對照</h3>
+<div class="bar-row">
+  <div class="bar-label">AMCL 最大跳變</div>
+  <div class="bar-track"><div class="bar-fill amcl" style="width:100%"></div></div>
+  <div class="bar-val">3.33 m</div>
+</div>
+<div class="bar-row">
+  <div class="bar-label">localization（實測）</div>
+  <div class="bar-track"><div class="bar-fill loc" style="width:6%"></div></div>
+  <div class="bar-val">未觀察到多峰</div>
+</div>
+<div class="note">
+  localization 這輪只做了啟動與基本定位驗證（<strong>定性</strong>），還沒有像 AMCL 那樣跑 28 m 的量化紀錄；建議之後用同一段路線補一次 <code>tf_probe</code> 數據。
+</div>
+
+<h3>4.4 參考：mapping 模式的負載（2026-11-05 16:55）</h3>
+<table>
+  <thead><tr><th>指標</th><th>數值</th></tr></thead>
+  <tbody>
+    <tr><td>CPU（不跑 Nav2）</td><td class="num good">25 ~ 31%</td></tr>
+    <tr><td><code>/scan</code> age p50</td><td class="num">94.6 ms（掃描週期）</td></tr>
+    <tr><td><code>odom→base</code> age p50</td><td class="num">30 ms</td></tr>
+    <tr><td>loop closure 造成 &gt; 1 s 停頓</td><td class="num warn">1 次（1011 ms）</td></tr>
+    <tr><td>loop closure 最大修正</td><td class="num warn">2.59 m</td></tr>
+  </tbody>
+</table>
+
+<h2>5. 怎麼選？</h2>
+<table>
+  <thead><tr><th>情境</th><th>建議</th><th>原因</th></tr></thead>
+  <tbody>
+    <tr><td>場地固定、已存 posegraph</td><td><span class="good">slam_toolbox localization</span></td><td>走廊最穩，無多峰翻轉</td></tr>
+    <tr><td>只有 pgm/yaml</td><td>AMCL（接受風險）</td><td>沒有 posegraph 可用</td></tr>
+    <tr><td>場地會變、要邊走邊更新圖</td><td>slam_toolbox mapping</td><td>loop closure 要開，會有 1~2 s 停頓</td></tr>
+    <tr><td>跟人、走廊環境</td><td><span class="good">localization + 靜態圖</span></td><td>即時反應、不跳變</td></tr>
+    <tr><td>需要里程計連續性、不在地圖上</td><td>rf2o + EKF（不用定位）</td><td>純 odom，短距離可用</td></tr>
+  </tbody>
+</table>
+
+<h2>6. 操作指令</h2>
+
+<h3>6.1 建圖（mapping，先存圖 + posegraph）</h3>
+<pre class="code"><span class="c"># 建圖（loop closure 開啟）</span>
+cd /nvt_ros2_example/slam_toolbox_rf2o
+./start_slam_toolbox_rf2o.sh
+./ekf/start_ekf.sh
+./nav2_1028/start_chassis.sh        <span class="c"># 要遙控才需要</span>
+
+<span class="c"># 存檔：pgm/yaml + posegraph</span>
+ros2 run nav2_map_server map_saver_cli -f .../maps/&lt;name&gt;
+ros2 service call /slam_toolbox/serialize_map \
+  slam_toolbox/srv/SerializePoseGraph "{filename: '.../maps/&lt;name&gt;'}"</pre>
+
+<h3>6.2 日常：slam_toolbox localization</h3>
+<pre class="code">SLAM_MODE=localization \
+SLAM_PARAMS=/nvt_ros2_example/slam_toolbox_rf2o/slam_toolbox_localization.yaml \
+/nvt_ros2_example/slam_toolbox_rf2o/start_slam_toolbox_rf2o.sh
+
+<span class="c"># 或一次起完整 stack（SLAM localization + EKF + Nav2 + driver）</span>
+/nvt_ros2_example/slam_toolbox_rf2o/start_all_localization.sh</pre>
+
+<h3>6.3 日常：AMCL</h3>
+<pre class="code">MAP_FILE=/nvt_ros2_example/slam_toolbox_rf2o/maps/slam_map_latest.yaml \
+  /nvt_ros2_example/slam_toolbox_rf2o/start_all_amcl.sh</pre>
+
+<h3>6.4 重新給初始位置（兩者通用）</h3>
+<pre class="code"><span class="c"># RViz: 2D Pose Estimate（Fixed Frame 要設 map）</span>
+<span class="c"># 或指令列：</span>
+python3 /nvt_ros2_example/slam_toolbox_rf2o/nav2_1028/tools/set_initial_pose.py X Y YAW_DEG</pre>
+
+<h2>7. 注意事項</h2>
+<div class="grid two">
+  <div class="card">
+    <h3>posegraph 一定要先存</h3>
+    <p><code>map_saver_cli</code> 只會產生 <code>.pgm/.yaml</code>；localization 模式需要 <code>serialize_map</code> 產生的 <code>.posegraph/.data</code>。</p>
+    <p>WebUI 的「Save map」已加入 posegraph 儲存（僅 mapping 模式會成功）。</p>
+  </div>
+  <div class="card">
+    <h3>初始姿勢要對</h3>
+    <p>localization：<code>map_start_pose: [x, y, yaw]</code> 或 <code>/initialpose</code>。</p>
+    <p>AMCL：<code>amcl.initial_pose</code> 或 <code>/initialpose</code>。</p>
+    <p>給錯太遠 → 兩者都會收斂失敗。</p>
+  </div>
+  <div class="card">
+    <h3>localization 不會建圖</h3>
+    <p>它只對既有 posegraph 定位，<code>/map</code> 固定不變。場地變動要靠 costmap 的 obstacle layer，或重新建圖。</p>
+  </div>
+  <div class="card">
+    <h3>AMCL 的 <code>transform_tolerance</code></h3>
+    <p>AMCL 的 <code>map→odom</code> 時戳 = scan + <code>transform_tolerance</code>（目前 1.0 s），所以年齡會看到 −0.9 s，這是設計，不是延遲。</p>
+  </div>
+</div>
+
+<footer>
+  slam_toolbox_rf2o · AMCL vs localization · 資料來源：2026-11-05 實測 · 與 <code>nav2_1028.md</code> 搭配閱讀
+</footer>
+
+</div>
+</body>
+</html>
