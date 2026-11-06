@@ -35,8 +35,10 @@ slam_toolbox:
     # 站著不動也會把 4 核吃到滿載）
     minimum_travel_distance: 0.2
     minimum_travel_heading: 0.1
-    # process scans on pure rotation too (heading check instead of distance only)
-    check_min_dist_and_heading_precisely: true
+    # pure rotations (distance ~0) are ignored when false (default, lower CPU).
+    # true -> also scan-match while rotating: lower heading drift after 180 deg,
+    # but noticeably more CPU and possibly worse matches in featureless corridors.
+    check_min_dist_and_heading_precisely: false
     minimum_time_interval: 0.5
 
     # 輸出的座標系

@@ -195,6 +195,27 @@ SLAM_MODE=none ./start_slam_toolbox_rf2o.sh
 
 ---
 
+#### 效能注意：`check_min_dist_and_heading_precisely`
+
+`slam_toolbox_rf2o.yaml` / `slam_toolbox_localization.yaml` 都有這個參數，
+**預設是 `false`**（slam_toolbox 上游預設）。
+
+| 設定 | 行為 | CPU |
+|---|---|---|
+| **`false`（預設）** | `shouldProcessScan()` 只檢查 `minimum_travel_distance`；**原地旋轉（位移≈0）時不處理掃描** | 低 |
+| `true` | 改用「距離 + `minimum_travel_heading`」判斷，**純旋轉也會做掃描匹配** | **明顯較高** |
+
+- 設 `true` 的好處：180° 原地轉完後 heading 會即時被修正，不用等往前走
+- 代價：
+  - CPU 明顯上升（掃描處理頻率變高）
+  - 走廊等特徵少的環境，旋轉中的掃描匹配可能產生壞結果 → 地圖/定位反而變差
+- 參數在**啟動時讀取**，改完要重啟 `start_slam_toolbox_rf2o.sh` 才生效
+
+> 建議：**保持 `false`**。除非你確定需要「原地旋轉時也更新 heading」且有 CPU 餘裕，
+> 再改成 `true` 並實測地圖品質。
+
+---
+
 ### 4.4 `ekf/start_ekf.sh` / `ekf/stop_ekf.sh`
 
 一個 RealSense node 同時給 EKF（gyro）與 AI（RGBD）：`enable_rgbd + color + depth + align_depth + sync`，profile 目前 **424×240 @ 5 fps**。
