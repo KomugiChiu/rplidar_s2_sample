@@ -4,7 +4,7 @@
 #   ./start_all_amcl.sh
 #   MAP_FILE=/path/other_map.yaml ./start_all_amcl.sh
 #   NAV2_PARAMS_FILE=.../nav2_params_amcl.yaml ./start_all_amcl.sh
-#   RECORD=0 ./start_all_amcl.sh          # do not start the cmd_vel logger
+#   RECORD=1 ./start_all_amcl.sh          # start the cmd_vel logger (default: off)
 #
 # What runs:
 #   rplidar S2     -> /scan

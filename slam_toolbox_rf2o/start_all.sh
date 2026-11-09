@@ -3,7 +3,7 @@
 #
 #   ./start_all.sh                          # plugin mode (default)
 #   USE_EXTERNAL_SAFETY=1 NAV2_PARAMS_FILE=.../nav2_params_omni_rotation.yaml ./start_all.sh
-#   RECORD=0 ./start_all.sh                 # do not start the cmd_vel logger
+#   RECORD=1 ./start_all.sh                 # start the cmd_vel logger (default: off)
 #   USE_LOCALIZATION=1 MAP_FILE=.../maps/x.yaml ./start_all.sh   # static map + AMCL
 #
 # Order: lidar+rf2o+slam_toolbox -> RealSense+EKF -> Nav2 (+ plugin safety) + driver.
@@ -28,7 +28,8 @@ export USE_LOCALIZATION MAP_FILE
 # SLAM_MODE=none is used by the AMCL flow (start_all_amcl.sh)
 SLAM_MODE="${SLAM_MODE:-mapping}"
 export SLAM_MODE
-RECORD="${RECORD:-1}"
+# cmd_vel logging is opt-in: set RECORD=1 to enable it.
+RECORD="${RECORD:-0}"
 LOG_DIR="${LOG_DIR:-/tmp/nav2_logs}"
 RECORDER="$SCRIPT_DIR/nav2_1028/tools/record_cmd_vel.py"
 

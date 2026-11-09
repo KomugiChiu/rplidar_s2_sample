@@ -4,7 +4,7 @@
 #
 #   ./start_all_localization.sh
 #   SLAM_PARAMS=/path/other_localization.yaml ./start_all_localization.sh
-#   RECORD=1 ./start_all_localization.sh          # start the cmd_vel logger
+#   RECORD=1 ./start_all_localization.sh          # start the cmd_vel logger (default: off)
 #
 # What runs:
 #   rplidar S2     -> /scan
