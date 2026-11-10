@@ -28,6 +28,9 @@ REALSENSE_WS="${REALSENSE_WS:-/nvt_ros2_example/realsense-ros}"
 AI_WS="${AI_WS:-/nvt_ros2_example/ai_human_detection}"
 DEMO_WS="${DEMO_WS:-/root/ros2_ws}"
 KIT_DIR="${KIT_DIR:-/nvt_ros2_example/demo_manager/fixed_build}"
+# Person Follow Release v1.0.1: recovery -> /person_infos_stable -> demo_manager
+RECOVERY_INSTALL="${RECOVERY_INSTALL:-/nvt_ros2_example/person_target_recovery/install}"
+DEMO_INSTALL="${DEMO_INSTALL:-/nvt_ros2_example/demo_manager/install}"
 
 CAMERA_X="${CAMERA_X:-0.0}"
 CAMERA_Y="${CAMERA_Y:-0.0}"
@@ -99,14 +102,31 @@ else
   source "$AI_WS/setup.bash"
 fi
 
-# --- ensure demo manager is installed --------------------------------------
-if ! ros2 pkg prefix demo_manager >/dev/null 2>&1; then
-  [ -x "$KIT_DIR/install.sh" ] \
-    || die "demo_manager missing and $KIT_DIR/install.sh not executable"
-  log "demo_manager not installed; running $KIT_DIR/install.sh"
-  ( cd "$KIT_DIR" && ./install.sh )
-  source "$DEMO_WS/install/local_setup.bash"
+# Person Follow Release v1.0.1 prefixes (source after the SDK workspace so
+# these prefixes win over the old demo_manager install).
+if [ -f "$RECOVERY_INSTALL/local_setup.bash" ]; then
+  source "$RECOVERY_INSTALL/local_setup.bash"
+else
+  die "person_target_recovery install not found: $RECOVERY_INSTALL"
 fi
+if [ -f "$DEMO_INSTALL/setup.bash" ]; then
+  source "$DEMO_INSTALL/setup.bash"
+else
+  die "demo_manager install not found: $DEMO_INSTALL"
+fi
+
+# --- ensure the Person Follow Release is installed --------------------------
+[ -x "$RECOVERY_INSTALL/start_person_target_recovery.sh" ] \
+  || die "missing $RECOVERY_INSTALL/start_person_target_recovery.sh"
+[ -x "$DEMO_INSTALL/start_demo_only.sh" ] \
+  || die "missing $DEMO_INSTALL/start_demo_only.sh"
+DEMO_PREFIX="$(ros2 pkg prefix demo_manager 2>/dev/null || true)"
+case "$DEMO_PREFIX" in
+  "$DEMO_INSTALL"/*) ;;
+  *) die "demo_manager resolves to '${DEMO_PREFIX:-<none>}', expected under $DEMO_INSTALL" ;;
+esac
+ros2 pkg prefix person_target_recovery >/dev/null 2>&1 \
+  || die "person_target_recovery not found"
 
 ros2 pkg prefix ai_human_detection >/dev/null 2>&1 \
   || die "ai_human_detection not found"
@@ -240,21 +260,23 @@ fi
 
 wait_topic /person_infos "$TOPIC_WAIT" "AI node" || true
 
-# --- 3. AI TF + DemoManager ------------------------------------------------
-if [ -x "$KIT_DIR/tools/start_ai_tf_only.sh" ] && [ -x "$KIT_DIR/tools/start_demo_manager_only.sh" ]; then
-  log "starting AI TF (camera offset: $CAMERA_X $CAMERA_Y $CAMERA_Z)"
-  start_bg ai_tf "$KIT_DIR/tools/start_ai_tf_only.sh" \
-    camera_x:="$CAMERA_X" camera_y:="$CAMERA_Y" camera_z:="$CAMERA_Z"
+# --- 3. AI TF + Person Target Recovery + DemoManager -----------------------
+[ -x "$KIT_DIR/tools/start_ai_tf_only.sh" ] \
+  || die "AI TF tool not found: $KIT_DIR/tools/start_ai_tf_only.sh"
 
-  log "starting demo_manager_node"
-  start_bg demo_manager "$KIT_DIR/tools/start_demo_manager_only.sh"
-elif [ -x "$KIT_DIR/tools/start_ai_sensor_integration.sh" ]; then
-  log "starting legacy start_ai_sensor_integration.sh"
-  CAMERA_X="$CAMERA_X" CAMERA_Y="$CAMERA_Y" CAMERA_Z="$CAMERA_Z" \
-    start_bg ai_sensor_integration "$KIT_DIR/tools/start_ai_sensor_integration.sh"
-else
-  die "no AI TF / DemoManager tool found in $KIT_DIR/tools"
-fi
+log "starting AI TF (camera offset: $CAMERA_X $CAMERA_Y $CAMERA_Z)"
+start_bg ai_tf "$KIT_DIR/tools/start_ai_tf_only.sh" \
+  camera_x:="$CAMERA_X" camera_y:="$CAMERA_Y" camera_z:="$CAMERA_Z"
+
+log "starting person_target_recovery (release v1.0.1)"
+start_bg person_target_recovery "$RECOVERY_INSTALL/start_person_target_recovery.sh"
+wait_topic /person_infos_stable "$TOPIC_WAIT" "person_target_recovery" || true
+
+log "starting demo_manager_node (release v1.0.1, /person_infos_stable)"
+DEMO_PARAMS="$DEMO_INSTALL/demo_manager/share/demo_manager/config/demo_manager.yaml"
+[ -f "$DEMO_PARAMS" ] || die "demo_manager params not found: $DEMO_PARAMS"
+start_bg demo_manager ros2 run demo_manager demo_manager_node \
+  --ros-args --params-file "$DEMO_PARAMS"
 
 if [ "$DRY_RUN" != "1" ]; then
   wait_topic /demo/person_markers "$TOPIC_WAIT" "demo manager" || true
