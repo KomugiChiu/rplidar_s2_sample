@@ -45,8 +45,8 @@ start_process realsense \
     enable_rgbd:=true enable_sync:=true align_depth.enable:=true \
     enable_color:=true enable_depth:=true \
     enable_infra1:=false enable_infra2:=false \
-    rgb_camera.color_profile:=424x240x5 \
-    depth_module.depth_profile:=424x240x5
+    rgb_camera.color_profile:=640x360x15 \
+    depth_module.depth_profile:=640x360x15
 
 # base_footprint -> camera_link（D455 朝前水平置中：高 0.10、前 0.08）
 start_process static_tf \
