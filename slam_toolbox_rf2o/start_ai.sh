@@ -223,8 +223,8 @@ if [ "$START_REALSENSE" = "1" ]; then
     align_depth.enable:=true \
     enable_color:=true \
     enable_depth:=true \
-    rgb_camera.color_profile:=424x240x5 \
-    depth_module.depth_profile:=424x240x5
+    rgb_camera.color_profile:=424x240x15 \
+    depth_module.depth_profile:=480x270x15
 
   # The AI node uses the compressed color image and aligned depth.
   if [ "$DRY_RUN" != "1" ]; then
