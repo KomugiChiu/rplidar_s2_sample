@@ -7,6 +7,7 @@
 #   ./follow_monitor.sh stop    [--dir DIR]
 #   ./follow_monitor.sh status  [--dir DIR]
 #   ./follow_monitor.sh summary [--dir DIR]
+#   ./follow_monitor.sh stack   [--dir DIR]   refresh stack.txt snapshot
 #   ./follow_monitor.sh list
 #
 # start creates:
@@ -85,6 +86,19 @@ export ROS_DOMAIN_ID="$DOMAIN"
 EOF
 }
 
+# ros2 param get occasionally hits a transient CLI/daemon error; retry.
+pget() {
+  local node="$1" p="$2" out="" i
+  for i in 1 2 3; do
+    out="$(timeout -k 2 5 ros2 param get "$node" "$p" 2>&1 | tail -n1)"
+    case "$out" in
+      *"value is:"*) printf '%s' "$out"; return 0 ;;
+    esac
+    sleep 1
+  done
+  printf '%s' "${out:-unavailable}"
+}
+
 collect_stack() {
   local run="$1"
   {
@@ -92,19 +106,16 @@ collect_stack() {
     uptime
     echo "--- camera profiles ---"
     for p in rgb_camera.color_profile depth_module.depth_profile; do
-      echo -n "$p = "
-      timeout -k 2 5 ros2 param get /camera/camera "$p" 2>&1 | tail -n1
+      echo "$p = $(pget /camera/camera "$p")"
     done
     echo "--- demo params ---"
     for p in follow_distance goal_update_distance goal_update_angle \
              follow_timer_period_sec person_timeout_sec person_topic; do
-      echo -n "demo $p = "
-      timeout -k 2 5 ros2 param get /demo_manager_node "$p" 2>&1 | tail -n1
+      echo "demo $p = $(pget /demo_manager_node "$p")"
     done
     echo "--- recovery params ---"
     for p in reassociation_timeout_sec reassociation_distance reject_invalid_position; do
-      echo -n "recovery $p = "
-      timeout -k 2 5 ros2 param get /person_target_recovery_node "$p" 2>&1 | tail -n1
+      echo "recovery $p = $(pget /person_target_recovery_node "$p")"
     done
     echo "--- nodes ---"
     timeout -k 2 8 ros2 node list 2>/dev/null | sort
@@ -381,6 +392,25 @@ PY
   tail -n 1 "$run/cpu.log" 2>/dev/null | sed 's/^/  /' || true
 }
 
+cmd_stack() {
+  local dir=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dir) dir="$2"; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) die "unknown option: $1" ;;
+    esac
+    shift
+  done
+  local run
+  run="$(read_run "$dir")"
+  ros_env
+  collect_stack "$run"
+  say "stack.txt updated: $run/stack.txt"
+  say ""
+  sed -n '1,24p' "$run/stack.txt"
+}
+
 cmd_summary() {
   local dir="" pf
   while [ $# -gt 0 ]; do
@@ -461,6 +491,7 @@ main() {
     stop)    cmd_stop "$@" ;;
     status)  cmd_status "$@" ;;
     summary) cmd_summary "$@" ;;
+    stack)   cmd_stack "$@" ;;
     list)    cmd_list ;;
     -h|--help|help|"") usage ;;
     *) die "unknown command: $cmd (use start|stop|status|summary|list)" ;;
