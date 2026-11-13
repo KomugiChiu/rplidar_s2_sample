@@ -98,16 +98,35 @@ def read_cmdline(pid):
         return ""
 
 
+def norm_ns(ns):
+    ns = "/" + ns.strip().strip("/")
+    return "" if ns == "/" else ns
+
+
 def node_info(pid, name, cache):
     hit = cache.get(pid)
     if hit is not None:
         return hit
     cmd = read_cmdline(pid)
-    m = re.search(r"__node:=([^\s]+)", cmd)
-    if m:
-        node = "/" + m.group(1).lstrip("/")
+    m_node = re.search(r"__node:=([^\s]+)", cmd)
+    m_ns = re.search(r"__ns:=([^\s]+)", cmd)
+    ns = norm_ns(m_ns.group(1)) if m_ns else ""
+    if m_node:
+        base = m_node.group(1).strip()
     elif name in NODE_BY_NAME:
-        node = NODE_BY_NAME[name]
+        base = NODE_BY_NAME[name]
+    elif ns:
+        # Only a namespace was given: fall back to the process name so the
+        # label is still qualified by the namespace instead of dropping it.
+        base = name
+    else:
+        base = ""
+    if base:
+        if base.startswith("/"):
+            # Already a fully-qualified name; never prepend the namespace.
+            node = "/" + base.strip("/")
+        else:
+            node = f"{ns}/{base}" if ns else "/" + base
     else:
         node = "process:" + name
     aggregate = 1 if name in AGGREGATE_NAMES else 0
