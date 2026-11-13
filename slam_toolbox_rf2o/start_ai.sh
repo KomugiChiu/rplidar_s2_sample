@@ -28,7 +28,7 @@ REALSENSE_WS="${REALSENSE_WS:-/nvt_ros2_example/realsense-ros}"
 AI_WS="${AI_WS:-/nvt_ros2_example/ai_human_detection}"
 DEMO_WS="${DEMO_WS:-/root/ros2_ws}"
 KIT_DIR="${KIT_DIR:-/nvt_ros2_example/demo_manager/fixed_build}"
-# Person Follow Release v1.0.3: recovery -> /person_infos_stable -> demo_manager
+# Person Follow Release v1.0.4: recovery -> /person_infos_stable -> demo_manager
 RECOVERY_INSTALL="${RECOVERY_INSTALL:-/nvt_ros2_example/person_target_recovery/install}"
 DEMO_INSTALL="${DEMO_INSTALL:-/nvt_ros2_example/demo_manager/install}"
 
@@ -102,7 +102,7 @@ else
   source "$AI_WS/setup.bash"
 fi
 
-# Person Follow Release v1.0.3 prefixes (source after the SDK workspace so
+# Person Follow Release v1.0.4 prefixes (source after the SDK workspace so
 # these prefixes win over the old demo_manager install).
 if [ -f "$RECOVERY_INSTALL/local_setup.bash" ]; then
   source "$RECOVERY_INSTALL/local_setup.bash"
@@ -268,11 +268,11 @@ log "starting AI TF (camera offset: $CAMERA_X $CAMERA_Y $CAMERA_Z)"
 start_bg ai_tf "$KIT_DIR/tools/start_ai_tf_only.sh" \
   camera_x:="$CAMERA_X" camera_y:="$CAMERA_Y" camera_z:="$CAMERA_Z"
 
-log "starting person_target_recovery (release v1.0.3)"
+log "starting person_target_recovery (release v1.0.4)"
 start_bg person_target_recovery "$RECOVERY_INSTALL/start_person_target_recovery.sh"
 wait_topic /person_infos_stable "$TOPIC_WAIT" "person_target_recovery" || true
 
-log "starting demo_manager_node (release v1.0.3, /person_infos_stable)"
+log "starting demo_manager_node (release v1.0.4, /person_infos_stable)"
 DEMO_PARAMS="$DEMO_INSTALL/demo_manager/share/demo_manager/config/demo_manager.yaml"
 [ -f "$DEMO_PARAMS" ] || die "demo_manager params not found: $DEMO_PARAMS"
 start_bg demo_manager ros2 run demo_manager demo_manager_node \
