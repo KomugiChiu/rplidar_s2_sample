@@ -5,6 +5,7 @@
 #   ./follow_monitor.sh start   [--label NAME] [--dir DIR] [--duration SEC]
 #                               [--no-bag] [--no-cpu] [--no-watch] [--no-tails]
 #                               [--stack]  (off by default: ROS CLI is slow on this board)
+#                               [--lite-bag] (skip gyro/map/visualization topics)
 #   ./follow_monitor.sh stop    [--dir DIR]
 #   ./follow_monitor.sh status  [--dir DIR]
 #   ./follow_monitor.sh summary [--dir DIR]
@@ -124,7 +125,7 @@ collect_stack() {
 }
 
 cmd_start() {
-  local label="follow" duration=1800 dir="" do_bag=1 do_cpu=1 do_watch=1 do_tails=1 do_stack=0
+  local label="follow" duration=1800 dir="" do_bag=1 do_cpu=1 do_watch=1 do_tails=1 do_stack=0 lite_bag=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --label) label="$2"; shift ;;
@@ -135,6 +136,7 @@ cmd_start() {
       --no-watch) do_watch=0 ;;
       --no-tails) do_tails=0 ;;
       --stack) do_stack=1 ;;
+      --lite-bag) lite_bag=1 ;;
       --no-stack) do_stack=0 ;;
       -h|--help) usage; exit 0 ;;
       *) die "unknown option: $1" ;;
@@ -191,14 +193,27 @@ cmd_start() {
   # bag
   # -------------------------------------------------------------------------
   if [ "$do_bag" = "1" ]; then
-    local topics=(
-      /scan /odometry/filtered /odom_rf2o /cmd_vel /tf /tf_static /map
-      /camera/camera/gyro/sample /camera/camera/color/camera_info
-      /person_infos /person_infos_stable /human_detections
-      /demo/state /demo/selected_tracking_id /demo/person_markers
-      /demo/current_goal_marker /demo/robot_path /demo/robot_marker
-      /clicked_point /goal_pose
-    )
+    local topics
+    if [ -n "${BAG_TOPICS:-}" ]; then
+      read -r -a topics <<< "$BAG_TOPICS"
+    elif [ "$lite_bag" = "1" ]; then
+      topics=(
+        /scan /odometry/filtered /odom_rf2o /cmd_vel /tf /tf_static
+        /camera/camera/color/camera_info
+        /person_infos /person_infos_stable /human_detections
+        /demo/state /demo/selected_tracking_id
+        /clicked_point /goal_pose
+      )
+    else
+      topics=(
+        /scan /odometry/filtered /odom_rf2o /cmd_vel /tf /tf_static /map
+        /camera/camera/gyro/sample /camera/camera/color/camera_info
+        /person_infos /person_infos_stable /human_detections
+        /demo/state /demo/selected_tracking_id /demo/person_markers
+        /demo/current_goal_marker /demo/robot_path /demo/robot_marker
+        /clicked_point /goal_pose
+      )
+    fi
     local avail t
     avail="$(timeout -k 2 8 ros2 topic list 2>/dev/null)"
     for t in /cmd_vel_nav /cmd_vel_safe /cmd_vel_floor; do
@@ -212,7 +227,11 @@ cmd_start() {
     setsid bash -c "source $(printf '%q' "$run/.env.sh"); $bag_cmd" \
       > "$run/bag.log" 2>&1 < /dev/null &
     echo $! > "$run/bag.pid"
-    say "bag        : pid $(cat "$run/bag.pid")  (${#topics[@]} topics)"
+    local bag_mode="full"
+    [ "$lite_bag" = "1" ] && bag_mode="lite"
+    [ -n "${BAG_TOPICS:-}" ] && bag_mode="custom"
+    say "bag        : pid $(cat "$run/bag.pid")  (${#topics[@]} topics, $bag_mode)"
+    echo "$bag_mode" > "$run/BAG_MODE.txt"
   fi
 
   # -------------------------------------------------------------------------
@@ -268,6 +287,7 @@ cmd_start() {
     echo "watch     : $do_watch"
     echo "tails     : $do_tails"
     echo "stack     : $do_stack"
+    echo "lite_bag  : $lite_bag"
     echo "domain    : $DOMAIN"
     echo "watch_py  : $WATCH_PY"
     echo "cpu_py    : $CPU_PY"
