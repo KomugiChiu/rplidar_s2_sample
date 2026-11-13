@@ -26,6 +26,8 @@ Panels:
   - /Current View1
   Name: Views
   Splitter Ratio: 0.5
+- Class: person_follow_panel/DemoControlPanel
+  Name: Person Follow
 Visualization Manager:
   Class: ''
   Displays:
