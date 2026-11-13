@@ -17,6 +17,7 @@ Outputs
 * console: one line per sample + the top processes
 * <csv>:                t_unix,total_busy,cpu0,cpu1,...
 * <csv stem>_procs.csv: t_unix,pid,name,cpu_pct,rss_mb
+* <csv stem>_nodes.csv: t_unix,pid,node,process,cpu_pct,rss_mb,threads,read_kb,write_kb,aggregate
 
 Notes
 -----
@@ -25,6 +26,7 @@ Jetson driver threads and is NOT a useful CPU indicator; use total_busy here.
 """
 import argparse
 import os
+import re
 import sys
 import time
 
@@ -54,6 +56,65 @@ ROS_HINTS = (
 )
 
 
+NODE_BY_NAME = {
+    "ai_human_detect": "/ai_human_detection",
+    "realsense2_came": "/camera/camera",
+    "localization_sl": "/slam_toolbox",
+    "rplidar_node": "/rplidar_node",
+    "ekf_node": "/ekf_filter_node",
+    "controller_serv": "/controller_server",
+    "planner_server": "/planner_server",
+    "bt_navigator": "/bt_navigator",
+    "behavior_server": "/behavior_server",
+    "smoother_server": "/smoother_server",
+    "velocity_smooth": "/velocity_smoother",
+    "route_server": "/route_server",
+    "docking_server": "/docking_server",
+    "collision_monit": "/collision_monitor",
+    "Mcnamu_driver": "/driver_node",
+    "rf2o_laser_odom": "/CLaserOdometry2D",
+    "demo_manager_no": "/demo_manager_node",
+    "person_target_r": "/person_target_recovery_node",
+    "waypoint_follow": "/waypoint_follower",
+}
+
+# Processes that host multiple ROS nodes or are wrappers/containers. Their CPU
+# is the aggregate for all nodes inside the process.
+AGGREGATE_NAMES = {
+    "bt_navigator",
+    "lifecycle_manag",
+    "component_conta",
+    "static_transfor",
+    "ros2",
+    "python3",
+}
+
+
+def read_cmdline(pid):
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            return f.read().decode("utf-8", "replace").replace("\x00", " ")
+    except OSError:
+        return ""
+
+
+def node_info(pid, name, cache):
+    hit = cache.get(pid)
+    if hit is not None:
+        return hit
+    cmd = read_cmdline(pid)
+    m = re.search(r"__node:=([^\s]+)", cmd)
+    if m:
+        node = "/" + m.group(1).lstrip("/")
+    elif name in NODE_BY_NAME:
+        node = NODE_BY_NAME[name]
+    else:
+        node = "process:" + name
+    aggregate = 1 if name in AGGREGATE_NAMES else 0
+    cache[pid] = (node, aggregate)
+    return cache[pid]
+
+
 def read_cpu():
     out = {}
     with open("/proc/stat") as f:
@@ -79,12 +140,25 @@ def read_procs():
             fields = rest.split()
             ticks = int(fields[11]) + int(fields[12])  # utime + stime
             rss_kb = 0
+            threads = 0
             with open(f"/proc/{pid}/status") as f:
                 for line in f:
                     if line.startswith("VmRSS:"):
                         rss_kb = int(line.split()[1])
-                        break
-            procs[pid] = (name, ticks, rss_kb // 1024)
+                    elif line.startswith("Threads:"):
+                        threads = int(line.split()[1])
+            read_kb = 0
+            write_kb = 0
+            try:
+                with open(f"/proc/{pid}/io") as f:
+                    for line in f:
+                        if line.startswith("read_bytes:"):
+                            read_kb = int(line.split()[1]) // 1024
+                        elif line.startswith("write_bytes:"):
+                            write_kb = int(line.split()[1]) // 1024
+            except OSError:
+                pass
+            procs[pid] = (name, ticks, rss_kb // 1024, threads, read_kb, write_kb)
         except (OSError, IndexError, ValueError):
             continue
     return procs
@@ -109,19 +183,23 @@ def main():
     ap.add_argument("--top", type=int, default=8)
     ap.add_argument("--csv", default="", help="summary csv path")
     ap.add_argument("--only-ros", action="store_true")
+    ap.add_argument("--no-nodes", action="store_true", help="do not write the node-level csv")
     ap.add_argument("--quiet", action="store_true", help="csv only")
     args = ap.parse_args()
 
     hz = os.sysconf("SC_CLK_TCK")
-    summary_f = procs_f = None
+    summary_f = procs_f = nodes_f = None
     if args.csv:
         base = args.csv
         os.makedirs(os.path.dirname(base) or ".", exist_ok=True)
         stem, ext = os.path.splitext(base)
         summary_f = open(base, "w")
         procs_f = open(f"{stem}_procs{ext or '.csv'}", "w")
+        if not args.no_nodes:
+            nodes_f = open(f"{stem}_nodes{ext or '.csv'}", "w")
 
     s1, p1 = read_cpu(), read_procs()
+    node_cache = {}
     t_start = time.time()
     first = True
     try:
@@ -141,7 +219,9 @@ def main():
                 core_busy.append((1.0 - i / d) * 100.0 if d else 0.0)
 
             rows = []
-            for pid, (name, ticks, rss) in p2.items():
+            node_cache_ns = node_cache
+            node_rows = []
+            for pid, (name, ticks, rss, threads, read_kb, write_kb) in p2.items():
                 if pid not in p1:
                     continue
                 dt = ticks - p1[pid][1]
@@ -149,8 +229,12 @@ def main():
                     continue
                 if args.only_ros and not is_ros(pid, name):
                     continue
-                rows.append((dt / hz / args.interval * 100.0, name, int(pid), rss))
+                cpu_pct = dt / hz / args.interval * 100.0
+                rows.append((cpu_pct, name, int(pid), rss))
+                node, aggregate = node_info(pid, name, node_cache_ns)
+                node_rows.append((cpu_pct, int(pid), node, name, rss, threads, read_kb, write_kb, aggregate))
             rows.sort(reverse=True)
+            node_rows.sort(reverse=True)
 
             if summary_f:
                 if first:
@@ -165,6 +249,14 @@ def main():
                 for pct, name, pid, rss in rows:
                     procs_f.write(f"{now:.3f},{pid},{name},{pct:.1f},{rss}\n")
                 procs_f.flush()
+            if nodes_f:
+                if first:
+                    nodes_f.write("t_unix,pid,node,process,cpu_pct,rss_mb,threads,read_kb,write_kb,aggregate\n")
+                for pct, pid, node, name, rss, threads, read_kb, write_kb, aggregate in node_rows:
+                    nodes_f.write(
+                        f"{now:.3f},{pid},{node},{name},{pct:.1f},{rss},{threads},"
+                        f"{read_kb},{write_kb},{aggregate}\n")
+                nodes_f.flush()
 
             if not args.quiet:
                 top = " | ".join(f"{n} {p:.1f}" for p, n, _, _ in rows[:args.top])
@@ -183,6 +275,8 @@ def main():
             summary_f.close()
         if procs_f:
             procs_f.close()
+        if nodes_f:
+            nodes_f.close()
     return 0
 
 
