@@ -3,7 +3,6 @@
 
 #include <memory>
 #include <string>
-#include <thread>
 
 #include <QPushButton>
 #include <QLabel>
@@ -29,7 +28,9 @@ class DemoControlPanel : public rviz_common::Panel
 
 public:
   explicit DemoControlPanel(QWidget * parent = nullptr);
-  ~DemoControlPanel() override;
+  ~DemoControlPanel() override = default;
+
+  void onInitialize() override;
 
 private Q_SLOTS:
   void onStart();
@@ -49,8 +50,6 @@ private:
     const QString & label);
 
   rclcpp::Node::SharedPtr node_;
-  rclcpp::executors::SingleThreadedExecutor::SharedPtr executor_;
-  std::thread executor_thread_;
 
   rclcpp::Client<Trigger>::SharedPtr start_client_;
   rclcpp::Client<Trigger>::SharedPtr stop_client_;

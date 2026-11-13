@@ -9,9 +9,10 @@ RViz2 panel with four buttons for the person-follow demo:
 | Clear Target | `/demo/clear_target` | `std_srvs/srv/Trigger` |
 | Return Home | `/demo/return_home` | `std_srvs/srv/Trigger` |
 
-The panel creates its own `rclcpp` node and executor thread, so it does not
-block the RViz UI while services are being called. The result of each call is
-shown at the bottom of the panel (`OK`, `FAILED`, `service not available`).
+The panel uses RViz's existing ROS node and creates the service clients in
+`onInitialize()`. Calls are asynchronous, so the RViz UI is not blocked. The
+result of each call is shown at the bottom of the panel (`OK`, `FAILED`,
+`service not available`).
 
 ## Build
 

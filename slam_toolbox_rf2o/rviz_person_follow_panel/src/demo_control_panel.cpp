@@ -1,10 +1,8 @@
 #include "person_follow_panel/demo_control_panel.hpp"
 
 #include <chrono>
-#include <atomic>
 #include <exception>
 #include <memory>
-#include <string>
 
 #include <QFont>
 #include <QGridLayout>
@@ -12,31 +10,16 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+#include <pluginlib/class_list_macros.hpp>
+#include <rviz_common/display_context.hpp>
+#include <rviz_common/ros_integration/ros_node_abstraction_iface.hpp>
+
 namespace person_follow_panel
 {
-
-namespace
-{
-std::atomic<int> g_instance_counter{0};
-}  // namespace
 
 DemoControlPanel::DemoControlPanel(QWidget * parent)
 : rviz_common::Panel(parent)
 {
-  const std::string node_name =
-    "demo_control_panel_" + std::to_string(g_instance_counter.fetch_add(1));
-
-  node_ = std::make_shared<rclcpp::Node>(node_name);
-
-  start_client_ = node_->create_client<Trigger>("/demo/start");
-  stop_client_ = node_->create_client<Trigger>("/demo/stop");
-  clear_client_ = node_->create_client<Trigger>("/demo/clear_target");
-  home_client_ = node_->create_client<Trigger>("/demo/return_home");
-
-  executor_ = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
-  executor_->add_node(node_);
-  executor_thread_ = std::thread([this]() { executor_->spin(); });
-
   buildUi();
 
   connect(
@@ -52,14 +35,32 @@ DemoControlPanel::DemoControlPanel(QWidget * parent)
   }
 }
 
-DemoControlPanel::~DemoControlPanel()
+void DemoControlPanel::onInitialize()
 {
-  if (executor_) {
-    executor_->cancel();
+  auto * context = getDisplayContext();
+  if (!context) {
+    Q_EMIT statusMessage(tr("RViz display context is not available"));
+    return;
   }
-  if (executor_thread_.joinable()) {
-    executor_thread_.join();
+
+  auto abstraction = context->getRosNodeAbstraction().lock();
+  if (!abstraction) {
+    Q_EMIT statusMessage(tr("RViz ROS node is not available"));
+    return;
   }
+
+  node_ = abstraction->get_raw_node();
+  if (!node_) {
+    Q_EMIT statusMessage(tr("RViz ROS node is not available"));
+    return;
+  }
+
+  start_client_ = node_->create_client<Trigger>("/demo/start");
+  stop_client_ = node_->create_client<Trigger>("/demo/stop");
+  clear_client_ = node_->create_client<Trigger>("/demo/clear_target");
+  home_client_ = node_->create_client<Trigger>("/demo/return_home");
+
+  Q_EMIT statusMessage(tr("Ready"));
 }
 
 void DemoControlPanel::buildUi()
@@ -131,7 +132,7 @@ void DemoControlPanel::callService(
   const QString & label)
 {
   if (!client) {
-    Q_EMIT statusMessage(tr("%1: client is not available").arg(label));
+    Q_EMIT statusMessage(tr("%1: client is not ready").arg(label));
     return;
   }
 
@@ -176,3 +177,5 @@ void DemoControlPanel::callService(
 }
 
 }  // namespace person_follow_panel
+
+PLUGINLIB_EXPORT_CLASS(person_follow_panel::DemoControlPanel, rviz_common::Panel)
