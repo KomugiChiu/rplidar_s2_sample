@@ -1,0 +1,10 @@
+<library path="person_follow_panel">
+  <class name="person_follow_panel/DemoControlPanel"
+         type="person_follow_panel::DemoControlPanel"
+         base_class_type="rviz_common::Panel">
+    <description>
+      Buttons for the person-follow demo:
+      /demo/start, /demo/stop, /demo/clear_target, /demo/return_home.
+    </description>
+  </class>
+</library>
