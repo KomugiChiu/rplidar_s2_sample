@@ -141,6 +141,7 @@
     <span class="pill">slam_toolbox localization</span>
     <span class="pill good">follow p95 65.2%</span>
     <span class="pill">cpu_nodes.csv 首次上線</span>
+    <span class="pill">node CPU = 四核佔比</span>
   </div>
 </header>
 
@@ -166,6 +167,7 @@
     <div class="sub">+8.5 s 啟動段</div>
   </div>
 </div>
+<p class="small" style="margin-top:12px">total_busy 是四核整體使用率（0~100%）；node / process 數值已由單核換算為四核佔比（1 核滿載 = 25%）。</p>
 
 <h2>1. Run 概況</h2>
 <div class="grid2">
@@ -232,27 +234,27 @@
 </table>
 <p class="small">CPU 取樣到 +79.3 s，比 <code>follow_target.csv</code> 的 76.9 s 多約 2.4 s，因為 monitor 比 recorder 晚停。</p>
 
-<h3>啟動段（每 2 秒取樣）</h3>
+<h3>啟動段（每 2 秒取樣，node 欄位為四核佔比）</h3>
 <table>
   <thead>
     <tr><th class="num">t</th><th class="num">total</th><th class="num">camera</th><th class="num">AI</th><th class="num">rplidar</th><th class="num">controller</th></tr>
   </thead>
   <tbody>
-    <tr><td class="num">0.0</td><td class="num">87.0%</td><td class="num">54.5</td><td class="num">50.0</td><td class="num">17.0</td><td class="num">7.5</td></tr>
-    <tr><td class="num">2.7</td><td class="num">85.4%</td><td class="num">64.0</td><td class="num">41.5</td><td class="num">24.5</td><td class="num">16.0</td></tr>
-    <tr><td class="num">6.1</td><td class="num">91.9%</td><td class="num">66.5</td><td class="num">34.0</td><td class="num">39.0</td><td class="num">33.0</td></tr>
-    <tr><td class="num">8.5</td><td class="num"><strong>94.3%</strong></td><td class="num">52.5</td><td class="num">22.0</td><td class="num">27.5</td><td class="num">18.0</td></tr>
-    <tr><td class="num">10.5</td><td class="num">66.9%</td><td class="num">54.5</td><td class="num">47.5</td><td class="num">17.5</td><td class="num">10.5</td></tr>
+    <tr><td class="num">0.0</td><td class="num">87.0%</td><td class="num">13.6</td><td class="num">12.5</td><td class="num">4.3</td><td class="num">1.9</td></tr>
+    <tr><td class="num">2.7</td><td class="num">85.4%</td><td class="num">16.0</td><td class="num">10.4</td><td class="num">6.1</td><td class="num">4.0</td></tr>
+    <tr><td class="num">6.1</td><td class="num">91.9%</td><td class="num">16.6</td><td class="num">8.5</td><td class="num">9.8</td><td class="num">8.3</td></tr>
+    <tr><td class="num">8.5</td><td class="num"><strong>94.3%</strong></td><td class="num">13.1</td><td class="num">5.5</td><td class="num">6.9</td><td class="num">4.5</td></tr>
+    <tr><td class="num">10.5</td><td class="num">66.9%</td><td class="num">13.6</td><td class="num">11.9</td><td class="num">4.4</td><td class="num">2.6</td></tr>
   </tbody>
 </table>
 
 <div class="callout">
   <strong>整段 p95 91.9% 不是跟隨負載。</strong>
-  +0~10 s 是啟動與 bag 訂閱 discovery；+73.1 s 停止時 <code>/slam_toolbox</code> finalize 達到 93.2~100.5%。
+  +0~10 s 是啟動與 bag 訂閱 discovery；+73.1 s 停止時 <code>/slam_toolbox</code> finalize 達到單核 93.2~100.5%（四核 23.3~25.1%）。
 </div>
 
 <h2>3. Per-core</h2>
-<p class="lead">四顆核心最高接近 99%，但只出現在啟動與停止的短暫尖峰；跟隨期間每顆都低於 70%。</p>
+<p class="lead">四顆核心最高接近 99%，但只出現在啟動與停止的短暫尖峰；跟隨期間每顆都低於 70%。（此區為每顆核心各自的使用率，100% = 該核滿載。）</p>
 <div class="grid2">
   <div class="card">
     <h3 style="margin-top:0">整段 0 ~ 79.3 s</h3>
@@ -277,99 +279,100 @@
         <tr><td>cpu3</td><td class="num">45.6%</td><td class="num">65.4%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:57.0%"></div><div class="bar-max" style="left:81.8%"></div></div></td></tr>
       </tbody>
     </table>
-    <p class="small">長條為 mean，紅線為 max（刻度 0~80%）。</p>
+    <p class="small">長條為 mean，紅線為 max（每核刻度 0~80%）。</p>
   </div>
 </div>
 
-<h2>4. Node CPU — 跟隨期間</h2>
-<p class="lead">AI 與相機是最大固定成本，兩者合計 95.4%；SLAM 只有 13.4%。</p>
+<h2>4. Node CPU — 跟隨期間（四核佔比）</h2>
+<p class="lead">AI 與相機是最大固定成本，兩者合計 23.9%；SLAM 只有 3.4%。</p>
+<p class="small">以下 node / process 數值皆已由單核換算為<strong>四核總容量佔比</strong>（單核數值 ÷ 4）；1 核滿載 = 25%，四核全滿 = 100%。</p>
 
 <div class="grid2" style="margin-bottom:16px">
   <div class="card" style="border-top:4px solid var(--ai)">
     <div class="label small">AI + camera</div>
-    <div style="font-size:30px; font-weight:700; font-variant-numeric:tabular-nums">95.4%</div>
-    <div class="small">48.8 + 46.6</div>
+    <div style="font-size:30px; font-weight:700; font-variant-numeric:tabular-nums">約 23.9%</div>
+    <div class="small">12.2 + 11.7</div>
   </div>
   <div class="card" style="border-top:4px solid var(--accent)">
     <div class="label small">lidar 前端</div>
-    <div style="font-size:30px; font-weight:700; font-variant-numeric:tabular-nums">44.2%</div>
+    <div style="font-size:30px; font-weight:700; font-variant-numeric:tabular-nums">約 11.1%</div>
     <div class="small">rplidar + EKF + rf2o + driver</div>
   </div>
   <div class="card" style="border-top:4px solid #6b7484">
     <div class="label small">Nav2 + demo + recovery</div>
-    <div style="font-size:30px; font-weight:700; font-variant-numeric:tabular-nums">35.3%</div>
+    <div style="font-size:30px; font-weight:700; font-variant-numeric:tabular-nums">約 8.8%</div>
     <div class="small">controller / planner / BT / collision …</div>
   </div>
 </div>
 
 <table>
   <thead>
-    <tr><th>Node</th><th class="num">mean</th><th class="num">max</th><th class="bars">mean 分布（0~60%）</th></tr>
+    <tr><th>Node</th><th class="num">mean</th><th class="num">max</th><th class="bars">mean 分布（0~15%）</th></tr>
   </thead>
   <tbody>
-    <tr><td><code>/ai_human_detection</code></td><td class="num"><strong>48.8%</strong></td><td class="num">51.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill ai" style="width:81.3%"></div><div class="bar-max" style="left:85.0%"></div></div></td></tr>
-    <tr><td><code>/camera/camera</code></td><td class="num"><strong>46.6%</strong></td><td class="num">51.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill cam" style="width:77.7%"></div><div class="bar-max" style="left:85.0%"></div></div></td></tr>
-    <tr><td><code>/ekf_filter_node</code></td><td class="num">14.9%</td><td class="num">16.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:24.8%"></div><div class="bar-max" style="left:26.7%"></div></div></td></tr>
-    <tr><td><code>/rplidar_node</code></td><td class="num">14.5%</td><td class="num">16.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:24.2%"></div><div class="bar-max" style="left:26.7%"></div></div></td></tr>
-    <tr><td><code>/slam_toolbox</code></td><td class="num">13.4%</td><td class="num">56.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:22.3%"></div><div class="bar-max" style="left:94.2%"></div></div></td></tr>
-    <tr><td><code>/controller_server</code></td><td class="num">8.3%</td><td class="num">9.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:13.8%"></div><div class="bar-max" style="left:15.8%"></div></div></td></tr>
-    <tr><td><code>/driver_node</code></td><td class="num">8.1%</td><td class="num">10.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:13.5%"></div><div class="bar-max" style="left:17.5%"></div></div></td></tr>
-    <tr><td><code>/collision_monitor</code></td><td class="num">7.0%</td><td class="num">8.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:11.7%"></div><div class="bar-max" style="left:14.2%"></div></div></td></tr>
-    <tr><td><code>/CLaserOdometry2D</code></td><td class="num">6.7%</td><td class="num">7.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:11.2%"></div><div class="bar-max" style="left:12.5%"></div></div></td></tr>
-    <tr><td><code>/bt_navigator</code></td><td class="num">4.8%</td><td class="num">7.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:8.0%"></div><div class="bar-max" style="left:11.7%"></div></div></td></tr>
-    <tr><td><code>/demo_manager_node</code></td><td class="num">4.1%</td><td class="num">5.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:6.8%"></div><div class="bar-max" style="left:8.3%"></div></div></td></tr>
-    <tr><td><code>/planner_server</code></td><td class="num">3.0%</td><td class="num">4.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:5.0%"></div><div class="bar-max" style="left:6.7%"></div></div></td></tr>
-    <tr><td><code>/velocity_smoother</code></td><td class="num">1.8%</td><td class="num">2.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:3.0%"></div><div class="bar-max" style="left:4.2%"></div></div></td></tr>
-    <tr><td><code>/docking_server</code></td><td class="num">1.5%</td><td class="num">2.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:2.5%"></div><div class="bar-max" style="left:3.3%"></div></div></td></tr>
-    <tr><td><code>/behavior_server</code></td><td class="num">1.4%</td><td class="num">2.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:2.3%"></div><div class="bar-max" style="left:3.3%"></div></div></td></tr>
-    <tr><td><code>/route_server</code></td><td class="num">1.2%</td><td class="num">2.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:2.0%"></div><div class="bar-max" style="left:3.3%"></div></div></td></tr>
-    <tr><td><code>/smoother_server</code></td><td class="num">1.1%</td><td class="num">1.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:1.8%"></div><div class="bar-max" style="left:2.5%"></div></div></td></tr>
-    <tr><td><code>/person_target_recovery_node</code></td><td class="num">1.1%</td><td class="num">1.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:1.8%"></div><div class="bar-max" style="left:2.5%"></div></div></td></tr>
+    <tr><td><code>/ai_human_detection</code></td><td class="num"><strong>12.2%</strong></td><td class="num">12.8%</td><td class="bars"><div class="bar-track"><div class="bar-fill ai" style="width:81.3%"></div><div class="bar-max" style="left:85.0%"></div></div></td></tr>
+    <tr><td><code>/camera/camera</code></td><td class="num"><strong>11.7%</strong></td><td class="num">12.8%</td><td class="bars"><div class="bar-track"><div class="bar-fill cam" style="width:77.7%"></div><div class="bar-max" style="left:85.0%"></div></div></td></tr>
+    <tr><td><code>/ekf_filter_node</code></td><td class="num">3.7%</td><td class="num">4.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:24.8%"></div><div class="bar-max" style="left:26.7%"></div></div></td></tr>
+    <tr><td><code>/rplidar_node</code></td><td class="num">3.6%</td><td class="num">4.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:24.2%"></div><div class="bar-max" style="left:26.7%"></div></div></td></tr>
+    <tr><td><code>/slam_toolbox</code></td><td class="num">3.4%</td><td class="num">14.1%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:22.3%"></div><div class="bar-max" style="left:94.2%"></div></div></td></tr>
+    <tr><td><code>/controller_server</code></td><td class="num">2.1%</td><td class="num">2.4%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:13.8%"></div><div class="bar-max" style="left:15.8%"></div></div></td></tr>
+    <tr><td><code>/driver_node</code></td><td class="num">2.0%</td><td class="num">2.6%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:13.5%"></div><div class="bar-max" style="left:17.5%"></div></div></td></tr>
+    <tr><td><code>/collision_monitor</code></td><td class="num">1.8%</td><td class="num">2.1%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:11.7%"></div><div class="bar-max" style="left:14.2%"></div></div></td></tr>
+    <tr><td><code>/CLaserOdometry2D</code></td><td class="num">1.7%</td><td class="num">1.9%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:11.2%"></div><div class="bar-max" style="left:12.5%"></div></div></td></tr>
+    <tr><td><code>/bt_navigator</code></td><td class="num">1.2%</td><td class="num">1.8%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:8.0%"></div><div class="bar-max" style="left:11.7%"></div></div></td></tr>
+    <tr><td><code>/demo_manager_node</code></td><td class="num">1.0%</td><td class="num">1.3%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:6.8%"></div><div class="bar-max" style="left:8.3%"></div></div></td></tr>
+    <tr><td><code>/planner_server</code></td><td class="num">0.8%</td><td class="num">1.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:5.0%"></div><div class="bar-max" style="left:6.7%"></div></div></td></tr>
+    <tr><td><code>/velocity_smoother</code></td><td class="num">0.5%</td><td class="num">0.6%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:3.0%"></div><div class="bar-max" style="left:4.2%"></div></div></td></tr>
+    <tr><td><code>/docking_server</code></td><td class="num">0.4%</td><td class="num">0.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:2.5%"></div><div class="bar-max" style="left:3.3%"></div></div></td></tr>
+    <tr><td><code>/behavior_server</code></td><td class="num">0.4%</td><td class="num">0.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:2.3%"></div><div class="bar-max" style="left:3.3%"></div></div></td></tr>
+    <tr><td><code>/route_server</code></td><td class="num">0.3%</td><td class="num">0.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:2.0%"></div><div class="bar-max" style="left:3.3%"></div></div></td></tr>
+    <tr><td><code>/smoother_server</code></td><td class="num">0.3%</td><td class="num">0.4%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:1.8%"></div><div class="bar-max" style="left:2.5%"></div></div></td></tr>
+    <tr><td><code>/person_target_recovery_node</code></td><td class="num">0.3%</td><td class="num">0.4%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:1.8%"></div><div class="bar-max" style="left:2.5%"></div></div></td></tr>
   </tbody>
 </table>
-<p class="small">CPU% 是 process 等級的 interval delta；一個 process 內含多個 node 時為合計值。</p>
+<p class="small">CPU% 是 process 等級的 interval delta，已除以 4 換算成四核佔比（單核 100% = 四核 25%）；一個 process 內含多個 node 時為合計值。</p>
 
-<h2>5. Node CPU — 整段 0 ~ 79.3 s</h2>
+<h2>5. Node CPU — 整段 0 ~ 79.3 s（四核佔比）</h2>
 <table>
   <thead>
     <tr><th>Node</th><th class="num">mean</th><th class="num">max</th><th class="num">備註</th></tr>
   </thead>
   <tbody>
-    <tr><td><code>/camera/camera</code></td><td class="num">48.1%</td><td class="num">66.5%</td><td class="num">啟動段較高</td></tr>
-    <tr><td><code>/ai_human_detection</code></td><td class="num">46.8%</td><td class="num">60.5%</td><td class="num">穩定</td></tr>
-    <tr><td><code>/rplidar_node</code></td><td class="num">15.9%</td><td class="num">39.0%</td><td class="num">啟動段尖峰</td></tr>
-    <tr><td><code>/slam_toolbox</code></td><td class="num">15.9%</td><td class="num"><strong>100.5%</strong></td><td class="num">停止時 finalize</td></tr>
-    <tr><td><code>/ekf_filter_node</code></td><td class="num">15.8%</td><td class="num">28.5%</td><td class="num">—</td></tr>
-    <tr><td><code>/controller_server</code></td><td class="num">9.3%</td><td class="num">33.0%</td><td class="num">啟動段尖峰</td></tr>
-    <tr><td><code>/driver_node</code></td><td class="num">7.8%</td><td class="num">18.5%</td><td class="num">—</td></tr>
-    <tr><td><code>/collision_monitor</code></td><td class="num">7.6%</td><td class="num">22.0%</td><td class="num">—</td></tr>
-    <tr><td><code>/CLaserOdometry2D</code></td><td class="num">7.6%</td><td class="num">23.0%</td><td class="num">—</td></tr>
-    <tr><td><code>/bt_navigator</code></td><td class="num">5.3%</td><td class="num">19.0%</td><td class="num">aggregate</td></tr>
-    <tr><td><code>/demo_manager_node</code></td><td class="num">4.5%</td><td class="num">16.0%</td><td class="num">—</td></tr>
-    <tr><td><code>/planner_server</code></td><td class="num">4.1%</td><td class="num">26.5%</td><td class="num">—</td></tr>
-    <tr><td><code>/velocity_smoother</code></td><td class="num">2.5%</td><td class="num">16.5%</td><td class="num">—</td></tr>
-    <tr><td><code>/behavior_server</code></td><td class="num">2.3%</td><td class="num">17.5%</td><td class="num">—</td></tr>
-    <tr><td><code>/docking_server</code></td><td class="num">2.3%</td><td class="num">15.5%</td><td class="num">—</td></tr>
-    <tr><td><code>/lifecycle_manager_navigation</code></td><td class="num">2.2%</td><td class="num">17.0%</td><td class="num">aggregate</td></tr>
-    <tr><td><code>/keepout_container</code></td><td class="num">2.0%</td><td class="num">19.0%</td><td class="num">aggregate</td></tr>
-    <tr><td><code>/route_server</code></td><td class="num">1.9%</td><td class="num">13.5%</td><td class="num">—</td></tr>
-    <tr><td><code>/smoother_server</code></td><td class="num">1.8%</td><td class="num">13.5%</td><td class="num">—</td></tr>
-    <tr><td><code>/base_to_ai_human_detection_tf</code></td><td class="num">1.8%</td><td class="num">11.0%</td><td class="num">—</td></tr>
-    <tr><td><code>/waypoint_follower</code></td><td class="num">1.7%</td><td class="num">16.5%</td><td class="num">未使用</td></tr>
-    <tr><td><code>/person_target_recovery_node</code></td><td class="num">1.6%</td><td class="num">13.5%</td><td class="num">—</td></tr>
+    <tr><td><code>/camera/camera</code></td><td class="num">12.0%</td><td class="num">16.6%</td><td class="num">啟動段較高</td></tr>
+    <tr><td><code>/ai_human_detection</code></td><td class="num">11.7%</td><td class="num">15.1%</td><td class="num">穩定</td></tr>
+    <tr><td><code>/rplidar_node</code></td><td class="num">4.0%</td><td class="num">9.8%</td><td class="num">啟動段尖峰</td></tr>
+    <tr><td><code>/slam_toolbox</code></td><td class="num">4.0%</td><td class="num"><strong>25.1%</strong></td><td class="num">停止時 finalize</td></tr>
+    <tr><td><code>/ekf_filter_node</code></td><td class="num">4.0%</td><td class="num">7.1%</td><td class="num">—</td></tr>
+    <tr><td><code>/controller_server</code></td><td class="num">2.3%</td><td class="num">8.3%</td><td class="num">啟動段尖峰</td></tr>
+    <tr><td><code>/driver_node</code></td><td class="num">2.0%</td><td class="num">4.6%</td><td class="num">—</td></tr>
+    <tr><td><code>/collision_monitor</code></td><td class="num">1.9%</td><td class="num">5.5%</td><td class="num">—</td></tr>
+    <tr><td><code>/CLaserOdometry2D</code></td><td class="num">1.9%</td><td class="num">5.8%</td><td class="num">—</td></tr>
+    <tr><td><code>/bt_navigator</code></td><td class="num">1.3%</td><td class="num">4.8%</td><td class="num">aggregate</td></tr>
+    <tr><td><code>/demo_manager_node</code></td><td class="num">1.1%</td><td class="num">4.0%</td><td class="num">—</td></tr>
+    <tr><td><code>/planner_server</code></td><td class="num">1.0%</td><td class="num">6.6%</td><td class="num">—</td></tr>
+    <tr><td><code>/velocity_smoother</code></td><td class="num">0.6%</td><td class="num">4.1%</td><td class="num">—</td></tr>
+    <tr><td><code>/behavior_server</code></td><td class="num">0.6%</td><td class="num">4.4%</td><td class="num">—</td></tr>
+    <tr><td><code>/docking_server</code></td><td class="num">0.6%</td><td class="num">3.9%</td><td class="num">—</td></tr>
+    <tr><td><code>/lifecycle_manager_navigation</code></td><td class="num">0.6%</td><td class="num">4.3%</td><td class="num">aggregate</td></tr>
+    <tr><td><code>/keepout_container</code></td><td class="num">0.5%</td><td class="num">4.8%</td><td class="num">aggregate</td></tr>
+    <tr><td><code>/route_server</code></td><td class="num">0.5%</td><td class="num">3.4%</td><td class="num">—</td></tr>
+    <tr><td><code>/smoother_server</code></td><td class="num">0.5%</td><td class="num">3.4%</td><td class="num">—</td></tr>
+    <tr><td><code>/base_to_ai_human_detection_tf</code></td><td class="num">0.5%</td><td class="num">2.8%</td><td class="num">—</td></tr>
+    <tr><td><code>/waypoint_follower</code></td><td class="num">0.4%</td><td class="num">4.1%</td><td class="num">未使用</td></tr>
+    <tr><td><code>/person_target_recovery_node</code></td><td class="num">0.4%</td><td class="num">3.4%</td><td class="num">—</td></tr>
   </tbody>
 </table>
 
-<h2>6. Monitor / 非 node process（跟隨期間）</h2>
+<h2>6. Monitor / 非 node process（跟隨期間，四核佔比）</h2>
 <table>
   <thead><tr><th>Process</th><th class="num">mean</th><th class="num">max</th><th>說明</th></tr></thead>
   <tbody>
-    <tr><td><code>python3</code></td><td class="num">11.2%</td><td class="num">28.0%</td><td>follow_watch</td></tr>
-    <tr><td><code>ros2</code></td><td class="num">3.6%</td><td class="num">10.0%</td><td>bag record</td></tr>
-    <tr><td>UVC kworkers（u9:0~5）</td><td class="num">約 9.5%</td><td class="num">各 2.5%</td><td>USB 相機中斷處理</td></tr>
+    <tr><td><code>python3</code></td><td class="num">2.8%</td><td class="num">7.0%</td><td>follow_watch</td></tr>
+    <tr><td><code>ros2</code></td><td class="num">0.9%</td><td class="num">2.5%</td><td>bag record</td></tr>
+    <tr><td>UVC kworkers（u9:0~5）</td><td class="num">約 2.4%</td><td class="num">各 0.6%</td><td>USB 相機中斷處理</td></tr>
   </tbody>
 </table>
-<p>monitor 自身（bag + watch + cpu monitor）約 <strong>15~16%</strong>。lite bag 已把監測影響壓到可接受範圍，這次 bag lost 只有 2 筆。</p>
+<p>monitor 自身（bag + watch + cpu monitor）約 <strong>3.8~4.0%</strong>（四核）。lite bag 已把監測影響壓到可接受範圍，這次 bag lost 只有 2 筆。</p>
 
 <h2>7. cpu_nodes.csv 與 namespace 修正</h2>
 <p class="lead">這一筆 run 是 <code>cpu_nodes.csv</code> 首次上線；數值正確，但相機標籤當時還沒合併 namespace。</p>
@@ -410,19 +413,19 @@ __ns:=/foo + __node:=bar        →  /foo/bar</div>
   跟隨期間 mean 50.5%、p95 65.2%、max 67.5%，每顆核心都低於 70%。
 </div>
 <ul class="tight">
-  <li>整段 p95 91.9% / max 94.3% 來自 +0~10 s 啟動與 bag discovery，以及 +71.7 s 停止時 <code>/slam_toolbox</code> finalize（max 100.5%），不是跟隨負載。</li>
-  <li>最大固定成本是 AI 與相機：跟隨期間合計 95.4%（48.8 + 46.6）。</li>
-  <li>SLAM 跟隨期間只有 13.4%，最高 56.5%，不是這一筆的瓶頸。</li>
-  <li>Nav2 + demo + recovery 合計 35.3%，其中 controller 8.3%、driver 8.1%、collision 7.0%。</li>
-  <li>lite bag + monitor 約 15~16%，bag lost 只有 2 筆，目前預設值可繼續使用。</li>
+  <li>整段 p95 91.9% / max 94.3% 來自 +0~10 s 啟動與 bag discovery，以及 +71.7 s 停止時 <code>/slam_toolbox</code> finalize（單核 max 100.5%，四核 25.1%），不是跟隨負載。</li>
+  <li>最大固定成本是 AI 與相機：跟隨期間合計 23.9%（12.2 + 11.7）。</li>
+  <li>SLAM 跟隨期間只有 3.4%，最高 14.1%，不是這一筆的瓶頸。</li>
+  <li>Nav2 + demo + recovery 合計 8.8%，其中 controller 2.1%、driver 2.0%、collision 1.8%。</li>
+  <li>lite bag + monitor 約 3.8~4.0%（四核），bag lost 只有 2 筆，目前預設值可繼續使用。</li>
   <li><code>cpu_nodes.csv</code> 的 namespace 已修正，之後的 run 會直接標成 <code>/camera/camera</code>。</li>
 </ul>
 
 <h2>9. 建議</h2>
 <ul class="tight">
-  <li>若要再降 CPU，優先動相機：<code>640×480 @ 15</code> → <code>424×240 @ 15</code>，RealSense 約可從 46~48% 降到 20~25%。</li>
+  <li>若要再降 CPU，優先動相機：<code>640×480 @ 15</code> → <code>424×240 @ 15</code>，RealSense 約可從四核 11.5~12% 降到 5~6%。</li>
   <li>沒用到的 Nav2 node 可關：<code>docking_server</code>、<code>route_server</code>、<code>smoother_server</code>、<code>waypoint_follower</code>、<code>keepout_container</code>。</li>
-  <li><code>/slam_toolbox</code> 的 100.5% 只出現在停止瞬間，不影響跟隨；若之後出現跟隨中 &gt;80% 再處理。</li>
+  <li><code>/slam_toolbox</code> 的四核 25.1%（單核 100.5%）只出現在停止瞬間，不影響跟隨；若之後出現跟隨中四核 &gt;20%（單核 &gt;80%）再處理。</li>
   <li>視覺置中這次 started 8 次、timeout 2 次，可考慮把 <code>visual_rotation_timeout_sec</code> 調到 4~5 秒。</li>
 </ul>
 
@@ -571,7 +574,7 @@ __ns:=/foo + __node:=bar        →  /foo/bar</div>
   el("text", {
     x: X(73.1), y: Y(77.9) + 18, "text-anchor": "middle",
     "font-size": "10.5", fill: "#b26a00"
-  }, "slam_toolbox 100.5%");
+  }, "slam_toolbox 四核 25.1%");
 
   // sample dots (small)
   data.forEach(function (p) {
