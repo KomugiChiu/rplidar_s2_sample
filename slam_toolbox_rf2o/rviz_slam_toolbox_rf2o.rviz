@@ -261,6 +261,31 @@ Visualization Manager:
       {}
     Update Interval: 0
     Value: true
+  - Class: rviz_default_plugins/MarkerArray
+    Enabled: true
+    Name: Person Markers
+    Namespaces:
+      {}
+    Topic:
+      Depth: 5
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /demo/person_markers
+    Value: true
+  - Class: rviz_default_plugins/Image
+    Enabled: true
+    Max Value: 1
+    Min Value: 0
+    Name: AI Debug Image
+    Normalize Range: true
+    Topic:
+      Depth: 5
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Best Effort
+      Value: /debug_image/compressed
+    Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
