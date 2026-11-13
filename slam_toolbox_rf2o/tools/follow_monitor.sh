@@ -4,6 +4,7 @@
 # Usage:
 #   ./follow_monitor.sh start   [--label NAME] [--dir DIR] [--duration SEC]
 #                               [--no-bag] [--no-cpu] [--no-watch] [--no-tails]
+#                               [--stack]  (off by default: ROS CLI is slow on this board)
 #   ./follow_monitor.sh stop    [--dir DIR]
 #   ./follow_monitor.sh status  [--dir DIR]
 #   ./follow_monitor.sh summary [--dir DIR]
@@ -86,17 +87,15 @@ export ROS_DOMAIN_ID="$DOMAIN"
 EOF
 }
 
-# ros2 param get occasionally hits a transient CLI/daemon error; retry.
+# Single short attempt: retries made collect_stack take ~74 s and loaded the
+# system while the recorders were already running.
 pget() {
-  local node="$1" p="$2" out="" i
-  for i in 1 2 3; do
-    out="$(timeout -k 2 5 ros2 param get "$node" "$p" 2>&1 | tail -n1)"
-    case "$out" in
-      *"value is:"*) printf '%s' "$out"; return 0 ;;
-    esac
-    sleep 1
-  done
-  printf '%s' "${out:-unavailable}"
+  local node="$1" p="$2" out
+  out="$(timeout -k 2 2 ros2 param get "$node" "$p" 2>&1 | tail -n1)"
+  case "$out" in
+    *"value is:"*) printf '%s' "$out" ;;
+    *) printf 'unavailable' ;;
+  esac
 }
 
 collect_stack() {
@@ -125,7 +124,7 @@ collect_stack() {
 }
 
 cmd_start() {
-  local label="follow" duration=1800 dir="" do_bag=1 do_cpu=1 do_watch=1 do_tails=1
+  local label="follow" duration=1800 dir="" do_bag=1 do_cpu=1 do_watch=1 do_tails=1 do_stack=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --label) label="$2"; shift ;;
@@ -135,6 +134,8 @@ cmd_start() {
       --no-cpu) do_cpu=0 ;;
       --no-watch) do_watch=0 ;;
       --no-tails) do_tails=0 ;;
+      --stack) do_stack=1 ;;
+      --no-stack) do_stack=0 ;;
       -h|--help) usage; exit 0 ;;
       *) die "unknown option: $1" ;;
     esac
@@ -175,6 +176,16 @@ cmd_start() {
   for need in /scan /odometry/filtered /person_infos /demo/state; do
     printf '%s\n' "$preflight" | grep -qx "$need" || warn "topic not found: $need"
   done
+
+  # -------------------------------------------------------------------------
+  # environment snapshot
+  # Run it BEFORE the recorders: it used to run after bag/watch started and
+  # its param queries depressed /person_infos for the first ~74 s.
+  # -------------------------------------------------------------------------
+  if [ "$do_stack" = "1" ]; then
+    say "stack      : collecting snapshot before recorders (may take 30-60 s)"
+    collect_stack "$run"
+  fi
 
   # -------------------------------------------------------------------------
   # bag
@@ -247,10 +258,6 @@ cmd_start() {
     say "tails      : demo_manager / ai_node / person_target_recovery"
   fi
 
-  # -------------------------------------------------------------------------
-  # environment snapshot
-  # -------------------------------------------------------------------------
-  collect_stack "$run"
   {
     echo "run_dir   : $run"
     echo "started   : $(date '+%Y-%m-%d %H:%M:%S')"
@@ -260,6 +267,7 @@ cmd_start() {
     echo "cpu       : $do_cpu"
     echo "watch     : $do_watch"
     echo "tails     : $do_tails"
+    echo "stack     : $do_stack"
     echo "domain    : $DOMAIN"
     echo "watch_py  : $WATCH_PY"
     echo "cpu_py    : $CPU_PY"
