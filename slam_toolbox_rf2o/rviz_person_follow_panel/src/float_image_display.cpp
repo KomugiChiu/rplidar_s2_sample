@@ -36,9 +36,10 @@ void FloatImageDisplay::floatPanel()
     return;
   }
 
+  const QRect screen_rect = screen->geometry();
   const QRect available = screen->availableGeometry();
-  const int width = available.width() / 2;
-  const int height = available.height() / 2;
+  const int width = screen_rect.width() / 2;
+  const int height = screen_rect.height() / 2;
 
   panel->setFloating(true);
   panel->resize(width, height);

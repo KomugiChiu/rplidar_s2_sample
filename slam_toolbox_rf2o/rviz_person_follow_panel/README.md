@@ -84,8 +84,8 @@ ros2 service call /demo/start std_srvs/srv/Trigger "{}"
 
 This package also exports `person_follow_panel/FloatImageDisplay`, a subclass of
 `rviz_default_plugins/Image`. On startup it detaches its render panel into a
-floating window and sizes it to **1/4 of the available screen** (half width x
-half height).
+floating window and sizes it to **1/4 of the screen area** (half the screen
+width x half the screen height, e.g. 960x540 on a 1920x1080 display).
 
 The default RViz config uses it as:
 
