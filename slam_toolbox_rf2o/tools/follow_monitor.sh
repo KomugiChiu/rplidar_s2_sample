@@ -5,7 +5,7 @@
 #   ./follow_monitor.sh start   [--label NAME] [--dir DIR] [--duration SEC]
 #                               [--no-bag] [--no-cpu] [--no-watch] [--no-tails]
 #                               [--stack]  (off by default: ROS CLI is slow on this board)
-#                               [--lite-bag] (skip gyro/map/visualization topics)
+#                               [--full-bag] (default: lite bag; full includes gyro/map/visualization)
 #   ./follow_monitor.sh stop    [--dir DIR]
 #   ./follow_monitor.sh status  [--dir DIR]
 #   ./follow_monitor.sh summary [--dir DIR]
@@ -22,6 +22,10 @@
 #     stack.txt                  camera / params / node / topic snapshot
 #     RUN_INFO.txt
 #   monitor_logs/.last_follow_run -> latest run dir
+#
+# Defaults:
+#   - no stack snapshot (use --stack to collect before the run)
+#   - lite bag (use --full-bag for gyro/map/visualization topics)
 #
 # stop sends SIGTERM to every pid file, waits, then SIGKILL if needed.
 # The latest run dir is remembered in monitor_logs/.last_follow_run.
@@ -125,7 +129,7 @@ collect_stack() {
 }
 
 cmd_start() {
-  local label="follow" duration=1800 dir="" do_bag=1 do_cpu=1 do_watch=1 do_tails=1 do_stack=0 lite_bag=0
+  local label="follow" duration=1800 dir="" do_bag=1 do_cpu=1 do_watch=1 do_tails=1 do_stack=0 lite_bag=1
   while [ $# -gt 0 ]; do
     case "$1" in
       --label) label="$2"; shift ;;
@@ -137,6 +141,7 @@ cmd_start() {
       --no-tails) do_tails=0 ;;
       --stack) do_stack=1 ;;
       --lite-bag) lite_bag=1 ;;
+      --full-bag) lite_bag=0 ;;
       --no-stack) do_stack=0 ;;
       -h|--help) usage; exit 0 ;;
       *) die "unknown option: $1" ;;
