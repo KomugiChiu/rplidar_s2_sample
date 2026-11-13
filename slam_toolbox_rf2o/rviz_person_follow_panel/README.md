@@ -80,6 +80,25 @@ ros2 service type /demo/start
 ros2 service call /demo/start std_srvs/srv/Trigger "{}"
 ```
 
+## Floating AI debug image
+
+This package also exports `person_follow_panel/FloatImageDisplay`, a subclass of
+`rviz_default_plugins/Image`. On startup it detaches its render panel into a
+floating window and sizes it to **1/4 of the available screen** (half width x
+half height).
+
+The default RViz config uses it as:
+
+```yaml
+- Class: person_follow_panel/FloatImageDisplay
+  Name: AI Debug Image
+  Topic:
+    Value: /debug_image/compressed
+```
+
+The window title is `AI Debug Image`; it can still be moved or resized by the
+window manager.
+
 ## Notes
 
 - The services are called asynchronously; the UI is not blocked.

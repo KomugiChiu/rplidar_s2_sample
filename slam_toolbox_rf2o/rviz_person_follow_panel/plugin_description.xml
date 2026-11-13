@@ -7,4 +7,11 @@
       /demo/start, /demo/stop, /demo/clear_target, /demo/return_home.
     </description>
   </class>
+  <class name="person_follow_panel/FloatImageDisplay"
+         type="person_follow_panel::FloatImageDisplay"
+         base_class_type="rviz_common::Display">
+    <description>
+      Image display that detaches into a floating window sized to 1/4 of the screen.
+    </description>
+  </class>
 </library>

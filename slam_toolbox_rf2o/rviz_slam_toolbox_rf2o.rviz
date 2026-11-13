@@ -273,7 +273,7 @@ Visualization Manager:
       Reliability Policy: Reliable
       Value: /demo/person_markers
     Value: true
-  - Class: rviz_default_plugins/Image
+  - Class: person_follow_panel/FloatImageDisplay
     Enabled: true
     Max Value: 1
     Min Value: 0
