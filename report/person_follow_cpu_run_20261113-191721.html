@@ -367,12 +367,15 @@
 <table>
   <thead><tr><th>Process</th><th class="num">mean</th><th class="num">max</th><th>說明</th></tr></thead>
   <tbody>
-    <tr><td><code>python3</code></td><td class="num">2.8%</td><td class="num">7.0%</td><td>follow_watch</td></tr>
-    <tr><td><code>ros2</code></td><td class="num">0.9%</td><td class="num">2.5%</td><td>bag record</td></tr>
-    <tr><td>UVC kworkers（u9:0~5）</td><td class="num">約 2.4%</td><td class="num">各 0.6%</td><td>USB 相機中斷處理</td></tr>
+    <tr><td><code>follow_watch</code></td><td class="num">6.3%</td><td class="num">7.0%</td><td>follow_watch.py</td></tr>
+    <tr><td><code>bag record</code></td><td class="num">2.3%</td><td class="num">2.5%</td><td>ros2 bag record</td></tr>
+    <tr><td><code>cpu monitor</code></td><td class="num">0.8%</td><td class="num">0.9%</td><td>monitor_cpu.py</td></tr>
+    <tr><td>UVC kworkers（u9:0~5）</td><td class="num">1.1%</td><td class="num">1.3%</td><td>USB 相機中斷處理</td></tr>
+    <tr><td><strong>monitor core</strong></td><td class="num"><strong>9.3%</strong></td><td class="num">10.8%</td><td>watch + bag + cpu monitor</td></tr>
   </tbody>
 </table>
-<p>monitor 自身（bag + watch + cpu monitor）約 <strong>3.8~4.0%</strong>（四核）。lite bag 已把監測影響壓到可接受範圍，這次 bag lost 只有 2 筆。</p>
+<p class="small">同一 process 名稱可能有多個 PID（例如 python3、kworker），這裡是<strong>先對每個 timestamp 加總、再平均</strong>，不是對所有列平均。</p>
+<p>monitor 自身（bag + watch + cpu monitor）約 <strong>9.3%</strong>（四核）。lite bag 已把監測影響壓到可接受範圍，這次 bag lost 只有 2 筆。</p>
 
 <h2>7. cpu_nodes.csv 與 namespace 修正</h2>
 <p class="lead">這一筆 run 是 <code>cpu_nodes.csv</code> 首次上線；數值正確，但相機標籤當時還沒合併 namespace。</p>
@@ -417,7 +420,7 @@ __ns:=/foo + __node:=bar        →  /foo/bar</div>
   <li>最大固定成本是 AI 與相機：跟隨期間合計 23.9%（12.2 + 11.7）。</li>
   <li>SLAM 跟隨期間只有 3.4%，最高 14.1%，不是這一筆的瓶頸。</li>
   <li>Nav2 + demo + recovery 合計 8.8%，其中 controller 2.1%、driver 2.0%、collision 1.8%。</li>
-  <li>lite bag + monitor 約 3.8~4.0%（四核），bag lost 只有 2 筆，目前預設值可繼續使用。</li>
+  <li>lite bag + monitor 約 9.3%（四核），bag lost 只有 2 筆，目前預設值可繼續使用。</li>
   <li><code>cpu_nodes.csv</code> 的 namespace 已修正，之後的 run 會直接標成 <code>/camera/camera</code>。</li>
 </ul>
 
