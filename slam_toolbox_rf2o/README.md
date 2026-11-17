@@ -68,6 +68,8 @@ slam_toolbox_rf2o/
 ├── start_all_amcl.sh / stop_all_amcl.sh    # 靜態地圖 + AMCL
 ├── start_slam_toolbox_rf2o.sh / stop_...   # lidar + rf2o + slam_toolbox
 ├── start_ai.sh / stop_ai.sh                # RealSense + AI + DemoManager
+├── demo_command/                           # /demo 服務快捷指令
+├── check_deps.sh                           # 依賴檢查 / apt 自動安裝
 ├── slam_toolbox_rf2o.yaml                  # slam_toolbox 參數
 ├── rf2o_params.yaml                        # rf2o 參數
 ├── rviz_slam_toolbox_rf2o.rviz             # 這條流程用的 RViz
@@ -326,6 +328,35 @@ DRY_RUN=1 ./start_ai.sh
 參數（僅供考古）：`TRANSLATION_ONLY`、`VX_SCALE`、`WZ_MAX_OUT`、`ALLOW_STRAFE`、`SONAR_STOP`、`SCAN_STOP`、`USE_ULTRASONIC`、`WATCHDOG_TIMEOUT`、`GATE_TOPIC`、`GATE_INPUT`。
 
 **新流程請用 `start_all.sh` 或 `nav2_1028/start_nav2.sh`。**
+
+---
+
+### 4.9 `check_deps.sh`
+
+在板端檢查這條 stack 的依賴；預設會安裝缺少的 apt package，workspace 只檢查、不自動 build。
+
+```bash
+./check_deps.sh                 # 檢查 + 安裝缺少的 apt package
+./check_deps.sh --check-only    # 只檢查，不安裝
+```
+
+檢查項目：
+
+```text
+ROS Jazzy / ros2 CLI
+apt：slam_toolbox、robot_localization、Nav2、realsense2_camera、rviz2 ...
+python：rclpy、tf2_ros
+workspace：rplidar_ros、rf2o_ws、nav2_deadband_ws、yahboomcar_ws、
+           realsense-ros、ai_human_detection、demo_manager、person_target_recovery
+plugin / executable：nav2_deadband_controller、ai_human_detection_node、Mcnamu_driver
+hardware：RPLIDAR S2、RealSense D455、/dev/nvt_gfx0、dialout
+```
+
+路徑可用環境變數覆寫，例如：
+
+```bash
+RPLIDAR_WS=/path/to/rplidar_ros ./check_deps.sh --check-only
+```
 
 ---
 
