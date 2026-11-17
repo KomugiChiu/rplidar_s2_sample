@@ -4,7 +4,7 @@
 #
 # Checks:
 #   apt: slam_toolbox, nav2_map_server, tf2_ros
-#   workspaces: rplidar_ros, rf2o/install
+#   workspaces: rplidar_ros, ../rf2o
 #   yaml: slam_toolbox_rf2o.yaml, slam_toolbox_localization.yaml, rf2o_params.yaml
 #   scripts: start_mapping.sh, start_localization.sh, stop.sh, save_map.sh,
 #            ../rf2o/start.sh, ../rf2o/stop.sh
@@ -30,7 +30,7 @@ esac
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"
 ROS_DISTRO="${ROS_DISTRO:-jazzy}"
 RPLIDAR_WS="${RPLIDAR_WS:-$SCRIPT_DIR/../rplidar_ros}"
-RF2O_INSTALL="${RF2O_INSTALL:-$SCRIPT_DIR/../rf2o/install}"
+RF2O_ROOT="${RF2O_ROOT:-$SCRIPT_DIR/../rf2o}"
 MAPPING_YAML="${MAPPING_YAML:-$SCRIPT_DIR/slam_toolbox_rf2o.yaml}"
 LOCALIZATION_YAML="${LOCALIZATION_YAML:-$SCRIPT_DIR/slam_toolbox_localization.yaml}"
 RF2O_YAML="${RF2O_YAML:-$SCRIPT_DIR/../rf2o/rf2o_params.yaml}"
@@ -90,15 +90,15 @@ if [ -f "$RPLIDAR_WS/local_setup.bash" ] &&
 else
   bad "$RPLIDAR_WS (rplidar_ros / rplidar_node)"
 fi
-if [ -f "$RF2O_INSTALL/local_setup.bash" ] &&
-   [ -x "$RF2O_INSTALL/rf2o_laser_odometry/lib/rf2o_laser_odometry/rf2o_laser_odometry_node" ]; then
-  ok "$RF2O_INSTALL"
+if [ -f "$RF2O_ROOT/local_setup.bash" ] &&
+   [ -x "$RF2O_ROOT/rf2o_laser_odometry/lib/rf2o_laser_odometry/rf2o_laser_odometry_node" ]; then
+  ok "$RF2O_ROOT"
 else
-  bad "$RF2O_INSTALL (rf2o install)"
+  bad "$RF2O_ROOT (rf2o install)"
 fi
 
 source_if_exists "$RPLIDAR_WS" || true
-source_if_exists "$RF2O_INSTALL" || true
+source_if_exists "$RF2O_ROOT" || true
 
 check_pkg() { ros2 pkg prefix "$1" >/dev/null 2>&1 && ok "$1" || bad "$1"; }
 check_exe() {

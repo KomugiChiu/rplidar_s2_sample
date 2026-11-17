@@ -8,10 +8,12 @@ ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
 SLAM_DIR="${SLAM_DIR:-/nvt_ros2_example/slam_toolbox}"
 RF2O_DIR="${RF2O_DIR:-/nvt_ros2_example/rf2o}"
+NAV2_DIR="${NAV2_DIR:-/nvt_ros2_example/nav2}"
+EKF_DIR="${EKF_DIR:-/nvt_ros2_example/ekf}"
 
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-99}"
 
-NAV2_PARAMS_FILE="${NAV2_PARAMS_FILE:-$ROOT_DIR/nav2_1028/nav2_params_plugin.yaml}"
+NAV2_PARAMS_FILE="${NAV2_PARAMS_FILE:-$NAV2_DIR/nav2_params_plugin.yaml}"
 USE_EXTERNAL_SAFETY="${USE_EXTERNAL_SAFETY:-0}"
 export USE_EXTERNAL_SAFETY
 export USE_LOCALIZATION=0
@@ -93,8 +95,10 @@ demo_preflight() {
   [ -x "$SLAM_DIR/stop.sh" ] || demo_die "missing $SLAM_DIR/stop.sh"
   [ -x "$RF2O_DIR/start.sh" ] || demo_die "missing $RF2O_DIR/start.sh"
   [ -x "$RF2O_DIR/stop.sh" ] || demo_die "missing $RF2O_DIR/stop.sh"
-  [ -x "$ROOT_DIR/ekf/start_ekf.sh" ] || demo_die "missing ekf/start_ekf.sh"
-  [ -x "$ROOT_DIR/nav2_1028/start_nav2.sh" ] || demo_die "missing nav2_1028/start_nav2.sh"
+  [ -x "$EKF_DIR/start_ekf.sh" ] || demo_die "missing $EKF_DIR/start_ekf.sh"
+  [ -x "$EKF_DIR/stop_ekf.sh" ] || demo_die "missing $EKF_DIR/stop_ekf.sh"
+  [ -x "$NAV2_DIR/start_nav2.sh" ] || demo_die "missing $NAV2_DIR/start_nav2.sh"
+  [ -x "$NAV2_DIR/stop_nav2.sh" ] || demo_die "missing $NAV2_DIR/stop_nav2.sh"
 
   if [ "$START_AI" = "1" ]; then
     [ -f "$REALSENSE_WS/local_setup.bash" ] || [ -f "$REALSENSE_WS/setup.bash" ] \
@@ -155,7 +159,7 @@ demo_start_slam() {
 
 demo_start_ekf() {
   demo_log "[2/4] RealSense + EKF"
-  "$ROOT_DIR/ekf/start_ekf.sh"
+  "$EKF_DIR/start_ekf.sh"
 }
 
 demo_wait_for_slam() {
@@ -181,7 +185,7 @@ demo_wait_for_slam() {
 
 demo_start_nav2() {
   demo_log "[3/4] Nav2 + chassis driver"
-  PARAMS_FILE="$NAV2_PARAMS_FILE" "$ROOT_DIR/nav2_1028/start_nav2.sh"
+  PARAMS_FILE="$NAV2_PARAMS_FILE" "$NAV2_DIR/start_nav2.sh"
 }
 
 demo_source_ai_env() {
@@ -236,7 +240,7 @@ demo_start_ai() {
 }
 
 demo_maybe_record() {
-  local recorder="$ROOT_DIR/nav2_1028/tools/record_cmd_vel.py"
+  local recorder="$NAV2_DIR/tools/record_cmd_vel.py"
   [ "$RECORD" = "1" ] || return 0
   [ -f "$recorder" ] || { demo_log "WARN: recorder not found: $recorder"; return 0; }
 

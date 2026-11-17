@@ -11,6 +11,38 @@ rf2o (/odom_rf2o) ─┐
 D455 gyro ─────────┘                TF odom -> base_footprint
 ```
 
+## 建置配置
+
+原始碼配置：
+
+```text
+scripts/    *.sh
+config/     ekf_params.yaml
+```
+
+使用 colcon 建置：
+
+```bash
+colcon build --merge-install --packages-select ekf_bringup
+```
+
+install 會是平坦結構：
+
+```text
+install/start_ekf.sh
+install/stop_ekf.sh
+install/check_deps.sh
+install/ekf_params.yaml
+```
+
+把 `install/.` 的內容複製到：
+
+```text
+/nvt_ros2_example/ekf/
+```
+
+板上不要再有 `install/` 子資料夾。
+
 ## 1. 檔案
 
 ```text

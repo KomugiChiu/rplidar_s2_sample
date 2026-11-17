@@ -26,7 +26,7 @@ SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]:-$0}" 2>/dev/null || echo "${BAS
 SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"
 
 MAP_FILE="${MAP_FILE:-$SCRIPT_DIR/maps/slam_map_20261102.yaml}"
-NAV2_PARAMS_FILE="${NAV2_PARAMS_FILE:-$SCRIPT_DIR/nav2_1028/nav2_params_amcl.yaml}"
+NAV2_PARAMS_FILE="${NAV2_PARAMS_FILE:-$SCRIPT_DIR/nav2_1028/config/nav2_params_amcl.yaml}"
 
 [ -f "$MAP_FILE" ] || {
     echo "ERROR: map yaml not found: $MAP_FILE"

@@ -122,7 +122,7 @@ mapping 時儲存 map：
 START_AI=0 ./start_demo.sh          # 只跑 SLAM + EKF + Nav2
 RECORD=1 ./start_demo.sh            # 另外記錄 /cmd_vel_nav CSV
 SLAM_PARAMS=/path/to/other.yaml ./start_demo_static.sh
-NAV2_PARAMS_FILE=../nav2_1028/nav2_params_plugin.yaml ./start_demo.sh
+NAV2_PARAMS_FILE=$NAV2_DIR/nav2_params_plugin.yaml ./start_demo.sh
 ```
 
 ## 4. 環境變數
@@ -131,11 +131,13 @@ NAV2_PARAMS_FILE=../nav2_1028/nav2_params_plugin.yaml ./start_demo.sh
 |---|---|---|
 | `ROS_DOMAIN_ID` | `99` | DDS domain |
 | `START_AI` | `1` | 啟動 AI / recovery / demo manager |
-| `RECORD` | `0` | 啟動 `nav2_1028/tools/record_cmd_vel.py` |
-| `NAV2_PARAMS_FILE` | `../nav2_1028/nav2_params_plugin.yaml` | Nav2 參數 |
+| `RECORD` | `0` | 啟動 `$NAV2_DIR/tools/record_cmd_vel.py` |
+| `NAV2_PARAMS_FILE` | `$NAV2_DIR/nav2_params_plugin.yaml` | Nav2 參數 |
 | `SLAM_PARAMS` | `$SLAM_DIR/...` yaml | SLAM 參數 |
 | `SLAM_DIR` | `/nvt_ros2_example/slam_toolbox` | 獨立 SLAM script |
 | `RF2O_DIR` | `/nvt_ros2_example/rf2o` | 獨立 rf2o script |
+| `NAV2_DIR` | `/nvt_ros2_example/nav2` | 獨立 Nav2 script |
+| `EKF_DIR` | `/nvt_ros2_example/ekf` | 獨立 EKF script |
 | `USE_EXTERNAL_SAFETY` | `0` | 傳給 `start_nav2.sh` |
 | `START_REALSENSE` | `0` | 保持 0；相機由 EKF 啟動 |
 | `CAMERA_X` / `CAMERA_Y` / `CAMERA_Z` | `0.0` / `0.0` / `0.0` | AI TF 偏移 |
@@ -161,7 +163,7 @@ slam_toolbox（online_async 或 localization）
 
 ### EKF
 
-透過 `../ekf/start_ekf.sh`：
+透過 `$EKF_DIR/start_ekf.sh`：
 
 ```text
 realsense2_camera
@@ -171,7 +173,7 @@ robot_localization ekf_node
 
 ### Nav2
 
-透過 `../nav2_1028/start_nav2.sh`：
+透過 `$NAV2_DIR/start_nav2.sh`：
 
 ```text
 controller_server（DeadbandController plugin）
@@ -201,9 +203,9 @@ AI 使用 EKF 已經啟動的相機，不需要第二顆 RealSense。
 start_demo.sh
   ├─ $SLAM_DIR/start_mapping.sh or start_localization.sh
   ├─ $RF2O_DIR/start.sh
-  ├─ ekf/start_ekf.sh
+  ├─ $EKF_DIR/start_ekf.sh
   ├─ 等 /map + /odometry/filtered + TF map -> base_link
-  ├─ nav2_1028/start_nav2.sh
+  ├─ $NAV2_DIR/start_nav2.sh
   └─ AI node -> AI TF -> recovery -> demo manager
 ```
 

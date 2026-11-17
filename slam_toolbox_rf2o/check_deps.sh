@@ -19,7 +19,7 @@
 #   - Hardware that is unplugged is reported as WARN (not a hard failure).
 #
 # Env overrides:
-#   ROS_DISTRO, RPLIDAR_WS, RF2O_WS, PLUGIN_WS, ROBOT_WS, LIBRARY_WS,
+#   ROS_DISTRO, RPLIDAR_WS, RF2O_ROOT, PLUGIN_WS, ROBOT_WS, LIBRARY_WS,
 #   REALSENSE_WS, AI_WS, DEMO_WS, DEMO_INSTALL, RECOVERY_INSTALL, KIT_DIR
 set -eo pipefail   # NOTE: no -u (ROS setup files need unset vars)
 
@@ -40,7 +40,7 @@ esac
 ROS_DISTRO="${ROS_DISTRO:-jazzy}"
 
 RPLIDAR_WS="${RPLIDAR_WS:-/nvt_ros2_example/rplidar_ros}"
-RF2O_WS="${RF2O_WS:-/root/rf2o_ws}"
+RF2O_ROOT="${RF2O_ROOT:-/nvt_ros2_example/rf2o}"
 PLUGIN_WS="${PLUGIN_WS:-/root/nav2_deadband_ws}"
 ROBOT_WS="${ROBOT_WS:-/root/raspybot/yahboomcar_ws}"
 LIBRARY_WS="${LIBRARY_WS:-/root/raspybot/library_ws/py_install}"
@@ -156,11 +156,11 @@ else
 fi
 
 # rf2o
-if [ -f "$RF2O_WS/install/local_setup.bash" ] &&
-   [ -x "$RF2O_WS/install/rf2o_laser_odometry/lib/rf2o_laser_odometry/rf2o_laser_odometry_node" ]; then
-  ok "$RF2O_WS"
+if [ -f "$RF2O_ROOT/local_setup.bash" ] &&
+   [ -x "$RF2O_ROOT/rf2o_laser_odometry/lib/rf2o_laser_odometry/rf2o_laser_odometry_node" ]; then
+  ok "$RF2O_ROOT"
 else
-  bad "$RF2O_WS (rf2o_laser_odometry build)"
+  bad "$RF2O_ROOT (rf2o_laser_odometry install)"
 fi
 
 # nav2_deadband_controller
@@ -225,7 +225,7 @@ fi
 
 echo "== ROS packages after sourcing workspaces =="
 source_if_exists "$RPLIDAR_WS" || true
-source_if_exists "$RF2O_WS/install" || true
+source_if_exists "$RF2O_ROOT" || true
 source_if_exists "$PLUGIN_WS/install" || true
 source_if_exists "$ROBOT_WS/install" || true
 source_if_exists "$REALSENSE_WS" || true
@@ -352,7 +352,7 @@ cat <<'EOF'
 Some dependencies are still missing.  ROS workspaces are not built by this
 script; build them with colcon, for example:
 
-  cd /root/rf2o_ws                       && colcon build --symlink-install
+  # rf2o install is deployed at /nvt_ros2_example/rf2o
   cd /root/nav2_deadband_ws              && colcon build --symlink-install
   cd /root/raspybot/yahboomcar_ws        && colcon build --symlink-install
   cd /nvt_ros2_example/realsense-ros     && colcon build --symlink-install

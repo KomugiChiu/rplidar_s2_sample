@@ -52,7 +52,7 @@ USE_EXTERNAL_SAFETY="${USE_EXTERNAL_SAFETY:-0}"
 PLUGIN_WS="${PLUGIN_WS:-/root/nav2_deadband_ws}"
 # keep-out zones (costmap KeepoutFilter); mask is drawn in the web console Map tab
 KEEPOUT="${KEEPOUT:-1}"
-KEEPOUT_MASK="${KEEPOUT_MASK:-$(dirname -- "$SCRIPT_DIR")/maps/keepout_mask.yaml}"
+KEEPOUT_MASK="${KEEPOUT_MASK:-$SCRIPT_DIR/maps/keepout_mask.yaml}"
 
 mkdir -p "$LOG_DIR"
 

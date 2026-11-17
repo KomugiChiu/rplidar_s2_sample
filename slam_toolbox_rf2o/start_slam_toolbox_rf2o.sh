@@ -82,7 +82,10 @@ elif [ -f "$RPLIDAR_WS/setup.bash" ]; then
   # shellcheck disable=SC1090
   source "$RPLIDAR_WS/setup.bash"
 fi
-if [ -f "$RF2O_WS/install/local_setup.bash" ]; then
+if [ -f "$RF2O_WS/local_setup.bash" ]; then
+  # shellcheck disable=SC1090
+  source "$RF2O_WS/local_setup.bash"
+elif [ -f "$RF2O_WS/install/local_setup.bash" ]; then
   # shellcheck disable=SC1090
   source "$RF2O_WS/install/local_setup.bash"
 fi

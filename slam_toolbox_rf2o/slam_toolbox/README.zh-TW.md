@@ -25,6 +25,41 @@ slam_toolbox -> /map + map -> odom
 ../slam_toolbox_rf2o/demo_script/start_mapping.sh
 ```
 
+## 建置配置
+
+原始碼配置：
+
+```text
+scripts/    *.sh
+config/     *.yaml
+```
+
+使用 colcon 建置：
+
+```bash
+colcon build --merge-install --packages-select slam_toolbox_bringup
+```
+
+install 會是平坦結構：
+
+```text
+install/start_mapping.sh
+install/start_localization.sh
+install/stop.sh
+install/save_map.sh
+install/check_deps.sh
+install/slam_toolbox_rf2o.yaml
+install/slam_toolbox_localization.yaml
+```
+
+把 `install/.` 的內容複製到板端：
+
+```text
+/nvt_ros2_example/slam_toolbox/
+```
+
+板上不要再有 `install/` 子資料夾。
+
 ## 1. 檔案
 
 | 檔案 | 用途 |
@@ -61,7 +96,7 @@ slam_toolbox online_async_launch.py
 ```text
 1. ./start_mapping.sh
 2. ../rf2o/start.sh
-3. ../slam_toolbox_rf2o/ekf/start_ekf.sh
+3. ../ekf/start_ekf.sh
 4. 用 RViz goal 移動建圖
 5. ./save_map.sh demo_map
 6. ./stop.sh
@@ -151,7 +186,7 @@ workspace：
 
 ```text
 ../rplidar_ros
-../rf2o/install
+../rf2o
 ```
 
 檢查：

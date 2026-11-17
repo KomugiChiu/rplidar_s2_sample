@@ -16,7 +16,7 @@ SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]:-$0}" 2>/dev/null || echo "${BAS
 SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"
 
 # NOTE: do not leak this name into ekf/start_ekf.sh (it also uses PARAMS_FILE).
-NAV2_PARAMS_FILE="${NAV2_PARAMS_FILE:-${PARAMS_FILE:-$SCRIPT_DIR/nav2_1028/nav2_params_plugin.yaml}}"
+NAV2_PARAMS_FILE="${NAV2_PARAMS_FILE:-${PARAMS_FILE:-$SCRIPT_DIR/nav2_1028/config/nav2_params_plugin.yaml}}"
 unset PARAMS_FILE
 # default: controller plugin does floor/stop; set 1 for the external chain
 USE_EXTERNAL_SAFETY="${USE_EXTERNAL_SAFETY:-0}"
@@ -31,7 +31,7 @@ export SLAM_MODE
 # cmd_vel logging is opt-in: set RECORD=1 to enable it.
 RECORD="${RECORD:-0}"
 LOG_DIR="${LOG_DIR:-/tmp/nav2_logs}"
-RECORDER="$SCRIPT_DIR/nav2_1028/tools/record_cmd_vel.py"
+RECORDER="$SCRIPT_DIR/nav2_1028/scripts/tools/record_cmd_vel.py"
 
 echo "== start_all (ROS_DOMAIN_ID=$ROS_DOMAIN_ID) =="
 echo "   params: $NAV2_PARAMS_FILE"
@@ -87,7 +87,7 @@ echo "      lidar/EKF ready"
 
 # --- 3. Nav2 (+ plugin safety) + chassis driver -----------------------------
 echo "[3/3] Nav2 + chassis driver"
-PARAMS_FILE="$NAV2_PARAMS_FILE" "$SCRIPT_DIR/nav2_1028/start_nav2.sh"
+PARAMS_FILE="$NAV2_PARAMS_FILE" "$SCRIPT_DIR/nav2_1028/scripts/start_nav2.sh"
 
 # --- optional cmd_vel logger ------------------------------------------------
 if [ "$RECORD" = "1" ] && [ -f "$RECORDER" ]; then

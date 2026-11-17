@@ -4,8 +4,8 @@
 #
 # Order:
 #   1. AI processes recorded in the demo PID file (if any)
-#   2. standalone slam_toolbox + rf2o stop scripts
-#   3. Nav2 / EKF / RealSense / chassis driver via ../stop_all.sh
+#   2. standalone rf2o + slam_toolbox stop scripts
+#   3. Nav2 / chassis driver and EKF / RealSense
 #
 # Usage:
 #   ./stop_demo.sh
@@ -22,6 +22,8 @@ RUN_DIR="${RUN_DIR:-/tmp/demo_script}"
 AI_PID_FILE="${AI_PID_FILE:-$RUN_DIR/ai_pids}"
 SLAM_DIR="${SLAM_DIR:-/nvt_ros2_example/slam_toolbox}"
 RF2O_DIR="${RF2O_DIR:-/nvt_ros2_example/rf2o}"
+NAV2_DIR="${NAV2_DIR:-/nvt_ros2_example/nav2}"
+EKF_DIR="${EKF_DIR:-/nvt_ros2_example/ekf}"
 DRY_RUN="${DRY_RUN:-0}"
 
 log() { echo "[stop_demo] $*"; }
@@ -71,16 +73,32 @@ for d in "$RF2O_DIR" "$SLAM_DIR"; do
   fi
 done
 
-# --- 3. Nav2 / EKF / driver --------------------------------------------------
-if [ -x "$ROOT_DIR/stop_all.sh" ]; then
-  if [ "$DRY_RUN" = "1" ]; then
-    log "would run $ROOT_DIR/stop_all.sh"
+# --- 3. Nav2 / EKF -----------------------------------------------------------
+for d in "$NAV2_DIR" "$EKF_DIR"; do
+  if [ -x "$d/stop.sh" ]; then
+    if [ "$DRY_RUN" = "1" ]; then
+      log "would run $d/stop.sh"
+    else
+      log "running $d/stop.sh"
+      "$d/stop.sh" || true
+    fi
+  elif [ -x "$d/stop_nav2.sh" ]; then
+    if [ "$DRY_RUN" = "1" ]; then
+      log "would run $d/stop_nav2.sh"
+    else
+      log "running $d/stop_nav2.sh"
+      "$d/stop_nav2.sh" || true
+    fi
+  elif [ -x "$d/stop_ekf.sh" ]; then
+    if [ "$DRY_RUN" = "1" ]; then
+      log "would run $d/stop_ekf.sh"
+    else
+      log "running $d/stop_ekf.sh"
+      "$d/stop_ekf.sh" || true
+    fi
   else
-    log "running stop_all.sh"
-    "$ROOT_DIR/stop_all.sh"
+    log "WARN: no stop script in $d"
   fi
-else
-  log "WARN: $ROOT_DIR/stop_all.sh not found"
-fi
+done
 
 log "done"

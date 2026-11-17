@@ -11,6 +11,38 @@ rf2o (/odom_rf2o) ─┐
 D455 gyro ─────────┘                TF odom -> base_footprint
 ```
 
+## Build layout
+
+Source layout:
+
+```text
+scripts/    *.sh
+config/     ekf_params.yaml
+```
+
+Build with colcon:
+
+```bash
+colcon build --merge-install --packages-select ekf_bringup
+```
+
+The install tree is flat:
+
+```text
+install/start_ekf.sh
+install/stop_ekf.sh
+install/check_deps.sh
+install/ekf_params.yaml
+```
+
+Copy `install/.` to:
+
+```text
+/nvt_ros2_example/ekf/
+```
+
+Do not copy an `install/` subdirectory to the board.
+
 ## 1. Files
 
 ```text

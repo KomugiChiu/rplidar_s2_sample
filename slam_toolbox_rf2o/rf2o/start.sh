@@ -26,7 +26,7 @@ RF2O_PARAMS="${RF2O_PARAMS:-$SCRIPT_DIR/rf2o_params.yaml}"
 # shellcheck disable=SC1090
 source /opt/ros/jazzy/setup.bash
 # shellcheck disable=SC1090
-source "$SCRIPT_DIR/install/local_setup.bash"
+source "$SCRIPT_DIR/local_setup.bash"
 
 mkdir -p "$RUN_DIR" "$LOG_DIR"
 [ -f "$RF2O_PARAMS" ] || { echo "ERROR: params not found: $RF2O_PARAMS" >&2; exit 1; }

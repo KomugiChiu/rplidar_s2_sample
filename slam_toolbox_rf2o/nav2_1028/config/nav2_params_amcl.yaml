@@ -79,9 +79,9 @@ bt_navigator:
     action_server_result_timeout: 900.0
     # custom BT: same as the Jazzy defaults but WITHOUT the recovery Spin
     # (open-loop mecanum base cannot do a controlled 90 deg spin)
-    bt_xml_dir: /nvt_ros2_example/slam_toolbox_rf2o/nav2_1028/behavior_trees
-    default_nav_to_pose_bt_xml: /nvt_ros2_example/slam_toolbox_rf2o/nav2_1028/behavior_trees/navigate_to_pose_bt.xml
-    default_nav_through_poses_bt_xml: /nvt_ros2_example/slam_toolbox_rf2o/nav2_1028/behavior_trees/navigate_through_poses_bt.xml
+    bt_xml_dir: /nvt_ros2_example/nav2/behavior_trees
+    default_nav_to_pose_bt_xml: /nvt_ros2_example/nav2/behavior_trees/navigate_to_pose_bt.xml
+    default_nav_through_poses_bt_xml: /nvt_ros2_example/nav2/behavior_trees/navigate_through_poses_bt.xml
     navigators: ["navigate_to_pose", "navigate_through_poses"]
     navigate_to_pose:
       plugin: "nav2_bt_navigator::NavigateToPoseNavigator"

@@ -25,6 +25,41 @@ For the complete mapping demo with EKF, Nav2 and AI, use:
 ../slam_toolbox_rf2o/demo_script/start_mapping.sh
 ```
 
+## Build layout
+
+Source layout:
+
+```text
+scripts/    *.sh
+config/     *.yaml
+```
+
+Build with colcon:
+
+```bash
+colcon build --merge-install --packages-select slam_toolbox_bringup
+```
+
+The install tree is flat:
+
+```text
+install/start_mapping.sh
+install/start_localization.sh
+install/stop.sh
+install/save_map.sh
+install/check_deps.sh
+install/slam_toolbox_rf2o.yaml
+install/slam_toolbox_localization.yaml
+```
+
+Copy `install/.` to the board directory:
+
+```text
+/nvt_ros2_example/slam_toolbox/
+```
+
+Do not copy an `install/` subdirectory to the board.
+
 ## 1. Files
 
 | File | Purpose |
@@ -61,7 +96,7 @@ If you start components manually:
 ```text
 1. ./start_mapping.sh
 2. ../rf2o/start.sh
-3. ../slam_toolbox_rf2o/ekf/start_ekf.sh
+3. ../ekf/start_ekf.sh
 4. drive with RViz goals
 5. ./save_map.sh demo_map
 6. ./stop.sh
@@ -153,7 +188,7 @@ workspaces:
 
 ```text
 ../rplidar_ros
-../rf2o/install
+../rf2o
 ```
 
 Check:

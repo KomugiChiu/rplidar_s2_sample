@@ -27,7 +27,7 @@ SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]:-$0}" 2>/dev/null || echo "${BAS
 SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"
 
 SLAM_PARAMS="${SLAM_PARAMS:-$SCRIPT_DIR/slam_toolbox_localization.yaml}"
-NAV2_PARAMS_FILE="${NAV2_PARAMS_FILE:-${PARAMS_FILE:-$SCRIPT_DIR/nav2_1028/nav2_params_plugin.yaml}}"
+NAV2_PARAMS_FILE="${NAV2_PARAMS_FILE:-${PARAMS_FILE:-$SCRIPT_DIR/nav2_1028/config/nav2_params_plugin.yaml}}"
 unset PARAMS_FILE
 
 [ -f "$SLAM_PARAMS" ] || {

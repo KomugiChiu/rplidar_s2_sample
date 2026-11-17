@@ -17,6 +17,43 @@ yaml_legacy/              ← 舊版、備份、實驗版 yaml
 
 ---
 
+## 建置配置
+
+原始碼配置：
+
+```text
+scripts/                  *.sh, *.py, tools/
+config/                   *.yaml, behavior_trees/, yaml_legacy/
+```
+
+使用 colcon 建置：
+
+```bash
+colcon build --merge-install --packages-select nav2_1028_bringup
+```
+
+install 會是平坦結構：
+
+```text
+install/start_nav2.sh
+install/stop_nav2.sh
+install/start_chassis.sh
+install/stop_chassis.sh
+install/bringup_bond_launch.py
+install/keepout_filter_launch.py
+install/nav2_params*.yaml
+install/behavior_trees/
+install/tools/
+```
+
+把 `install/.` 的內容複製到：
+
+```text
+/nvt_ros2_example/nav2/
+```
+
+板上不要再有 `install/` 子資料夾。
+
 ## 1. 啟動時用哪一份 yaml
 
 | 入口 | 使用的 yaml | 自訂 BT |

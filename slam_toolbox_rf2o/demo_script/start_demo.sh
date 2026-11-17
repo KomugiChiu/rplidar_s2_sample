@@ -14,7 +14,7 @@
 #   ./start_demo.sh
 #   START_AI=0 ./start_demo.sh
 #   RECORD=1 ./start_demo.sh
-#   NAV2_PARAMS_FILE=../nav2_1028/nav2_params_plugin.yaml ./start_demo.sh
+#   NAV2_PARAMS_FILE=$NAV2_DIR/nav2_params_plugin.yaml ./start_demo.sh
 #
 # Stop with: ../stop_demo.sh
 set -eo pipefail

@@ -11,8 +11,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"
 echo "== stop_all =="
 
 # --- Nav2 + speed_floor + chassis driver ------------------------------------
-if [ -x "$SCRIPT_DIR/nav2_1028/stop_nav2.sh" ]; then
-    "$SCRIPT_DIR/nav2_1028/stop_nav2.sh" || true
+if [ -x "$SCRIPT_DIR/nav2_1028/scripts/stop_nav2.sh" ]; then
+    "$SCRIPT_DIR/nav2_1028/scripts/stop_nav2.sh" || true
 fi
 
 # --- EKF + RealSense ---------------------------------------------------------

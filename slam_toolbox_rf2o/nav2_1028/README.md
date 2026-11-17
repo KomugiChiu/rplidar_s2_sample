@@ -17,6 +17,43 @@ baseline), not the upstream `nav2_bringup` sample.
 
 ---
 
+## Build layout
+
+Source layout:
+
+```text
+scripts/                  *.sh, *.py, tools/
+config/                   *.yaml, behavior_trees/, yaml_legacy/
+```
+
+Build with colcon:
+
+```bash
+colcon build --merge-install --packages-select nav2_1028_bringup
+```
+
+The install tree is flat:
+
+```text
+install/start_nav2.sh
+install/stop_nav2.sh
+install/start_chassis.sh
+install/stop_chassis.sh
+install/bringup_bond_launch.py
+install/keepout_filter_launch.py
+install/nav2_params*.yaml
+install/behavior_trees/
+install/tools/
+```
+
+Copy `install/.` to:
+
+```text
+/nvt_ros2_example/nav2/
+```
+
+Do not copy an `install/` subdirectory to the board.
+
 ## 1. Which yaml is used at startup
 
 | Entry point | Yaml | Custom BT |
