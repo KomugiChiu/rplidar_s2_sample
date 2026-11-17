@@ -77,7 +77,9 @@ slam_toolbox_rf2o/
 ├── README_start_stop.md                    # SLAM start/stop 的細節補充
 ├── ekf/
 │   ├── start_ekf.sh / stop_ekf.sh
-│   └── ekf_params.yaml
+│   ├── ekf_params.yaml
+│   ├── check_deps.sh
+│   └── README.md
 ├── nav2_1028/                              # ★ 正式 Nav2 流程
 │   ├── start_nav2.sh / stop_nav2.sh
 │   ├── start_chassis.sh / stop_chassis.sh
