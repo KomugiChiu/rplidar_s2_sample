@@ -58,7 +58,7 @@ else
 fi
 
 # --- 2. standalone slam_toolbox + rf2o --------------------------------------
-for d in "$SLAM_DIR" "$RF2O_DIR"; do
+for d in "$RF2O_DIR" "$SLAM_DIR"; do
   if [ -x "$d/stop.sh" ]; then
     if [ "$DRY_RUN" = "1" ]; then
       log "would run $d/stop.sh"
