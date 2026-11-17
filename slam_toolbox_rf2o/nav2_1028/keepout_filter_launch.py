@@ -34,6 +34,7 @@ def generate_launch_description():
                 name='keepout_filter_mask_server',
                 parameters=[{
                     'use_sim_time': use_sim_time,
+                    'bond_heartbeat_period': 0.0,
                     'yaml_filename': mask,
                     'topic_name': '/keepout_filter_mask',
                     'frame_id': 'map',
@@ -45,6 +46,7 @@ def generate_launch_description():
                 name='costmap_filter_info_server',
                 parameters=[{
                     'use_sim_time': use_sim_time,
+                    'bond_heartbeat_period': 0.0,
                     'type': 0,  # keepout / preferred lanes
                     'filter_info_topic': '/costmap_filter_info',
                     'mask_topic': '/keepout_filter_mask',
@@ -59,6 +61,8 @@ def generate_launch_description():
                 parameters=[{
                     'use_sim_time': use_sim_time,
                     'autostart': True,
+                    # bond watchdog off, see bringup_bond_launch.py
+                    'bond_timeout': 0.0,
                     'node_names': ['keepout_filter_mask_server', 'costmap_filter_info_server'],
                 }],
             ),

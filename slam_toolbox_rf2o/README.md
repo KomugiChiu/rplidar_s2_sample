@@ -82,8 +82,9 @@ slam_toolbox_rf2o/
 │   ├── nav2_params.yaml                    # 基礎版（純 MPPI）
 │   ├── nav2_params_plugin.yaml             # ★ default：DeadbandController
 │   ├── nav2_params_amcl.yaml               # 靜態地圖 + AMCL
-│   ├── nav2_params_omni*.yaml              # 舊的 Omni 實驗版
-│   ├── nav2_params.yaml.ori                # 原始備份
+│   ├── yaml_legacy/                        # Omni 實驗版、原始備份、.bak
+│   │   ├── nav2_params_omni*.yaml
+│   │   └── nav2_params.yaml.ori
 │   ├── behavior_trees/                     # 無 Spin 的自訂 BT
 │   ├── tools/                              # 記錄 / 校正 / legacy 安全鏈
 │   └── nav2_1028.md                        # 完整除錯紀錄
@@ -115,7 +116,7 @@ slam_toolbox_rf2o/
 ```bash
 ./start_all.sh
 RECORD=0 ./start_all.sh
-NAV2_PARAMS_FILE=$PWD/nav2_1028/nav2_params_omni_rotation.yaml ./start_all.sh
+NAV2_PARAMS_FILE=$PWD/nav2_1028/yaml_legacy/nav2_params_omni_rotation.yaml ./start_all.sh
 USE_LOCALIZATION=1 MAP_FILE=$PWD/maps/slam_map_20261102.yaml ./start_all.sh
 ```
 
@@ -365,8 +366,8 @@ PARAMS_FILE=$PWD/nav2_1028/nav2_params_plugin.yaml ./nav2_1028/start_nav2.sh
 | `nav2_1028/nav2_params_plugin.yaml` | ★ 預設：DeadbandController `simple` + 15×10 cm footprint |
 | `nav2_1028/nav2_params_amcl.yaml` | 靜態地圖 + AMCL（`map_server` + `amcl`） |
 | `nav2_1028/nav2_params.yaml` | 基礎版（純 MPPI，沒有死區補償） |
-| `nav2_1028/nav2_params_omni*.yaml` | 2026-10-28 的 Omni 實驗版（保留參考） |
-| `nav2_1028/nav2_params.yaml.ori` | 最原始備份 |
+| `nav2_1028/yaml_legacy/nav2_params_omni*.yaml` | 2026-10-28 的 Omni 實驗版（保留參考） |
+| `nav2_1028/yaml_legacy/nav2_params.yaml.ori` | 最原始備份 |
 
 ---
 

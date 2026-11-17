@@ -38,6 +38,7 @@ fi
 # Fallback sweep in case any child processes survived
 PATTERNS=(
     "ros2 launch nav2_bringup bringup_launch.py"
+    "bringup_bond_launch.py"
     "nav2_controller/controller_server"
     "nav2_smoother/smoother_server"
     "nav2_planner/planner_server"

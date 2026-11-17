@@ -283,9 +283,12 @@ controller_server:
 local_costmap:
   local_costmap:
     ros__parameters:
-      # slam_toolbox map->odom sometimes lags 0.5-0.6 s on this SoC
-      # ("Transform data too old ... map to odom" aborted a goal)
-      transform_tolerance: 1.0
+      # controller_server::isGoalReached() uses this value as the maximum age of
+      # map->odom, and exceeding it aborts the goal with TF_ERROR.  All 48 such
+      # aborts logged up to 2026-11-06 lagged 0.5-7.5 s (median 1.3 s, 44 under
+      # 3 s) under CPU load.  odom->base stays fresh, so a late map->odom only
+      # delays the slow drift correction.  Longer stalls: see the BT retry.
+      transform_tolerance: 3.0
       update_frequency: 5.0
       publish_frequency: 2.0
       global_frame: odom

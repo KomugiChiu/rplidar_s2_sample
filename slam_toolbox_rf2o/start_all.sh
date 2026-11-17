@@ -2,7 +2,7 @@
 # Start the whole slam_toolbox_rf2o + EKF + Nav2 (nav2_1028) stack.
 #
 #   ./start_all.sh                          # plugin mode (default)
-#   USE_EXTERNAL_SAFETY=1 NAV2_PARAMS_FILE=.../nav2_params_omni_rotation.yaml ./start_all.sh
+#   USE_EXTERNAL_SAFETY=1 NAV2_PARAMS_FILE=.../yaml_legacy/nav2_params_omni_rotation.yaml ./start_all.sh
 #   RECORD=1 ./start_all.sh                 # start the cmd_vel logger (default: off)
 #   USE_LOCALIZATION=1 MAP_FILE=.../maps/x.yaml ./start_all.sh   # static map + AMCL
 #

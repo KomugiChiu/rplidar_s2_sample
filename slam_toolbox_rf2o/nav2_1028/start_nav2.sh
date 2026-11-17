@@ -235,7 +235,7 @@ else
 fi
 
 start_process nav2 \
-    ros2 launch nav2_bringup bringup_launch.py "${NAV2_ARGS[@]}"
+    ros2 launch "$SCRIPT_DIR/bringup_bond_launch.py" "${NAV2_ARGS[@]}"
 
 echo
 echo "Nav2 stack started."
