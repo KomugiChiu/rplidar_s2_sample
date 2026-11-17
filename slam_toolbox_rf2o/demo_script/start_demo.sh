@@ -24,7 +24,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"
 source "$SCRIPT_DIR/demo_common.sh"
 
 export SLAM_MODE="mapping"
-SLAM_PARAMS="${SLAM_PARAMS:-$ROOT_DIR/slam_toolbox_rf2o.yaml}"
+SLAM_PARAMS="${SLAM_PARAMS:-$SLAM_DIR/slam_toolbox_rf2o.yaml}"
 export SLAM_PARAMS
 
 [ -f "$SLAM_PARAMS" ] || demo_die "mapping params not found: $SLAM_PARAMS"

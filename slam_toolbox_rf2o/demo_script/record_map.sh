@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Save the current slam_toolbox map + posegraph.
 #
-# This is a shortcut for ../slam_toolbox/save_map.sh.
+# This is a shortcut for $SLAM_DIR/save_map.sh.
 # It must be used while start_mapping.sh is running (mapping mode).
 #
 # Usage:
@@ -11,6 +11,6 @@
 set -eo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"
-ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+SLAM_DIR="${SLAM_DIR:-/nvt_ros2_example/slam_toolbox}"
 
-exec "$ROOT_DIR/slam_toolbox/save_map.sh" "$@"
+exec "$SLAM_DIR/save_map.sh" "$@"

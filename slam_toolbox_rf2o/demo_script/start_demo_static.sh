@@ -28,7 +28,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"
 source "$SCRIPT_DIR/demo_common.sh"
 
 export SLAM_MODE="localization"
-SLAM_PARAMS="${SLAM_PARAMS:-$ROOT_DIR/slam_toolbox_localization.yaml}"
+SLAM_PARAMS="${SLAM_PARAMS:-$SLAM_DIR/slam_toolbox_localization.yaml}"
 export SLAM_PARAMS
 
 [ -f "$SLAM_PARAMS" ] || demo_die "localization params not found: $SLAM_PARAMS"

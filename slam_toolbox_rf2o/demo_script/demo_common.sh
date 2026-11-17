@@ -6,6 +6,9 @@ set -eo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"
 ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
+SLAM_DIR="${SLAM_DIR:-/nvt_ros2_example/slam_toolbox}"
+RF2O_DIR="${RF2O_DIR:-/nvt_ros2_example/rf2o}"
+
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-99}"
 
 NAV2_PARAMS_FILE="${NAV2_PARAMS_FILE:-$ROOT_DIR/nav2_1028/nav2_params_plugin.yaml}"
@@ -85,7 +88,11 @@ demo_preflight() {
   mkdir -p "$LOG_DIR" "$RUN_DIR"
 
   [ -f "$NAV2_PARAMS_FILE" ] || demo_die "Nav2 params not found: $NAV2_PARAMS_FILE"
-  [ -x "$ROOT_DIR/start_slam_toolbox_rf2o.sh" ] || demo_die "missing start_slam_toolbox_rf2o.sh"
+  [ -x "$SLAM_DIR/start_mapping.sh" ] || demo_die "missing $SLAM_DIR/start_mapping.sh"
+  [ -x "$SLAM_DIR/start_localization.sh" ] || demo_die "missing $SLAM_DIR/start_localization.sh"
+  [ -x "$SLAM_DIR/stop.sh" ] || demo_die "missing $SLAM_DIR/stop.sh"
+  [ -x "$RF2O_DIR/start.sh" ] || demo_die "missing $RF2O_DIR/start.sh"
+  [ -x "$RF2O_DIR/stop.sh" ] || demo_die "missing $RF2O_DIR/stop.sh"
   [ -x "$ROOT_DIR/ekf/start_ekf.sh" ] || demo_die "missing ekf/start_ekf.sh"
   [ -x "$ROOT_DIR/nav2_1028/start_nav2.sh" ] || demo_die "missing nav2_1028/start_nav2.sh"
 
@@ -137,7 +144,13 @@ demo_validate_posegraph() {
 
 demo_start_slam() {
   demo_log "[1/4] SLAM (mode=$SLAM_MODE)"
-  "$ROOT_DIR/start_slam_toolbox_rf2o.sh"
+  if [ "$SLAM_MODE" = "localization" ]; then
+    "$SLAM_DIR/start_localization.sh"
+  else
+    "$SLAM_DIR/start_mapping.sh"
+  fi
+  demo_log "[1/4] rf2o"
+  "$RF2O_DIR/start.sh"
 }
 
 demo_start_ekf() {

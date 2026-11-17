@@ -29,7 +29,7 @@ start_mapping.sh       mapping 模式，不含 AI
 | `start_demo.sh` | 完整 demo，slam_toolbox mapping 模式 + AI |
 | `start_demo_static.sh` | 完整 demo，slam_toolbox localization 模式 + AI |
 | `start_mapping.sh` | mapping stack：SLAM + EKF + Nav2，不含 AI |
-| `record_map.sh` | 儲存 pgm/yaml + posegraph（引用 slam_toolbox script） |
+| `record_map.sh` | 儲存 pgm/yaml + posegraph（呼叫 `$SLAM_DIR/save_map.sh`） |
 | `stop_demo.sh` | 關閉三個 start script 啟動的 stack |
 | `demo_common.sh` | 共用函式（由 start script source） |
 
@@ -38,7 +38,7 @@ start_mapping.sh       mapping 模式，不含 AI
 | | `start_demo.sh` | `start_demo_static.sh` | `start_mapping.sh` |
 |---|---|---|---|
 | SLAM 模式 | `mapping` | `localization` | `mapping` |
-| SLAM 參數 | `../slam_toolbox_rf2o.yaml` | `../slam_toolbox_localization.yaml` | `../slam_toolbox_rf2o.yaml` |
+| SLAM 參數 | `$SLAM_DIR/slam_toolbox_rf2o.yaml` | `$SLAM_DIR/slam_toolbox_localization.yaml` | `$SLAM_DIR/slam_toolbox_rf2o.yaml` |
 | Posegraph | 不需要 | 必須存在 | 不需要 |
 | 建立新 map | 是 | 否 | 是 |
 | 啟動 EKF + Nav2 | 是 | 是 | 是 |
@@ -133,7 +133,9 @@ NAV2_PARAMS_FILE=../nav2_1028/nav2_params_plugin.yaml ./start_demo.sh
 | `START_AI` | `1` | 啟動 AI / recovery / demo manager |
 | `RECORD` | `0` | 啟動 `nav2_1028/tools/record_cmd_vel.py` |
 | `NAV2_PARAMS_FILE` | `../nav2_1028/nav2_params_plugin.yaml` | Nav2 參數 |
-| `SLAM_PARAMS` | mapping 或 localization yaml | SLAM 參數 |
+| `SLAM_PARAMS` | `$SLAM_DIR/...` yaml | SLAM 參數 |
+| `SLAM_DIR` | `/nvt_ros2_example/slam_toolbox` | 獨立 SLAM script |
+| `RF2O_DIR` | `/nvt_ros2_example/rf2o` | 獨立 rf2o script |
 | `USE_EXTERNAL_SAFETY` | `0` | 傳給 `start_nav2.sh` |
 | `START_REALSENSE` | `0` | 保持 0；相機由 EKF 啟動 |
 | `CAMERA_X` / `CAMERA_Y` / `CAMERA_Z` | `0.0` / `0.0` / `0.0` | AI TF 偏移 |
@@ -148,7 +150,7 @@ NAV2_PARAMS_FILE=../nav2_1028/nav2_params_plugin.yaml ./start_demo.sh
 
 ### SLAM
 
-透過 `../start_slam_toolbox_rf2o.sh`：
+透過 `$SLAM_DIR` + `$RF2O_DIR`：
 
 ```text
 rplidar_node
@@ -197,7 +199,8 @@ AI 使用 EKF 已經啟動的相機，不需要第二顆 RealSense。
 
 ```text
 start_demo.sh
-  ├─ start_slam_toolbox_rf2o.sh
+  ├─ $SLAM_DIR/start_mapping.sh or start_localization.sh
+  ├─ $RF2O_DIR/start.sh
   ├─ ekf/start_ekf.sh
   ├─ 等 /map + /odometry/filtered + TF map -> base_link
   ├─ nav2_1028/start_nav2.sh
@@ -226,7 +229,7 @@ log 與 PID 會放在 `LOG_DIR`（預設是系統暫存目錄）：
 ./stop_demo.sh
 ```
 
-`stop_demo.sh` 會先停有記錄的 AI process，再停 SLAM / Nav2 / EKF / driver。
+`stop_demo.sh` 會先停有記錄的 AI process，再停獨立 slam_toolbox / rf2o，最後停 Nav2 / EKF / driver。
 
 ## 8. 注意
 
@@ -235,6 +238,7 @@ log 與 PID 會放在 `LOG_DIR`（預設是系統暫存目錄）：
 - Mapping demo（start_demo.sh）與 start_mapping.sh 不需要 posegraph。
 - Static demo 需要 .posegraph + .data，請在 mapping 模式存。
 - 相機由 EKF 擁有，不要開第二顆 RealSense。
+- rf2o 由 `$RF2O_DIR/start.sh` 單獨啟動；slam_toolbox 不會啟動它。
 - Nav2 預設是 DeadbandController（simple 模式）。
 - START_AI=0 可以只起導航，不跑 AI。
 - AI helper 會自己 source vendor workspace；這個資料夾只負責組合與 log。

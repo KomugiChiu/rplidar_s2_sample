@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 # Save the current slam_toolbox map (pgm/yaml) and posegraph.
 #
-# IMPORTANT: serialize_map is only available while slam_toolbox is running in
-# MAPPING mode. It cannot be called from localization mode; in localization
-# mode the posegraph already exists on disk.
+# IMPORTANT: serialize_map only works while slam_toolbox is in MAPPING mode.
 #
 # Usage:
 #   ./save_map.sh                  # maps/slam_map_<timestamp>
@@ -16,15 +14,13 @@
 #   <prefix>.yaml
 #   <prefix>.posegraph
 #   <prefix>.data
-#
-# Stop mapping first? No. Keep it running while saving.
 set -eo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"
-ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-99}"
-MAP_DIR="${MAP_DIR:-$ROOT_DIR/maps}"
+MAP_DIR="${MAP_DIR:-$SCRIPT_DIR/maps}"
+SERVICE_TIMEOUT="${SERVICE_TIMEOUT:-120}"
 
 NAME="${1:-slam_map_$(date +%Y%m%d-%H%M%S)}"
 case "$NAME" in
@@ -40,11 +36,10 @@ echo "== save map =="
 echo "   prefix : $PREFIX"
 echo "   domain : $ROS_DOMAIN_ID"
 
-# --- mode check ------------------------------------------------------------
 if pgrep -f '[l]ocalization_slam_toolbox_node' >/dev/null 2>&1; then
   echo "ERROR: slam_toolbox is in LOCALIZATION mode." >&2
   echo "       serialize_map is not available in localization mode." >&2
-  echo "       Run ./start_mapping.sh first if you need to build a new posegraph." >&2
+  echo "       Run ./start_mapping.sh first if you need a new posegraph." >&2
   exit 1
 fi
 if ! pgrep -f '[a]sync_slam_toolbox_node' >/dev/null 2>&1 &&
@@ -54,7 +49,6 @@ if ! pgrep -f '[a]sync_slam_toolbox_node' >/dev/null 2>&1 &&
   exit 1
 fi
 
-# --- map image / yaml ------------------------------------------------------
 if ! ros2 pkg executables nav2_map_server 2>/dev/null |
      grep -qx "nav2_map_server map_saver_cli"; then
   echo "ERROR: nav2_map_server/map_saver_cli not found." >&2
@@ -73,23 +67,17 @@ if ! ros2 run nav2_map_server map_saver_cli -f "$PREFIX"; then
   exit 1
 fi
 
-MISSING=0
 for ext in pgm yaml; do
-  if [ ! -s "$PREFIX.$ext" ]; then
-    echo "ERROR: missing $PREFIX.$ext" >&2
-    MISSING=1
-  fi
+  [ -s "$PREFIX.$ext" ] || { echo "ERROR: missing $PREFIX.$ext" >&2; exit 1; }
 done
-[ "$MISSING" -eq 0 ] || exit 1
 
-# --- posegraph -------------------------------------------------------------
 if ! ros2 service list 2>/dev/null | grep -qx "/slam_toolbox/serialize_map"; then
   echo "ERROR: /slam_toolbox/serialize_map service not found." >&2
   exit 1
 fi
 
 echo "   saving posegraph ..."
-if ! timeout 60 ros2 service call /slam_toolbox/serialize_map \
+if ! timeout "$SERVICE_TIMEOUT" ros2 service call /slam_toolbox/serialize_map \
      slam_toolbox/srv/SerializePoseGraph \
      "{filename: \"$PREFIX\"}"; then
   echo "ERROR: serialize_map service call failed or timed out." >&2
@@ -97,7 +85,6 @@ if ! timeout 60 ros2 service call /slam_toolbox/serialize_map \
 fi
 
 # serialize_map may return result=0 even when it refuses (localization mode).
-# The files are the real proof.
 for ext in posegraph data; do
   if [ ! -s "$PREFIX.$ext" ]; then
     echo "ERROR: missing $PREFIX.$ext" >&2

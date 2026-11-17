@@ -70,7 +70,8 @@ slam_toolbox_rf2o/
 ├── start_ai.sh / stop_ai.sh                # RealSense + AI + DemoManager
 ├── demo_command/                           # /demo 服務快捷指令
 ├── check_deps.sh                           # 依賴檢查 / apt 自動安裝
-├── slam_toolbox/                           # mapping / localization / save_map
+├── rf2o/                                   # rf2o standalone install / scripts
+├── slam_toolbox/                           # standalone SLAM mapping / localization
 ├── demo_script/                            # 一鍵 mapping / static demo
 ├── slam_toolbox_rf2o.yaml                  # slam_toolbox 參數
 ├── rf2o_params.yaml                        # rf2o 參數

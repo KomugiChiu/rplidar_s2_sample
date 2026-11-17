@@ -29,7 +29,7 @@ RViz goals while building a map, then save it with `record_map.sh`.
 | `start_demo.sh` | Full demo, slam_toolbox mapping mode + AI |
 | `start_demo_static.sh` | Full demo, slam_toolbox localization mode + AI |
 | `start_mapping.sh` | Mapping stack: SLAM + EKF + Nav2, no AI |
-| `record_map.sh` | Save pgm/yaml + posegraph (calls the slam_toolbox script) |
+| `record_map.sh` | Save pgm/yaml + posegraph (calls `$SLAM_DIR/save_map.sh`) |
 | `stop_demo.sh` | Stop the stack started by any of the three start scripts |
 | `demo_common.sh` | Shared helpers (sourced by the start scripts) |
 
@@ -38,7 +38,7 @@ RViz goals while building a map, then save it with `record_map.sh`.
 | | `start_demo.sh` | `start_demo_static.sh` | `start_mapping.sh` |
 |---|---|---|---|
 | SLAM mode | `mapping` | `localization` | `mapping` |
-| SLAM params | `../slam_toolbox_rf2o.yaml` | `../slam_toolbox_localization.yaml` | `../slam_toolbox_rf2o.yaml` |
+| SLAM params | `$SLAM_DIR/slam_toolbox_rf2o.yaml` | `$SLAM_DIR/slam_toolbox_localization.yaml` | `$SLAM_DIR/slam_toolbox_rf2o.yaml` |
 | Posegraph | not required | required | not required |
 | Builds a new map | yes | no | yes |
 | Starts EKF + Nav2 | yes | yes | yes |
@@ -134,7 +134,9 @@ NAV2_PARAMS_FILE=../nav2_1028/nav2_params_plugin.yaml ./start_demo.sh
 | `START_AI` | `1` | Start AI/recovery/demo manager |
 | `RECORD` | `0` | Start `nav2_1028/tools/record_cmd_vel.py` |
 | `NAV2_PARAMS_FILE` | `../nav2_1028/nav2_params_plugin.yaml` | Nav2 params |
-| `SLAM_PARAMS` | mapping or localization yaml | SLAM params |
+| `SLAM_PARAMS` | `$SLAM_DIR/...` yaml | SLAM params |
+| `SLAM_DIR` | `/nvt_ros2_example/slam_toolbox` | Standalone SLAM scripts |
+| `RF2O_DIR` | `/nvt_ros2_example/rf2o` | Standalone rf2o scripts |
 | `USE_EXTERNAL_SAFETY` | `0` | Passed to `start_nav2.sh` |
 | `START_REALSENSE` | `0` | Keep at 0; EKF starts the camera |
 | `CAMERA_X` / `CAMERA_Y` / `CAMERA_Z` | `0.0` / `0.0` / `0.0` | AI TF offset |
@@ -149,7 +151,7 @@ If no camera is running, the script exits with an error.
 
 ### SLAM
 
-Called through `../start_slam_toolbox_rf2o.sh`:
+Called through `$SLAM_DIR` + `$RF2O_DIR`:
 
 ```text
 rplidar_node
@@ -198,7 +200,8 @@ The AI node uses the camera started by EKF, so no second RealSense is needed.
 
 ```text
 start_demo.sh
-  ├─ start_slam_toolbox_rf2o.sh
+  ├─ $SLAM_DIR/start_mapping.sh or start_localization.sh
+  ├─ $RF2O_DIR/start.sh
   ├─ ekf/start_ekf.sh
   ├─ wait /map + /odometry/filtered + TF map -> base_link
   ├─ nav2_1028/start_nav2.sh
@@ -227,8 +230,8 @@ Stop:
 ./stop_demo.sh
 ```
 
-`stop_demo.sh` stops the recorded AI processes first, then the
-SLAM/Nav2/EKF/driver stack.
+`stop_demo.sh` stops the recorded AI processes first, then the standalone
+slam_toolbox + rf2o scripts, then the Nav2/EKF/driver stack.
 
 ## 8. Notes
 
@@ -237,6 +240,7 @@ SLAM/Nav2/EKF/driver stack.
 - Mapping demo (`start_demo.sh`) and `start_mapping.sh` do not need a posegraph.
 - Static demo requires .posegraph + .data; save them in mapping mode.
 - The camera is owned by EKF; do not start a second RealSense.
+- rf2o is started separately by `$RF2O_DIR/start.sh`; slam_toolbox does not start it.
 - Nav2 default here is DeadbandController (simple mode).
 - START_AI=0 is useful when only bringing up navigation.
 - The AI helper scripts source the vendor workspaces themselves; this folder
