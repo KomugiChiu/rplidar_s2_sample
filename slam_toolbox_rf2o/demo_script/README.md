@@ -2,14 +2,15 @@
 
 # demo_script
 
-Two entry points for the complete person-follow demo:
+Three entry points:
 
 ```text
-start_demo.sh          mapping mode
-start_demo_static.sh   localization mode (loads an existing posegraph)
+start_demo.sh          mapping mode + AI
+start_demo_static.sh   localization mode + AI
+start_mapping.sh       mapping mode, no AI
 ```
 
-Both start the same four layers:
+`start_demo.sh` and `start_demo_static.sh` start all four layers:
 
 ```text
 1. RPLIDAR S2 + rf2o + slam_toolbox
@@ -18,38 +19,50 @@ Both start the same four layers:
 4. AI detection + person_target_recovery + demo_manager
 ```
 
-They do **not** call `../start_all.sh`, `../start_all_localization.sh`, or
-`../start_ai.sh`. They orchestrate the lower-level start scripts and the
-vendor helper scripts directly.
+`start_mapping.sh` starts layers 1-3 only, so you can drive the robot with
+RViz goals while building a map, then save it with `record_map.sh`.
 
 ## 1. Files
 
 | File | Purpose |
 |---|---|
-| `start_demo.sh` | Full demo, slam_toolbox mapping mode |
-| `start_demo_static.sh` | Full demo, slam_toolbox localization mode |
-| `start_mapping.sh` | Mapping-only SLAM (no EKF / Nav2 / AI) |
-| `demo_common.sh` | Shared helpers (sourced by `start_demo*`) |
+| `start_demo.sh` | Full demo, slam_toolbox mapping mode + AI |
+| `start_demo_static.sh` | Full demo, slam_toolbox localization mode + AI |
+| `start_mapping.sh` | Mapping stack: SLAM + EKF + Nav2, no AI |
+| `record_map.sh` | Save pgm/yaml + posegraph (calls the slam_toolbox script) |
+| `stop_demo.sh` | Stop the stack started by any of the three start scripts |
+| `demo_common.sh` | Shared helpers (sourced by the start scripts) |
 
 ## 2. Mapping vs. localization
 
-| | `start_demo.sh` | `start_demo_static.sh` |
-|---|---|---|
-| SLAM mode | `mapping` | `localization` |
-| SLAM params | `../slam_toolbox_rf2o.yaml` | `../slam_toolbox_localization.yaml` |
-| Posegraph | not required | required |
-| Builds a new map | yes | no |
-| Nav2 params | `../nav2_1028/nav2_params_plugin.yaml` | same |
-| Starts EKF / Nav2 / AI | yes | yes |
+| | `start_demo.sh` | `start_demo_static.sh` | `start_mapping.sh` |
+|---|---|---|---|
+| SLAM mode | `mapping` | `localization` | `mapping` |
+| SLAM params | `../slam_toolbox_rf2o.yaml` | `../slam_toolbox_localization.yaml` | `../slam_toolbox_rf2o.yaml` |
+| Posegraph | not required | required | not required |
+| Builds a new map | yes | no | yes |
+| Starts EKF + Nav2 | yes | yes | yes |
+| Starts AI | yes | yes | no |
 
-For mapping-only SLAM (RPLIDAR + rf2o + slam_toolbox, without EKF, Nav2, or AI):
+Mapping workflow:
 
 ```bash
 ./start_mapping.sh
+# Drive with RViz 2D Goal Pose / NavigateToPose to build the map
+./record_map.sh demo_map
+./stop_demo.sh
 ```
 
-This is a shortcut for `../slam_toolbox/start_mapping.sh`.
-Stop it with `../slam_toolbox/stop.sh`.
+`record_map.sh` writes:
+
+```text
+maps/demo_map.pgm
+maps/demo_map.yaml
+maps/demo_map.posegraph
+maps/demo_map.data
+```
+
+It must be called while mapping mode is running.
 
 For localization, the posegraph is read from `map_file_name` in the
 localization yaml:
@@ -62,10 +75,9 @@ localization yaml:
 Create one while mapping:
 
 ```bash
-cd ../slam_toolbox
 ./start_mapping.sh
-./save_map.sh demo_map
-./stop.sh
+./record_map.sh demo_map
+./stop_demo.sh
 ```
 
 Then set `map_file_name` in `slam_toolbox_localization.yaml`.
@@ -86,10 +98,23 @@ cd demo_script
 ./start_demo_static.sh
 ```
 
-Stop either demo:
+Mapping stack without AI:
 
 ```bash
-../stop_demo.sh
+cd demo_script
+./start_mapping.sh
+```
+
+Save the map while mapping:
+
+```bash
+./record_map.sh demo_map
+```
+
+Stop any of them:
+
+```bash
+./stop_demo.sh
 ```
 
 Useful variants:
@@ -182,6 +207,8 @@ start_demo.sh
 
 The script waits up to 60 seconds for SLAM/EKF before starting Nav2.
 
+`start_mapping.sh` uses the same order but stops after Nav2; it does not start AI.
+
 ## 7. Logs and stop
 
 Logs and PID files go to `LOG_DIR` (default is a temp directory).
@@ -197,16 +224,17 @@ Logs and PID files go to `LOG_DIR` (default is a temp directory).
 Stop:
 
 ```bash
-../stop_demo.sh
+./stop_demo.sh
 ```
 
-`stop_demo.sh` stops the AI processes first, then the SLAM/Nav2/EKF stack.
+`stop_demo.sh` stops the recorded AI processes first, then the
+SLAM/Nav2/EKF/driver stack.
 
 ## 8. Notes
 
 ```text
-- `start_mapping.sh` does not start the demo stack; it only starts SLAM.
-- Mapping demo (`start_demo.sh`) does not need a posegraph.
+- `start_mapping.sh` starts SLAM + EKF + Nav2, but no AI.
+- Mapping demo (`start_demo.sh`) and `start_mapping.sh` do not need a posegraph.
 - Static demo requires .posegraph + .data; save them in mapping mode.
 - The camera is owned by EKF; do not start a second RealSense.
 - Nav2 default here is DeadbandController (simple mode).

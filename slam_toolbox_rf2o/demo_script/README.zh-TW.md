@@ -2,14 +2,15 @@
 
 # demo_script
 
-完整 person-follow demo 的兩個入口：
+三個入口：
 
 ```text
-start_demo.sh          mapping 模式
-start_demo_static.sh   localization 模式（載入既有 posegraph）
+start_demo.sh          mapping 模式 + AI
+start_demo_static.sh   localization 模式 + AI
+start_mapping.sh       mapping 模式，不含 AI
 ```
 
-兩者都會啟動四層：
+`start_demo.sh` 與 `start_demo_static.sh` 會啟動四層：
 
 ```text
 1. RPLIDAR S2 + rf2o + slam_toolbox
@@ -18,38 +19,50 @@ start_demo_static.sh   localization 模式（載入既有 posegraph）
 4. AI detection + person_target_recovery + demo_manager
 ```
 
-它們**不會**呼叫 `../start_all.sh`、`../start_all_localization.sh`
-或 `../start_ai.sh`，而是直接組合低階 start script 與 vendor helper。
+`start_mapping.sh` 只啟動第 1~3 層，讓你可以用 RViz 設 goal 建圖，
+再用 `record_map.sh` 儲存。
 
 ## 1. 檔案
 
 | 檔案 | 用途 |
 |---|---|
-| `start_demo.sh` | 完整 demo，slam_toolbox mapping 模式 |
-| `start_demo_static.sh` | 完整 demo，slam_toolbox localization 模式 |
-| `start_mapping.sh` | 只啟動 mapping 的 SLAM（不含 EKF / Nav2 / AI） |
-| `demo_common.sh` | 共用函式（由 `start_demo*` source） |
+| `start_demo.sh` | 完整 demo，slam_toolbox mapping 模式 + AI |
+| `start_demo_static.sh` | 完整 demo，slam_toolbox localization 模式 + AI |
+| `start_mapping.sh` | mapping stack：SLAM + EKF + Nav2，不含 AI |
+| `record_map.sh` | 儲存 pgm/yaml + posegraph（引用 slam_toolbox script） |
+| `stop_demo.sh` | 關閉三個 start script 啟動的 stack |
+| `demo_common.sh` | 共用函式（由 start script source） |
 
 ## 2. Mapping 與 localization 的差別
 
-| | `start_demo.sh` | `start_demo_static.sh` |
-|---|---|---|
-| SLAM 模式 | `mapping` | `localization` |
-| SLAM 參數 | `../slam_toolbox_rf2o.yaml` | `../slam_toolbox_localization.yaml` |
-| Posegraph | 不需要 | 必須存在 |
-| 建立新 map | 是 | 否 |
-| Nav2 參數 | `../nav2_1028/nav2_params_plugin.yaml` | 相同 |
-| 啟動 EKF / Nav2 / AI | 是 | 是 |
+| | `start_demo.sh` | `start_demo_static.sh` | `start_mapping.sh` |
+|---|---|---|---|
+| SLAM 模式 | `mapping` | `localization` | `mapping` |
+| SLAM 參數 | `../slam_toolbox_rf2o.yaml` | `../slam_toolbox_localization.yaml` | `../slam_toolbox_rf2o.yaml` |
+| Posegraph | 不需要 | 必須存在 | 不需要 |
+| 建立新 map | 是 | 否 | 是 |
+| 啟動 EKF + Nav2 | 是 | 是 | 是 |
+| 啟動 AI | 是 | 是 | 否 |
 
-如果只要 mapping 的 SLAM（RPLIDAR + rf2o + slam_toolbox，
-不含 EKF、Nav2、AI）：
+Mapping 流程：
 
 ```bash
 ./start_mapping.sh
+# 用 RViz 的 2D Goal Pose / NavigateToPose 移動建圖
+./record_map.sh demo_map
+./stop_demo.sh
 ```
 
-它等同於 `../slam_toolbox/start_mapping.sh`。
-停止請用 `../slam_toolbox/stop.sh`。
+`record_map.sh` 會寫出：
+
+```text
+maps/demo_map.pgm
+maps/demo_map.yaml
+maps/demo_map.posegraph
+maps/demo_map.data
+```
+
+必須在 mapping 模式執行中呼叫。
 
 Localization 會從 localization yaml 的 `map_file_name` 讀取：
 
@@ -61,10 +74,9 @@ Localization 會從 localization yaml 的 `map_file_name` 讀取：
 建立 posegraph 的方式（mapping 模式）：
 
 ```bash
-cd ../slam_toolbox
 ./start_mapping.sh
-./save_map.sh demo_map
-./stop.sh
+./record_map.sh demo_map
+./stop_demo.sh
 ```
 
 接著把 `map_file_name` 設到 `slam_toolbox_localization.yaml`。
@@ -85,10 +97,23 @@ cd demo_script
 ./start_demo_static.sh
 ```
 
-停止：
+不含 AI 的 mapping stack：
 
 ```bash
-../stop_demo.sh
+cd demo_script
+./start_mapping.sh
+```
+
+mapping 時儲存 map：
+
+```bash
+./record_map.sh demo_map
+```
+
+停止任何一個：
+
+```bash
+./stop_demo.sh
 ```
 
 常用變化：
@@ -181,6 +206,8 @@ start_demo.sh
 
 SLAM/EKF 最多等 60 秒，逾時就停止，不會硬啟動 Nav2。
 
+`start_mapping.sh` 使用相同順序，但停在 Nav2，不會啟動 AI。
+
 ## 7. Log 與停止
 
 log 與 PID 會放在 `LOG_DIR`（預設是系統暫存目錄）：
@@ -196,16 +223,16 @@ log 與 PID 會放在 `LOG_DIR`（預設是系統暫存目錄）：
 停止：
 
 ```bash
-../stop_demo.sh
+./stop_demo.sh
 ```
 
-`stop_demo.sh` 會先停 AI，再停 SLAM / Nav2 / EKF。
+`stop_demo.sh` 會先停有記錄的 AI process，再停 SLAM / Nav2 / EKF / driver。
 
 ## 8. 注意
 
 ```text
-- start_mapping.sh 只啟動 SLAM，不是完整 demo。
-- Mapping demo（start_demo.sh）不需要 posegraph。
+- start_mapping.sh 啟動 SLAM + EKF + Nav2，但不含 AI。
+- Mapping demo（start_demo.sh）與 start_mapping.sh 不需要 posegraph。
 - Static demo 需要 .posegraph + .data，請在 mapping 模式存。
 - 相機由 EKF 擁有，不要開第二顆 RealSense。
 - Nav2 預設是 DeadbandController（simple 模式）。

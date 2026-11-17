@@ -1,21 +1,28 @@
 #!/usr/bin/env bash
-# Mapping-only entry point: RPLIDAR S2 + rf2o + slam_toolbox.
+# Start the mapping stack so a map can be built manually from RViz.
 #
-# This is a shortcut for ../slam_toolbox/start_mapping.sh.
-# It does NOT start EKF, Nav2, AI, or the chassis driver.
+# Starts:
+#   RPLIDAR S2 + rf2o + slam_toolbox (mapping)
+#   RealSense + EKF
+#   Nav2 + chassis driver
 #
-# For the full mapping demo (SLAM + EKF + Nav2 + AI), use:
-#   ./start_demo.sh
+# AI, person_target_recovery and demo_manager are not started.
+#
+# Workflow:
+#   1. ./start_mapping.sh
+#   2. Set 2D Goal Pose / NavigateToPose goals in RViz to drive around
+#   3. ./record_map.sh <name>        # save pgm/yaml + posegraph
+#   4. ./stop_demo.sh
 #
 # Usage:
 #   ./start_mapping.sh
 #   SLAM_PARAMS=/path/other_mapping.yaml ./start_mapping.sh
-#
-# Stop the SLAM stack with:
-#   ../slam_toolbox/stop.sh
+#   RECORD=1 ./start_mapping.sh
 set -eo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"
-ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
-exec "$ROOT_DIR/slam_toolbox/start_mapping.sh" "$@"
+# Mapping needs the full SLAM + EKF + Nav2 stack, but no AI.
+export START_AI=0
+
+exec "$SCRIPT_DIR/start_demo.sh" "$@"

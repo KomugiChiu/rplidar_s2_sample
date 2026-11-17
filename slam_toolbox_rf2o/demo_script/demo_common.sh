@@ -106,6 +106,8 @@ demo_preflight() {
 }
 
 demo_check_not_running() {
+  [ "$START_AI" = "1" ] || return 0
+
   if [ -s "$AI_PID_FILE" ]; then
     while read -r pid name; do
       [ -n "${pid:-}" ] || continue
