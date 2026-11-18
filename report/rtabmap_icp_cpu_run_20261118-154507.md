@@ -86,7 +86,25 @@
 | ros2 launch wrapper | 4.2% |
 | Nav2 + 底盤 + demo | 15.6% |
 
-## 4. ICP 內部指標
+## 4. 這次調整了哪些 ICP 參數
+
+全部寫在 `slam_toolbox_rf2o/rtabmap/config/rtabmap_laser_mapping.ini`；`start_rtabmap.sh` 每次啟動會複製到 `$RUN_DIR` 再傳給節點，RTAB-Map 的回寫不會蓋掉原檔。
+
+| 參數 | 調整前 | 調整後 | 理由 |
+|---|---:|---:|---|
+| `Icp\RangeMax` | 0（= 30 m 全收） | **8 m** | 室內地圖僅 5×6 m，8 m 外點稀疏又吵；點數約與距離平方成正比，直接降 CPU |
+| `Icp\Force4DoF` | false | **true** | 2D 平面底盤：鎖住 roll / pitch / z，避免位姿漂移（本版 `Icp/Strategy=1` 支援） |
+| `Icp\CorrespondenceRatio` | 0.1 | **0.5** | 實測 ratio p5 ≈ 0.6，拉到 0.5 可擋掉 ratio=0 的退化匹配又不誤殺好幀 |
+| `Icp\MaxCorrespondenceDistance` | 0.15 | **0.10** | 回到上游預設；室內 5 cm 地圖不需要 15 cm 對應距離 |
+| `Icp\MaxTranslation` | 0.4 | **0.20** | 0.4 m/幀 @10 Hz = 4 m/s，實際最高 0.2 m/s；收緊可擋單幀跳變 |
+| `Icp\Iterations` | 30 | **20** | 有 `GuessMotion` 初值時 20 次足夠，直接省 CPU |
+| `Odom\ResetCountdown` | 未設（0） | **2 s** | 追蹤遺失 2 秒自動重置，避免 EKF 停在最後位姿 |
+
+**刻意不動**：`Icp\Strategy=1`（libpointmatcher，Force4DoF 需要它）、`Icp\PointToPlane=true`、`Icp\VoxelSize=0.05`、`Icp\PointToPlaneK=5`；節點端維持 `publish_tf=false`（TF 由 EKF 獨佔）。
+
+注意：`Icp\RangeMax`、`Icp\VoxelSize` 會被節點轉成 ROS 參數 `scan_range_max` / `scan_voxel_size`（log 會印 `Transferring value ...`）；要改 voxel size 得改節點參數，改 ini 沒用。
+
+## 5. ICP 內部指標
 
 | 指標 | 14:48（調參前） | 15:31（調參後） | **15:45（本次）** |
 |---|---:|---:|---:|
@@ -98,7 +116,7 @@
 | 丟幀 | 4.4 次/分 | 0.6 次/分 | **2.6 次/分**（15 次） |
 | session 長度 | 8.0 分 | 11.7 分 | 5.7 分 |
 
-## 5. 三次 run 對照
+## 6. 三次 run 對照
 
 | 指標 | 14:48（調參前） | 15:31（調參後） | 15:45（本次） |
 |---|---:|---:|---:|
@@ -110,7 +128,7 @@
 | icp_odometry（四核） | 13.2% | 11.9% | 13.4% |
 | robot path | 20.81 m | 15.18 m | 11.18 m |
 
-## 6. 觀察
+## 7. 觀察
 
 1. **ICP 仍可壓在 100 ms 週期內，但餘裕不多**：p95 90 ms，離 100 ms 只剩約 10 ms；丟幀 2.6 次/分，比 15:31 高、比調參前低。
 2. **跟隨期間的 CPU 變異大**：同一組參數下 66.5%（15:31）→ 72.2%（本次），p95 71.0 → 82.5%。短 run 的取樣太少（13 筆），單筆不足以判斷好壞。
@@ -118,14 +136,14 @@
 4. **ICP RSS 只有 99 MB**（15:31 是 178 MB），看起來這次跑的圖/關鍵幀較少，但也可能是啟動後不久就停止；不影響 CPU 結論。
 5. **ratio 回到 0.776**（15:31 是 0.676）：本次移動較少（11.2 m vs 15.2 m）、靜止比例較高，重疊自然較好。
 
-## 7. 建議
+## 8. 建議
 
 - 若要確認 ICP 調參的真實效益，**用 2~3 分鐘以上的 run**，或直接看 `update time` p95 與丟幀率，不要只看單筆整體 mean。
 - ICP p95 若常態 > 80 ms，可再降點數：`Icp\VoxelSize` 需改節點參數 `scan_voxel_size`（0.05 → 0.08），ini 裡的 `Icp\VoxelSize` 會被節點覆蓋。
 - 下一個降 CPU 的目標是相機（11.3%）：AI 關閉時只留 gyro/accel，可省掉大部分。
 - 要量純堆疊，用 `BAG=0` 再跑一次，扣掉量測本身約 8%。
 
-## 8. 資料來源
+## 9. 資料來源
 
 ```text
 /nvt_ros2_example/slam_toolbox_rf2o/monitor_logs/run_20261118-154507_follow/

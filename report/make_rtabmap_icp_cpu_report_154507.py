@@ -365,7 +365,25 @@ w(f"""      </tbody>
   </div>
 </div>
 
-<h2>4. ICP 三次 session 對照</h2>
+<h2>4. 這次調整了哪些 ICP 參數</h2>
+<p class="lead">全部寫在 <code>slam_toolbox_rf2o/rtabmap/config/rtabmap_laser_mapping.ini</code>；<code>start_rtabmap.sh</code> 每次啟動會把它複製到 <code>$RUN_DIR</code> 再傳給節點，所以 RTAB-Map 結束時的回寫不會蓋掉原檔。</p>
+<table>
+  <thead><tr><th>參數</th><th class="num">調整前</th><th class="num">調整後</th><th>理由</th></tr></thead>
+  <tbody>
+    <tr><td><code>Icp\\RangeMax</code></td><td class="num">0（= 30 m 全收）</td><td class="num"><strong>8 m</strong></td><td>室內地圖僅 5×6 m，8 m 外點稀疏又吵；點數約與距離平方成正比，直接降 CPU</td></tr>
+    <tr><td><code>Icp\\Force4DoF</code></td><td class="num">false</td><td class="num"><strong>true</strong></td><td>2D 平面底盤：鎖住 roll / pitch / z，避免位姿慢慢漂掉（本版 <code>Icp/Strategy=1</code> 支援）</td></tr>
+    <tr><td><code>Icp\\CorrespondenceRatio</code></td><td class="num">0.1</td><td class="num"><strong>0.5</strong></td><td>實測 ratio p5 ≈ 0.6，門檻拉到 0.5 可擋掉 ratio=0 的退化匹配，又不會誤殺好幀</td></tr>
+    <tr><td><code>Icp\\MaxCorrespondenceDistance</code></td><td class="num">0.15</td><td class="num"><strong>0.10</strong></td><td>回到上游預設；室內 5 cm 地圖不需要 15 cm 的對應距離</td></tr>
+    <tr><td><code>Icp\\MaxTranslation</code></td><td class="num">0.4</td><td class="num"><strong>0.20</strong></td><td>0.4 m/幀 @10 Hz = 4 m/s，實際最高 0.2 m/s；收緊可擋單幀跳變</td></tr>
+    <tr><td><code>Icp\\Iterations</code></td><td class="num">30</td><td class="num"><strong>20</strong></td><td>有 <code>GuessMotion</code> 初值時 20 次已足夠，直接省 CPU</td></tr>
+    <tr><td><code>Odom\\ResetCountdown</code></td><td class="num">未設（0）</td><td class="num"><strong>2 s</strong></td><td>追蹤遺失 2 秒自動重置，避免 EKF 停在最後位姿不動</td></tr>
+  </tbody>
+</table>
+<p class="small"><strong>刻意不動的</strong>：<code>Icp\\Strategy=1</code>（libpointmatcher，Force4DoF 需要它）、<code>Icp\\PointToPlane=true</code>、
+<code>Icp\\VoxelSize=0.05</code>、<code>Icp\\PointToPlaneK=5</code>；節點端維持 <code>publish_tf=false</code>（TF 由 EKF 獨佔）。</p>
+<p class="small">注意：<code>Icp\\RangeMax</code> 與 <code>Icp\\VoxelSize</code> 會被節點轉成 ROS 參數 <code>scan_range_max</code> / <code>scan_voxel_size</code>（log 會印 <code>Transferring value ...</code>）；若要改 voxel size，得改節點參數，改 ini 沒用。</p>
+
+<h2>5. ICP 三次 session 對照</h2>
 <p class="lead">ICP 內部指標取自 <code>icp_odometry.log</code>：本次為同一啟動的完整 session（{ICP['span']/60:.1f} 分鐘、{ICP['n']} 次更新）。前兩次的 log 已被後續啟動覆寫，數值為當時量測結果。</p>
 <table>
   <thead><tr><th>指標</th><th class="num">14:48 調參前</th><th class="num">15:31</th><th class="num">15:45 本次</th><th>說明</th></tr></thead>
@@ -386,7 +404,7 @@ w(f"""      </tbody>
   仍在 100 ms 掃描週期內，但餘裕只剩約 {max(0,100-ICP['upd'][1]*1000):.0f} ms；ratio {ICP['ratio'][2]:.3f} 反而比 15:31（{MID_ICP['ratio'][2]:.3f}）高，因為這次移動較少、靜止比例較高。
 </div>
 
-<h2>5. Node CPU — 整段（四核佔比）</h2>
+<h2>6. Node CPU — 整段（四核佔比）</h2>
 <p class="lead">RTAB-Map + ICP 約 {grp_rtab:.1f}%；相機 + AI 約 {grp_cam:.1f}%；Nav2 + 底盤約 {grp_nav:.1f}%；光達 + EKF 約 {grp_lidar:.1f}%。</p>
 <div class="grid2" style="margin-bottom:16px">
   <div class="card" style="border-top:4px solid var(--accent)">
@@ -425,7 +443,7 @@ w(f"""  </tbody>
 </table>
 <p class="small">長條為 mean、紅線為 max；「15:31 mean」為前一次 run（同一個 for_rtabmap 流程、同一組 ICP 參數）。</p>
 
-<h2>6. 三次 run 對照與結論</h2>
+<h2>7. 三次 run 對照與結論</h2>
 <table>
   <thead><tr><th>指標</th><th class="num">14:48（調參前）</th><th class="num">15:31</th><th class="num">15:45（本次）</th></tr></thead>
   <tbody>
@@ -451,7 +469,7 @@ w(f"""  </tbody>
   <li>本次 {M['duration']:.0f} s、移動 {M['path']:.1f} m；三次 run 的長度與行駛距離都不同，整體 mean 的差距不宜過度解讀，應看 ICP 的 update time / 丟幀率與 2 分鐘以上的 run。</li>
 </ul>
 
-<h2>7. 建議</h2>
+<h2>8. 建議</h2>
 <ul class="tight">
   <li>若要再降 CPU，下一個目標是相機（{by['/camera/camera']['avg']:.1f}%）：AI 關閉時只留 gyro/accel 可省掉大部分。</li>
   <li>ICP 若在空曠場地 ratio 掉到 0.5 以下，把 <code>Icp\\RangeMax</code> 改 10~12 再測。</li>
@@ -459,7 +477,7 @@ w(f"""  </tbody>
   <li>要更乾淨的基準，可用 <code>BAG=0</code> 再跑一次，扣掉量測本身約 8%。</li>
 </ul>
 
-<h2>8. 紀錄檔</h2>
+<h2>9. 紀錄檔</h2>
 <div class="flow">/nvt_ros2_example/slam_toolbox_rf2o/monitor_logs/{MAIN}/
   cpu.csv / cpu_nodes.csv / cpu_procs.csv
   follow_target.csv   {len(M['persons'])} person 筆 · {M['goals']} goals
