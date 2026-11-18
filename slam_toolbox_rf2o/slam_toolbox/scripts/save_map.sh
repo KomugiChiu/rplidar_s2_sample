@@ -21,6 +21,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-99}"
 MAP_DIR="${MAP_DIR:-$SCRIPT_DIR/maps}"
 SERVICE_TIMEOUT="${SERVICE_TIMEOUT:-120}"
+SERVICE_WAIT="${SERVICE_WAIT:-15}"
 
 NAME="${1:-slam_map_$(date +%Y%m%d-%H%M%S)}"
 case "$NAME" in
@@ -62,7 +63,8 @@ if ! grep -qE 'Publisher count: [1-9]' <<<"$MAP_INFO"; then
 fi
 
 echo "   saving map image / yaml ..."
-if ! ros2 run nav2_map_server map_saver_cli -f "$PREFIX"; then
+if ! ros2 run nav2_map_server map_saver_cli -f "$PREFIX" \
+     --ros-args -p save_map_timeout:=10.0 -p map_subscribe_transient_local:=true; then
   echo "ERROR: map_saver_cli failed." >&2
   exit 1
 fi
@@ -71,8 +73,16 @@ for ext in pgm yaml; do
   [ -s "$PREFIX.$ext" ] || { echo "ERROR: missing $PREFIX.$ext" >&2; exit 1; }
 done
 
-if ! ros2 service list 2>/dev/null | grep -qx "/slam_toolbox/serialize_map"; then
-  echo "ERROR: /slam_toolbox/serialize_map service not found." >&2
+service_ready=0
+for _ in $(seq 1 "$SERVICE_WAIT"); do
+  if ros2 service list 2>/dev/null | grep -x "/slam_toolbox/serialize_map" >/dev/null; then
+    service_ready=1
+    break
+  fi
+  sleep 1
+done
+if [ "$service_ready" != "1" ]; then
+  echo "ERROR: /slam_toolbox/serialize_map service not found after ${SERVICE_WAIT}s." >&2
   exit 1
 fi
 
