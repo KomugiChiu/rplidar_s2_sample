@@ -44,7 +44,7 @@ rtabmap_slam/rtabmap (subscribe_scan, odom_topic=/odometry/filtered)
 1. RPLIDAR S2 + 靜態 TF + icp_odometry + RTAB-Map
 2. RealSense + 相機 TF + EKF
 3. Nav2 + 底盤驅動            (nav2_params_rtabmap.yaml)
-4. AI 偵測 + person_target_recovery + demo_manager
+4. AI 偵測 + demo_manager runtime（demo_manager_node + person_target_recovery_node）
 ```
 
 即使 `START_AI=0`，第 2 層的相機還是會啟動，因為 EKF 要融合 D455 的 gyro；
@@ -160,7 +160,7 @@ transform 有兩個發佈者會讓 TF 樹在兩個來源間跳動，症狀是 Na
 /tmp/rtabmap_only/pids
 /tmp/slam_toolbox_rf2o_ekf/logs/
 /tmp/raspybot_nav2/logs/
-/tmp/demo_script/*.log          (AI、recovery、demo manager)
+/tmp/demo_script/*.log          (AI、ai_tf、demo_runtime)
 ```
 
 `stop_demo.sh` 的停止順序：AI -> RTAB-Map（光達/TF/ICP）-> rf2o -> Nav2/底盤 ->

@@ -45,7 +45,7 @@ like the slam_toolbox flow consumes rf2o + EKF.
 1. RPLIDAR S2 + static TFs + icp_odometry + RTAB-Map
 2. RealSense + camera TF + EKF
 3. Nav2 + chassis driver        (nav2_params_rtabmap.yaml)
-4. AI detection + person_target_recovery + demo_manager
+4. AI detection + demo_manager runtime (demo_manager_node + person_target_recovery_node)
 ```
 
 The camera is still started in layer 2 even with `START_AI=0`, because the EKF
@@ -163,7 +163,7 @@ that jumps when RTAB-Map recomputes `map -> odom`.
 /tmp/rtabmap_only/pids
 /tmp/slam_toolbox_rf2o_ekf/logs/
 /tmp/raspybot_nav2/logs/
-/tmp/demo_script/*.log          (AI, recovery, demo manager)
+/tmp/demo_script/*.log          (AI, ai_tf, demo_runtime)
 ```
 
 `stop_demo.sh` stops in this order: AI -> RTAB-Map (lidar/TF/ICP) -> rf2o ->

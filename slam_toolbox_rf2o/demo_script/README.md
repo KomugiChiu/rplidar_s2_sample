@@ -16,7 +16,7 @@ start_mapping.sh       mapping mode, no AI
 1. RPLIDAR S2 + rf2o + slam_toolbox
 2. RealSense + EKF
 3. Nav2 + chassis driver
-4. AI detection + person_target_recovery + demo_manager
+4. AI detection + demo_manager runtime (demo_manager_node + person_target_recovery_node)
 ```
 
 `start_mapping.sh` starts layers 1-3 only, so you can drive the robot with
@@ -192,11 +192,26 @@ Started directly by the script (or via vendor helpers):
 ```text
 ai_human_detection_node
 person_follow_independent_bringup ai_tf_only.launch.py
-person_target_recovery_node
-demo_manager_node
+$DEMO_INSTALL/start_demo_only.sh
+  |- person_target_recovery_node   (config/person_target_recovery.yaml)
+  `- demo_manager_node             (config/demo_manager.yaml)
 ```
 
 The AI node uses the camera started by EKF, so no second RealSense is needed.
+
+Since demo_manager runtime 1.1.0 both nodes live in the `demo_manager` package,
+so `start_demo_only.sh` is what brings the pair up (and
+`stop_demo_only.sh` brings it down). The old standalone
+`person_target_recovery` prefix is no longer used.
+
+Installed runtime: `demo_manager` 1.1.0 at
+`$DEMO_INSTALL` (`/nvt_ros2_example/demo_manager/install`, mirrored at
+`/root/ros2_ws/install/demo_manager`). `stop_demo_only.sh` first calls the
+`/demo/stop` service, then falls back to SIGTERM/SIGKILL.
+
+The vendor tarball's `setup.bash`/`setup.sh` chained a build-machine
+`ai_human_detection` prefix and ran `sudo apt-get install` on every source;
+both were removed after installation (see the deploy notes in the repo).
 
 ## 6. Startup order
 
@@ -221,8 +236,7 @@ Logs and PID files go to `LOG_DIR` (default is a temp directory).
 ```text
 <LOG_DIR>/ai_node.log
 <LOG_DIR>/ai_tf.log
-<LOG_DIR>/person_target_recovery.log
-<LOG_DIR>/demo_manager.log
+<LOG_DIR>/demo_runtime.log        (person_target_recovery_node + demo_manager_node)
 <LOG_DIR>/ai_pids
 ```
 

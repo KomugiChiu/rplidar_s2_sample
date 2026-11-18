@@ -33,7 +33,9 @@ REALSENSE_WS="${REALSENSE_WS:-/nvt_ros2_example/realsense-ros}"
 AI_WS="${AI_WS:-/nvt_ros2_example/ai_human_detection}"
 DEMO_WS="${DEMO_WS:-$HOME/ros2_ws}"
 KIT_DIR="${KIT_DIR:-/nvt_ros2_example/demo_manager/fixed_build}"
-RECOVERY_INSTALL="${RECOVERY_INSTALL:-/nvt_ros2_example/person_target_recovery/install}"
+# demo_manager runtime v1.1.0 ships BOTH demo_manager_node and
+# person_target_recovery_node, and start_demo_only.sh launches the pair.
+# There is no separate person_target_recovery prefix any more.
 DEMO_INSTALL="${DEMO_INSTALL:-/nvt_ros2_example/demo_manager/install}"
 
 demo_log()  { echo "[demo] $*"; }
@@ -108,10 +110,10 @@ demo_preflight() {
       || demo_die "Demo workspace not found: $DEMO_WS/install"
     [ -x "$KIT_DIR/tools/start_ai_tf_only.sh" ] \
       || demo_die "missing $KIT_DIR/tools/start_ai_tf_only.sh"
-    [ -x "$RECOVERY_INSTALL/start_person_target_recovery.sh" ] \
-      || demo_die "missing $RECOVERY_INSTALL/start_person_target_recovery.sh"
     [ -x "$DEMO_INSTALL/start_demo_only.sh" ] \
       || demo_die "missing $DEMO_INSTALL/start_demo_only.sh"
+    [ -x "$DEMO_INSTALL/stop_demo_only.sh" ] \
+      || demo_die "missing $DEMO_INSTALL/stop_demo_only.sh"
   fi
 }
 
@@ -129,6 +131,9 @@ demo_check_not_running() {
   fi
   if pgrep -f '[a]i_human_detection_node' >/dev/null 2>&1; then
     demo_die "ai_human_detection_node is already running; stop the demo first"
+  fi
+  if pgrep -f '[p]erson_target_recovery_node|[d]emo_manager_node' >/dev/null 2>&1; then
+    demo_die "person_target_recovery_node/demo_manager_node already running; stop the demo first"
   fi
   : > "$AI_PID_FILE"
 }
@@ -190,7 +195,6 @@ demo_source_ai_env() {
   demo_source_if_exists "$DEMO_WS/install" || true
   # AI last, so the vendor package wins over the message-only kit package.
   demo_source_if_exists "$AI_WS" || true
-  demo_source_if_exists "$RECOVERY_INSTALL" || true
   demo_source_if_exists "$DEMO_INSTALL" || true
 }
 
@@ -204,8 +208,8 @@ demo_start_ai() {
     || demo_die "ai_human_detection not found"
   ros2 pkg executables ai_human_detection 2>/dev/null | grep -q 'ai_human_detection_node' \
     || demo_die "ai_human_detection_node not found"
-  ros2 pkg prefix person_target_recovery >/dev/null 2>&1 \
-    || demo_die "person_target_recovery not found"
+  ros2 pkg executables demo_manager 2>/dev/null | grep -q 'person_target_recovery_node' \
+    || demo_die "person_target_recovery_node not found in demo_manager"
   demo_prefix="$(ros2 pkg prefix demo_manager 2>/dev/null || true)"
   case "$demo_prefix" in
     "$DEMO_INSTALL"/*) ;;
@@ -227,10 +231,10 @@ demo_start_ai() {
   demo_start_bg ai_tf "$KIT_DIR/tools/start_ai_tf_only.sh" \
     camera_x:="$CAMERA_X" camera_y:="$CAMERA_Y" camera_z:="$CAMERA_Z"
 
-  demo_start_bg person_target_recovery "$RECOVERY_INSTALL/start_person_target_recovery.sh"
-  demo_wait_topic /person_infos_stable "$TOPIC_WAIT" "person_target_recovery" || true
-
-  demo_start_bg demo_manager "$DEMO_INSTALL/start_demo_only.sh"
+  # v1.1.0 launcher: person_target_recovery_node first, then
+  # demo_manager_node; it exits when either of them dies.
+  demo_start_bg demo_runtime "$DEMO_INSTALL/start_demo_only.sh"
+  demo_wait_topic /person_infos_stable "$TOPIC_WAIT" "person target recovery" || true
   demo_wait_topic /demo/person_markers "$TOPIC_WAIT" "demo manager" || true
 }
 

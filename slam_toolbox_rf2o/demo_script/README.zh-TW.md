@@ -16,7 +16,7 @@ start_mapping.sh       mapping 模式，不含 AI
 1. RPLIDAR S2 + rf2o + slam_toolbox
 2. RealSense + EKF
 3. Nav2 + 底盤 driver
-4. AI detection + person_target_recovery + demo_manager
+4. AI 偵測 + demo_manager runtime（demo_manager_node + person_target_recovery_node）
 ```
 
 `start_mapping.sh` 只啟動第 1~3 層，讓你可以用 RViz 設 goal 建圖，
@@ -191,11 +191,25 @@ yahboomcar Mcnamu_driver
 ```text
 ai_human_detection_node
 person_follow_independent_bringup ai_tf_only.launch.py
-person_target_recovery_node
-demo_manager_node
+$DEMO_INSTALL/start_demo_only.sh
+  |- person_target_recovery_node   (config/person_target_recovery.yaml)
+  `- demo_manager_node             (config/demo_manager.yaml)
 ```
 
 AI 使用 EKF 已經啟動的相機，不需要第二顆 RealSense。
+
+demo_manager runtime 1.1.0 起，這兩個 node 都在 `demo_manager` 套件裡，
+由 `start_demo_only.sh` 一起啟動、`stop_demo_only.sh` 一起停止；
+原本獨立的 `person_target_recovery` prefix 已不再使用。
+
+已安裝版本：`demo_manager` 1.1.0，位於 `$DEMO_INSTALL`
+（`/nvt_ros2_example/demo_manager/install`，同步一份在
+`/root/ros2_ws/install/demo_manager`）。`stop_demo_only.sh` 會先呼叫
+`/demo/stop` 服務，再退回 SIGTERM/SIGKILL。
+
+vendor tarball 的 `setup.bash`/`setup.sh` 會 chain 到打包機器的
+`ai_human_detection` 路徑，而且每次 source 都執行 `sudo apt-get install`；
+安裝後兩者都已移除（部署紀錄見 repo）。
 
 ## 6. 啟動順序
 
@@ -220,8 +234,7 @@ log 與 PID 會放在 `LOG_DIR`（預設是系統暫存目錄）：
 ```text
 <LOG_DIR>/ai_node.log
 <LOG_DIR>/ai_tf.log
-<LOG_DIR>/person_target_recovery.log
-<LOG_DIR>/demo_manager.log
+<LOG_DIR>/demo_runtime.log        (person_target_recovery_node + demo_manager_node)
 <LOG_DIR>/ai_pids
 ```
 

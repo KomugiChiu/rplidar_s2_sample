@@ -24,6 +24,7 @@ SLAM_DIR="${SLAM_DIR:-/nvt_ros2_example/slam_toolbox}"
 RF2O_DIR="${RF2O_DIR:-/nvt_ros2_example/rf2o}"
 NAV2_DIR="${NAV2_DIR:-/nvt_ros2_example/nav2}"
 EKF_DIR="${EKF_DIR:-/nvt_ros2_example/ekf}"
+DEMO_INSTALL="${DEMO_INSTALL:-/nvt_ros2_example/demo_manager/install}"
 DRY_RUN="${DRY_RUN:-0}"
 
 log() { echo "[stop_demo] $*"; }
@@ -59,8 +60,11 @@ else
   log "no AI PID file: $AI_PID_FILE"
 fi
 
-# --- 2. rf2o / slam_toolbox / Nav2 / EKF ------------------------------------
+# --- 2. demo_manager runtime / rf2o / slam_toolbox / Nav2 / EKF ------------
+# The AI PID file above already covers a normal run; stop_demo_only.sh also
+# handles a runtime that was started by hand and calls the /demo/stop service.
 for spec in \
+  "demo_manager:$DEMO_INSTALL/stop_demo_only.sh" \
   "rf2o:$RF2O_DIR/stop.sh" \
   "slam_toolbox:$SLAM_DIR/stop_slam.sh" \
   "nav2:$NAV2_DIR/stop_nav2.sh" \

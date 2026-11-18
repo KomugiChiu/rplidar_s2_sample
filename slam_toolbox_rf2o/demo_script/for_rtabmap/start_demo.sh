@@ -67,10 +67,10 @@ rtabmap_preflight() {
       || demo_die "Demo workspace not found: $DEMO_WS/install"
     [ -x "$KIT_DIR/tools/start_ai_tf_only.sh" ] \
       || demo_die "missing $KIT_DIR/tools/start_ai_tf_only.sh"
-    [ -x "$RECOVERY_INSTALL/start_person_target_recovery.sh" ] \
-      || demo_die "missing $RECOVERY_INSTALL/start_person_target_recovery.sh"
     [ -x "$DEMO_INSTALL/start_demo_only.sh" ] \
       || demo_die "missing $DEMO_INSTALL/start_demo_only.sh"
+    [ -x "$DEMO_INSTALL/stop_demo_only.sh" ] \
+      || demo_die "missing $DEMO_INSTALL/stop_demo_only.sh"
   fi
 }
 
