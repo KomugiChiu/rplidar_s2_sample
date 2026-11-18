@@ -301,6 +301,20 @@
 /tmp/rtabmap_only/logs/icp_odometry.log   （ICP 指標來源，已被下一次啟動覆寫）
 對照：15:31（run_20261118-153150_follow）· 14:48（run_20261118-144839_follow，調參前）</div>
 
+<h2>附錄 A：odom 方案對照（rf2o vs icp_odometry）</h2>
+<p class="lead">兩個 flow 只差 odom 來源：slam_toolbox + rf2o（2026-11-13）與 RTAB-Map + icp_odometry（2026-11-18）；相機 640×480@15、AI、Nav2、lite bag 設定相同。</p>
+<table>
+  <thead><tr><th>項目（四核佔比）</th><th class="num">slam_toolbox + rf2o</th><th class="num">RTAB-Map + icp_odometry</th></tr></thead>
+  <tbody>
+    <tr><td>雷射 odom 節點</td><td class="num">rf2o 1.7%（max 3.1~3.4）</td><td class="num">ICP <strong>11.9~14.2%</strong>（max 15~19）</td></tr>
+    <tr><td>建圖節點</td><td class="num">slam_toolbox 2.8~3.7%（max 15~24）</td><td class="num">rtabmap 4.1~4.8%（max 5~9）</td></tr>
+    <tr><td>odom + 建圖合計</td><td class="num">4.5~5.4%</td><td class="num">16.0~19.0%</td></tr>
+    <tr><td>整段總 CPU</td><td class="num">55~59%</td><td class="num">69~72%</td></tr>
+    <tr><td>相機 + AI（對照）</td><td class="num">約 22~23%</td><td class="num">約 17.6~17.9%</td></tr>
+  </tbody>
+</table>
+<p class="small">本報告（11-18 15:45）的 odom 是 icp_odometry，整段 13.4%。rf2o 數據取自 11-13 19:17 / 19:50 兩筆 run（節點 <code>/CLaserOdometry2D</code>）；ICP 取自 11-18 14:48 / 15:31 / 15:45。兩者相隔 5 天，不是嚴格同條件 A/B，但設定相同：<strong>ICP 約為 rf2o 的 7 倍</strong>，主要因為 libpointmatcher point-to-plane、維持區域地圖與協方差，精度換 CPU。</p>
+
 <footer>
   RTAB-Map + ICP CPU 分析 · run_20261118-154507_follow · 2026-11-18 ·
   資料來源 <code>cpu.csv</code> / <code>cpu_nodes.csv</code> / <code>icp_odometry.log</code> · monitor_cpu.py（--interval 2）
