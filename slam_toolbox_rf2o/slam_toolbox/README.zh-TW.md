@@ -43,6 +43,7 @@ colcon build --merge-install --packages-select slam_toolbox_bringup
 install 會是平坦結構：
 
 ```text
+install/start.sh
 install/start_mapping.sh
 install/start_localization.sh
 install/stop.sh
@@ -64,8 +65,9 @@ install/slam_toolbox_localization.yaml
 
 | 檔案 | 用途 |
 |---|---|
-| `start_mapping.sh` | 啟動 lidar + static TF + slam_toolbox mapping |
-| `start_localization.sh` | 啟動 lidar + static TF + slam_toolbox localization |
+| `start.sh` | 統一入口：`mapping` 或 `localization` |
+| `start_mapping.sh` | `start.sh mapping` 的相容 wrapper |
+| `start_localization.sh` | `start.sh localization` 的相容 wrapper |
 | `stop.sh` | 停止 lidar / static TF / slam_toolbox |
 | `save_map.sh` | 儲存 pgm/yaml + posegraph（只能 mapping） |
 | `check_deps.sh` | 檢查 / 安裝依賴 |
@@ -75,6 +77,8 @@ install/slam_toolbox_localization.yaml
 
 ```bash
 cd /nvt_ros2_example/slam_toolbox
+./start.sh mapping
+# 或相容 wrapper：
 ./start_mapping.sh
 ```
 
@@ -107,6 +111,8 @@ slam_toolbox online_async_launch.py
 
 ```bash
 cd /nvt_ros2_example/slam_toolbox
+./start.sh localization
+# 或相容 wrapper：
 ./start_localization.sh
 ```
 

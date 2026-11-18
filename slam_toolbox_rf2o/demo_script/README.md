@@ -202,7 +202,7 @@ The AI node uses the camera started by EKF, so no second RealSense is needed.
 
 ```text
 start_demo.sh
-  ├─ $SLAM_DIR/start_mapping.sh or start_localization.sh
+  ├─ $SLAM_DIR/start.sh mapping|localization
   ├─ $RF2O_DIR/start.sh
   ├─ $EKF_DIR/start_ekf.sh
   ├─ wait /map + /odometry/filtered + TF map -> base_link

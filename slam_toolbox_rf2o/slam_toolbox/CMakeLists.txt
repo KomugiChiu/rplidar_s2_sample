@@ -4,6 +4,7 @@ project(slam_toolbox_bringup NONE)
 find_package(ament_cmake REQUIRED)
 
 install(PROGRAMS
+  scripts/start.sh
   scripts/start_mapping.sh
   scripts/start_localization.sh
   scripts/stop.sh

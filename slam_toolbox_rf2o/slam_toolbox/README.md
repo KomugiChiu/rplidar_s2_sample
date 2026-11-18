@@ -43,6 +43,7 @@ colcon build --merge-install --packages-select slam_toolbox_bringup
 The install tree is flat:
 
 ```text
+install/start.sh
 install/start_mapping.sh
 install/start_localization.sh
 install/stop.sh
@@ -64,8 +65,9 @@ Do not copy an `install/` subdirectory to the board.
 
 | File | Purpose |
 |---|---|
-| `start_mapping.sh` | Start lidar + static TFs + slam_toolbox mapping |
-| `start_localization.sh` | Start lidar + static TFs + slam_toolbox localization |
+| `start.sh` | Unified start: `mapping` or `localization` |
+| `start_mapping.sh` | Compatibility wrapper for `start.sh mapping` |
+| `start_localization.sh` | Compatibility wrapper for `start.sh localization` |
 | `stop.sh` | Stop lidar / static TFs / slam_toolbox |
 | `save_map.sh` | Save pgm/yaml + posegraph (mapping only) |
 | `check_deps.sh` | Check / install dependencies |
@@ -75,6 +77,8 @@ Do not copy an `install/` subdirectory to the board.
 
 ```bash
 cd /nvt_ros2_example/slam_toolbox
+./start.sh mapping
+# or the compatibility wrapper:
 ./start_mapping.sh
 ```
 
@@ -107,6 +111,8 @@ If you start components manually:
 
 ```bash
 cd /nvt_ros2_example/slam_toolbox
+./start.sh localization
+# or the compatibility wrapper:
 ./start_localization.sh
 ```
 

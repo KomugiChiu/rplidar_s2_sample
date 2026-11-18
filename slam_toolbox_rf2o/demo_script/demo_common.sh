@@ -90,8 +90,7 @@ demo_preflight() {
   mkdir -p "$LOG_DIR" "$RUN_DIR"
 
   [ -f "$NAV2_PARAMS_FILE" ] || demo_die "Nav2 params not found: $NAV2_PARAMS_FILE"
-  [ -x "$SLAM_DIR/start_mapping.sh" ] || demo_die "missing $SLAM_DIR/start_mapping.sh"
-  [ -x "$SLAM_DIR/start_localization.sh" ] || demo_die "missing $SLAM_DIR/start_localization.sh"
+  [ -x "$SLAM_DIR/start.sh" ] || demo_die "missing $SLAM_DIR/start.sh"
   [ -x "$SLAM_DIR/stop.sh" ] || demo_die "missing $SLAM_DIR/stop.sh"
   [ -x "$RF2O_DIR/start.sh" ] || demo_die "missing $RF2O_DIR/start.sh"
   [ -x "$RF2O_DIR/stop.sh" ] || demo_die "missing $RF2O_DIR/stop.sh"
@@ -148,11 +147,7 @@ demo_validate_posegraph() {
 
 demo_start_slam() {
   demo_log "[1/4] SLAM (mode=$SLAM_MODE)"
-  if [ "$SLAM_MODE" = "localization" ]; then
-    "$SLAM_DIR/start_localization.sh"
-  else
-    "$SLAM_DIR/start_mapping.sh"
-  fi
+  "$SLAM_DIR/start.sh" "$SLAM_MODE"
   demo_log "[1/4] rf2o"
   "$RF2O_DIR/start.sh"
 }
