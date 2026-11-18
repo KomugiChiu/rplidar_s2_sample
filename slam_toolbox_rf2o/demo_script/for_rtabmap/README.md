@@ -181,7 +181,12 @@ otherwise keep `/dev/ttyUSB0` busy for the next run.
 - The map is only published as /rtabmap/map (and in rtabmap.db). This flow has
   no record_map.sh equivalent: Nav2 starts from an empty map and grows it.
 - The database grows forever. Use DELETE_DB_ON_START=1 ./start_rtabmap.sh (or
-  remove $RTABMAP_DIR/rtabmap.db) to start clean.
+  remove $RTABMAP_DIR/rtabmap.db) to start clean. A few minutes of mapping
+  already produces tens of MB, so clear it between runs.
+- RTAB-Map rewrites its config file on exit (it dumps ~400 parameters into it).
+  start_rtabmap.sh therefore copies the shipped ini to
+  $RUN_DIR/rtabmap_laser_mapping.ini and passes that copy, so the package ini
+  stays short and no stale parameter dump pins defaults.
 - RTAB-Map publishes map -> odom, Nav2 must use /rtabmap/map and
   /odometry/filtered; that is what nav2_params_rtabmap.yaml contains.
 - Only one process may own the rplidar serial port at a time.

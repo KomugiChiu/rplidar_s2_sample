@@ -47,7 +47,7 @@ ICP_TOPIC="${ICP_TOPIC:-/odom_icp}"        # icp_odometry output (fused by EKF)
 ODOM_TOPIC="${ODOM_TOPIC:-/odometry/filtered}"   # what rtabmap consumes (EKF output)
 VO_FRAME_ID="${VO_FRAME_ID:-odom}"
 MAP_TOPIC="${MAP_TOPIC:-/rtabmap/map}"
-RTABMAP_CFG="${RTABMAP_CFG:-$SCRIPT_DIR/rtabmap_laser_mapping.ini}"
+RTABMAP_CFG_SRC="${RTABMAP_CFG:-$SCRIPT_DIR/rtabmap_laser_mapping.ini}"
 DATABASE_PATH="${DATABASE_PATH:-$SCRIPT_DIR/rtabmap.db}"
 DELETE_DB_ON_START="${DELETE_DB_ON_START:-0}"
 LOG_LEVEL="${LOG_LEVEL:-warn}"
@@ -56,7 +56,7 @@ RUN_DIR="${RUN_DIR:-/tmp/rtabmap_only}"
 PID_FILE="${PID_FILE:-$RUN_DIR/pids}"
 LOG_DIR="${LOG_DIR:-$RUN_DIR/logs}"
 
-[ -f "$RTABMAP_CFG" ] || { echo "ERROR: RTAB-Map cfg not found: $RTABMAP_CFG" >&2; exit 1; }
+[ -f "$RTABMAP_CFG_SRC" ] || { echo "ERROR: RTAB-Map cfg not found: $RTABMAP_CFG_SRC" >&2; exit 1; }
 
 # shellcheck disable=SC1090
 source /opt/ros/jazzy/setup.bash
@@ -76,6 +76,12 @@ ros2 pkg prefix rtabmap_slam >/dev/null 2>&1 || {
 }
 
 mkdir -p "$RUN_DIR" "$LOG_DIR"
+
+# RTAB-Map REWRITES the config file on exit (it dumps every parameter into it,
+# ~400 lines).  Work on a copy in RUN_DIR so the shipped ini stays the short,
+# readable source of truth and a stale dump never pins defaults.
+RTABMAP_CFG="$RUN_DIR/rtabmap_laser_mapping.ini"
+cp -f "$RTABMAP_CFG_SRC" "$RTABMAP_CFG"
 
 if pgrep -f '[r]tabmap_slam/rtabmap|ros2 launch rtabmap_launch' >/dev/null 2>&1; then
   echo "ERROR: RTAB-Map is already running; stop it first." >&2

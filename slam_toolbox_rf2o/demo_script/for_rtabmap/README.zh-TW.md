@@ -179,7 +179,11 @@ SIGTERM、等待，再送 SIGKILL 並按名稱掃一遍；因為 `rplidar_node`�
   的存圖步驟：Nav2 從空圖開始，邊走邊長圖。
 - 資料庫會一直變大。要從乾淨的圖開始：
   DELETE_DB_ON_START=1 ./start_rtabmap.sh，或直接刪掉
-  $RTABMAP_DIR/rtabmap.db。
+  $RTABMAP_DIR/rtabmap.db。跑幾分鐘就會長到數十 MB，建議每次測試前清掉。
+- RTAB-Map 結束時會把設定檔重寫（把約 400 個參數全部 dump 進去）。所以
+  start_rtabmap.sh 會把套件內的 ini 複製到
+  $RUN_DIR/rtabmap_laser_mapping.ini，再把那份複本傳給節點；套件內的 ini
+  因此保持乾淨，也不會被舊的參數 dump 釘住預設值。
 - RTAB-Map 發佈 map -> odom，Nav2 要用 /rtabmap/map 與 /odometry/filtered，
   這也是 nav2_params_rtabmap.yaml 裡的設定。
 - 同時間只能有一個行程佔用 rplidar 的序列埠。
