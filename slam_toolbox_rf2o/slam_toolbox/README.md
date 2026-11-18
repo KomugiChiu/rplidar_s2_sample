@@ -43,10 +43,8 @@ colcon build --merge-install --packages-select slam_toolbox_bringup
 The install tree is flat:
 
 ```text
-install/start.sh
-install/start_mapping.sh
-install/start_localization.sh
-install/stop.sh
+install/start_slam.sh
+install/stop_slam.sh
 install/save_map.sh
 install/check_deps.sh
 install/slam_toolbox_rf2o.yaml
@@ -65,21 +63,17 @@ Do not copy an `install/` subdirectory to the board.
 
 | File | Purpose |
 |---|---|
-| `start.sh` | Unified start: `mapping` or `localization` |
-| `start_mapping.sh` | Compatibility wrapper for `start.sh mapping` |
-| `start_localization.sh` | Compatibility wrapper for `start.sh localization` |
-| `stop.sh` | Stop lidar / static TFs / slam_toolbox |
+| `start_slam.sh` | Unified start: `mapping` or `localization` |
+| `stop_slam.sh` | Stop lidar / static TFs / slam_toolbox |
 | `save_map.sh` | Save pgm/yaml + posegraph (mapping only) |
 | `check_deps.sh` | Check / install dependencies |
-| `_start_slam.sh` | Shared implementation |
+
 
 ## 2. Mapping
 
 ```bash
 cd /nvt_ros2_example/slam_toolbox
-./start.sh mapping
-# or the compatibility wrapper:
-./start_mapping.sh
+./start_slam.sh mapping
 ```
 
 Starts:
@@ -98,12 +92,12 @@ starts rf2o, EKF and Nav2.
 If you start components manually:
 
 ```text
-1. ./start_mapping.sh
+1. ./start_slam.sh mapping
 2. ../rf2o/start.sh
 3. ../ekf/start_ekf.sh
 4. drive with RViz goals
 5. ./save_map.sh demo_map
-6. ./stop.sh
+6. ./stop_slam.sh
    ../rf2o/stop.sh
 ```
 
@@ -111,9 +105,7 @@ If you start components manually:
 
 ```bash
 cd /nvt_ros2_example/slam_toolbox
-./start.sh localization
-# or the compatibility wrapper:
-./start_localization.sh
+./start_slam.sh localization
 ```
 
 `map_file_name` in `slam_toolbox_localization.yaml` must point to:
@@ -216,7 +208,7 @@ Check:
 | `LASER_YAW_DEG` | `180` | S2 mounting orientation |
 | `RUN_DIR` | temp directory | PID / logs |
 | `MAP_DIR` | `maps/` | `save_map.sh` output |
-| `DRY_RUN` | `0` | `stop.sh` dry run |
+| `DRY_RUN` | `0` | `stop_slam.sh` dry run |
 
 ## 8. Notes
 
@@ -224,6 +216,6 @@ Check:
 - rf2o is separate from slam_toolbox.
 - slam_toolbox owns map -> odom.
 - EKF owns odom -> base_footprint.
-- start_mapping.sh alone does not provide odometry; EKF must be running.
+- start_slam.sh mapping alone does not provide odometry; EKF must be running.
 - Use ../slam_toolbox_rf2o/demo_script/start_mapping.sh for the complete mapping stack.
 ```

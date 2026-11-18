@@ -1,14 +1,79 @@
 #!/usr/bin/env bash
-# Shared implementation for start_mapping.sh / start_localization.sh.
-# Starts RPLIDAR S2, the static laser TF chain, and slam_toolbox.
-# rf2o is started separately by ../rf2o/start.sh.
+# Unified slam_toolbox start script.
+#
+# Modes:
+#   mapping       build a new map (online_async_launch.py)
+#   localization  load an existing posegraph (localization_launch.py)
+#
+# Usage:
+#   ./start_slam.sh mapping
+#   ./start_slam.sh localization
+#   ./start_slam.sh                 # default: mapping
+#
+# Environment:
+#   SLAM_PARAMS=/path/to/params.yaml
+#   SKIP_LIDAR=1               # reuse an existing rplidar_node
+#
+# Stop with: ./stop_slam.sh
 set -eo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"
 
+usage() {
+  sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+MODE="${1:-${SLAM_MODE:-mapping}}"
+case "$MODE" in
+  mapping|map) MODE="mapping" ;;
+  localization|localization-only|static|static-map|static_map) MODE="localization" ;;
+  --help|-h) usage; exit 0 ;;
+  *)
+    echo "ERROR: unknown mode '$MODE' (use mapping or localization)" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+
+export SLAM_MODE="$MODE"
+
+if [ "$MODE" = "localization" ]; then
+  SLAM_PARAMS="${SLAM_PARAMS:-$SCRIPT_DIR/slam_toolbox_localization.yaml}"
+  export SLAM_PARAMS
+
+  [ -f "$SLAM_PARAMS" ] || {
+    echo "ERROR: localization params not found: $SLAM_PARAMS" >&2
+    exit 1
+  }
+
+  map_file="$(sed -n 's/^[[:space:]]*map_file_name:[[:space:]]*"\{0,1\}\([^"]*\)"\{0,1\}[[:space:]]*$/\1/p' \
+    "$SLAM_PARAMS" | head -n1)"
+  [ -n "$map_file" ] || {
+    echo "ERROR: no map_file_name in $SLAM_PARAMS" >&2
+    exit 1
+  }
+  if [ ! -f "${map_file}.posegraph" ] || [ ! -f "${map_file}.data" ]; then
+    echo "ERROR: posegraph not found: ${map_file}.posegraph / .data" >&2
+    exit 1
+  fi
+  if ! grep -qE '^[[:space:]]*(map_start_pose|map_start_at_dock):' "$SLAM_PARAMS"; then
+    echo "WARN: neither map_start_pose nor map_start_at_dock is set in $SLAM_PARAMS"
+  fi
+else
+  SLAM_PARAMS="${SLAM_PARAMS:-$SCRIPT_DIR/slam_toolbox_rf2o.yaml}"
+  export SLAM_PARAMS
+  [ -f "$SLAM_PARAMS" ] || {
+    echo "ERROR: mapping params not found: $SLAM_PARAMS" >&2
+    exit 1
+  }
+fi
+
+echo "== slam_toolbox =="
+echo "   mode   : $MODE"
+echo "   params : $SLAM_PARAMS"
+echo "   domain : ${ROS_DOMAIN_ID:-99}"
+
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-99}"
-SLAM_MODE="${SLAM_MODE:-mapping}"
-SLAM_PARAMS="${SLAM_PARAMS:-$SCRIPT_DIR/slam_toolbox_rf2o.yaml}"
 RPLIDAR_WS="${RPLIDAR_WS:-$SCRIPT_DIR/../rplidar_ros}"
 
 SCAN_TOPIC="${SCAN_TOPIC:-/scan}"
@@ -28,7 +93,6 @@ RUN_DIR="${RUN_DIR:-/tmp/slam_toolbox_only}"
 PID_FILE="${PID_FILE:-$RUN_DIR/pids}"
 LOG_DIR="${LOG_DIR:-$RUN_DIR/logs}"
 
-[ -f "$SLAM_PARAMS" ] || { echo "ERROR: SLAM params not found: $SLAM_PARAMS" >&2; exit 1; }
 
 # shellcheck disable=SC1090
 source /opt/ros/jazzy/setup.bash
@@ -62,7 +126,7 @@ if [ -s "$PID_FILE" ]; then
   while read -r pid name; do
     [ -n "${pid:-}" ] || continue
     if kill -0 "$pid" 2>/dev/null; then
-      echo "ERROR: $name is already running (pid $pid); run ./stop.sh first" >&2
+      echo "ERROR: $name is already running (pid $pid); run ./stop_slam.sh first" >&2
       exit 1
     fi
   done < "$PID_FILE"
@@ -81,7 +145,7 @@ start_bg() {
 cleanup() {
   [ "$KEEP_RUNNING" = "1" ] && return 0
   echo "startup failed; stopping partial stack" >&2
-  "$SCRIPT_DIR/stop.sh" >/dev/null 2>&1 || true
+  "$SCRIPT_DIR/stop_slam.sh" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT INT TERM
 
@@ -152,5 +216,5 @@ echo
 echo "slam_toolbox $SLAM_MODE started in the background"
 echo "  pids : $PID_FILE"
 echo "  logs : $LOG_DIR"
-echo "  stop : $SCRIPT_DIR/stop.sh"
+echo "  stop : $SCRIPT_DIR/stop_slam.sh"
 echo "  rf2o : start separately with ../rf2o/start.sh"

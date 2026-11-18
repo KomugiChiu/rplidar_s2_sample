@@ -39,13 +39,13 @@ echo "   domain : $ROS_DOMAIN_ID"
 if pgrep -f '[l]ocalization_slam_toolbox_node' >/dev/null 2>&1; then
   echo "ERROR: slam_toolbox is in LOCALIZATION mode." >&2
   echo "       serialize_map is not available in localization mode." >&2
-  echo "       Run ./start_mapping.sh first if you need a new posegraph." >&2
+  echo "       Run ./start_slam.sh mapping first if you need a new posegraph." >&2
   exit 1
 fi
 if ! pgrep -f '[a]sync_slam_toolbox_node' >/dev/null 2>&1 &&
    ! pgrep -f '[s]ync_slam_toolbox_node' >/dev/null 2>&1; then
   echo "ERROR: no slam_toolbox mapping node is running." >&2
-  echo "       Start it with ./start_mapping.sh." >&2
+  echo "       Start it with ./start_slam.sh mapping." >&2
   exit 1
 fi
 

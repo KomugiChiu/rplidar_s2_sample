@@ -3,9 +3,9 @@
 # rf2o is stopped separately with ../rf2o/stop.sh.
 #
 # Usage:
-#   ./stop.sh
-#   DRY_RUN=1 ./stop.sh
-#   KEEP_LIDAR=1 ./stop.sh    # keep rplidar_node if owned by someone else
+#   ./stop_slam.sh
+#   DRY_RUN=1 ./stop_slam.sh
+#   KEEP_LIDAR=1 ./stop_slam.sh    # keep rplidar_node if owned by someone else
 set -eo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"

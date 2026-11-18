@@ -59,45 +59,23 @@ else
   log "no AI PID file: $AI_PID_FILE"
 fi
 
-# --- 2. standalone slam_toolbox + rf2o --------------------------------------
-for d in "$RF2O_DIR" "$SLAM_DIR"; do
-  if [ -x "$d/stop.sh" ]; then
+# --- 2. rf2o / slam_toolbox / Nav2 / EKF ------------------------------------
+for spec in \
+  "rf2o:$RF2O_DIR/stop.sh" \
+  "slam_toolbox:$SLAM_DIR/stop_slam.sh" \
+  "nav2:$NAV2_DIR/stop_nav2.sh" \
+  "ekf:$EKF_DIR/stop_ekf.sh"; do
+  name="${spec%%:*}"
+  script="${spec#*:}"
+  if [ -x "$script" ]; then
     if [ "$DRY_RUN" = "1" ]; then
-      log "would run $d/stop.sh"
+      log "would run $script"
     else
-      log "running $d/stop.sh"
-      "$d/stop.sh" || true
+      log "running $script"
+      "$script" || true
     fi
   else
-    log "WARN: $d/stop.sh not found"
-  fi
-done
-
-# --- 3. Nav2 / EKF -----------------------------------------------------------
-for d in "$NAV2_DIR" "$EKF_DIR"; do
-  if [ -x "$d/stop.sh" ]; then
-    if [ "$DRY_RUN" = "1" ]; then
-      log "would run $d/stop.sh"
-    else
-      log "running $d/stop.sh"
-      "$d/stop.sh" || true
-    fi
-  elif [ -x "$d/stop_nav2.sh" ]; then
-    if [ "$DRY_RUN" = "1" ]; then
-      log "would run $d/stop_nav2.sh"
-    else
-      log "running $d/stop_nav2.sh"
-      "$d/stop_nav2.sh" || true
-    fi
-  elif [ -x "$d/stop_ekf.sh" ]; then
-    if [ "$DRY_RUN" = "1" ]; then
-      log "would run $d/stop_ekf.sh"
-    else
-      log "running $d/stop_ekf.sh"
-      "$d/stop_ekf.sh" || true
-    fi
-  else
-    log "WARN: no stop script in $d"
+    log "WARN: $name stop script not found: $script"
   fi
 done
 

@@ -6,7 +6,7 @@
 #   apt: slam_toolbox, nav2_map_server, tf2_ros
 #   workspaces: rplidar_ros, ../rf2o
 #   yaml: slam_toolbox_rf2o.yaml, slam_toolbox_localization.yaml, rf2o_params.yaml
-#   scripts: start_mapping.sh, start_localization.sh, stop.sh, save_map.sh,
+#   scripts: start_slam.sh, stop_slam.sh, save_map.sh,
 #            ../rf2o/start.sh, ../rf2o/stop.sh
 #   localization posegraph
 #   RPLIDAR S2 USB / dialout
@@ -79,7 +79,7 @@ echo "== files / scripts =="
 for f in "$MAPPING_YAML" "$LOCALIZATION_YAML" "$RF2O_YAML"; do
   [ -f "$f" ] && ok "${f#$SCRIPT_DIR/}" || bad "${f#$SCRIPT_DIR/}"
 done
-for f in start_mapping.sh start_localization.sh stop.sh save_map.sh ../rf2o/start.sh ../rf2o/stop.sh; do
+for f in start_slam.sh stop_slam.sh save_map.sh ../rf2o/start.sh ../rf2o/stop.sh; do
   [ -x "$SCRIPT_DIR/$f" ] && ok "$f" || bad "$f (missing/not executable)"
 done
 

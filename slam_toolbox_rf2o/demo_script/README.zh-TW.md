@@ -201,7 +201,7 @@ AI 使用 EKF 已經啟動的相機，不需要第二顆 RealSense。
 
 ```text
 start_demo.sh
-  ├─ $SLAM_DIR/start.sh mapping|localization
+  ├─ $SLAM_DIR/start_slam.sh mapping|localization
   ├─ $RF2O_DIR/start.sh
   ├─ $EKF_DIR/start_ekf.sh
   ├─ 等 /map + /odometry/filtered + TF map -> base_link

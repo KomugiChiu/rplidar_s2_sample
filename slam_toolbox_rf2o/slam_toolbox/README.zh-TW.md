@@ -43,10 +43,8 @@ colcon build --merge-install --packages-select slam_toolbox_bringup
 install 會是平坦結構：
 
 ```text
-install/start.sh
-install/start_mapping.sh
-install/start_localization.sh
-install/stop.sh
+install/start_slam.sh
+install/stop_slam.sh
 install/save_map.sh
 install/check_deps.sh
 install/slam_toolbox_rf2o.yaml
@@ -65,21 +63,17 @@ install/slam_toolbox_localization.yaml
 
 | 檔案 | 用途 |
 |---|---|
-| `start.sh` | 統一入口：`mapping` 或 `localization` |
-| `start_mapping.sh` | `start.sh mapping` 的相容 wrapper |
-| `start_localization.sh` | `start.sh localization` 的相容 wrapper |
-| `stop.sh` | 停止 lidar / static TF / slam_toolbox |
+| `start_slam.sh` | 統一入口：`mapping` 或 `localization` |
+| `stop_slam.sh` | 停止 lidar / static TF / slam_toolbox |
 | `save_map.sh` | 儲存 pgm/yaml + posegraph（只能 mapping） |
 | `check_deps.sh` | 檢查 / 安裝依賴 |
-| `_start_slam.sh` | 共用實作 |
+
 
 ## 2. Mapping
 
 ```bash
 cd /nvt_ros2_example/slam_toolbox
-./start.sh mapping
-# 或相容 wrapper：
-./start_mapping.sh
+./start_slam.sh mapping
 ```
 
 會啟動：
@@ -98,12 +92,12 @@ slam_toolbox online_async_launch.py
 如果要手動分段：
 
 ```text
-1. ./start_mapping.sh
+1. ./start_slam.sh mapping
 2. ../rf2o/start.sh
 3. ../ekf/start_ekf.sh
 4. 用 RViz goal 移動建圖
 5. ./save_map.sh demo_map
-6. ./stop.sh
+6. ./stop_slam.sh
    ../rf2o/stop.sh
 ```
 
@@ -111,9 +105,7 @@ slam_toolbox online_async_launch.py
 
 ```bash
 cd /nvt_ros2_example/slam_toolbox
-./start.sh localization
-# 或相容 wrapper：
-./start_localization.sh
+./start_slam.sh localization
 ```
 
 `slam_toolbox_localization.yaml` 的 `map_file_name` 必須對應：
@@ -214,7 +206,7 @@ workspace：
 | `LASER_YAW_DEG` | `180` | S2 安裝方向 |
 | `RUN_DIR` | 系統暫存目錄 | PID / logs |
 | `MAP_DIR` | `maps/` | `save_map.sh` 輸出 |
-| `DRY_RUN` | `0` | `stop.sh` dry run |
+| `DRY_RUN` | `0` | `stop_slam.sh` dry run |
 
 ## 8. 注意
 
@@ -222,6 +214,6 @@ workspace：
 - rf2o 與 slam_toolbox 是分開的。
 - slam_toolbox 負責 map -> odom。
 - EKF 負責 odom -> base_footprint。
-- 只跑 start_mapping.sh 不會有 odometry；必須有 EKF。
+- 只跑 start_slam.sh mapping 不會有 odometry；必須有 EKF。
 - 完整 mapping stack 請用 ../slam_toolbox_rf2o/demo_script/start_mapping.sh。
 ```
