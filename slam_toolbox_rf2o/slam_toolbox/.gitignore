@@ -1,0 +1,27 @@
+# colcon / build outputs
+build/
+install/
+log/
+logs/
+.colcon_install_layout
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# editor / temporary files
+*.swp
+*.swo
+*~
+.DS_Store
+*.tmp
+
+# backups
+*.bak
+*.bak.*
+*.orig
+*.rej
+*.log
