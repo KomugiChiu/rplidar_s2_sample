@@ -6,6 +6,8 @@
 > 實測環境：Ubuntu 24.04.5 + ROS 2 Jazzy；x86_64 主機；ARM64 板 `NT98635-Ubuntu`（`192.168.50.240`）
 > 實機：RPLIDAR S2（serial 版，`model=113` / `fw=1.2` / `hw=18`）+ CP2102N USB 轉接（`10c4:ea60` → `/dev/ttyUSB0`）
 > 本文所有數值分三類標示：**[實測]** = 實機跑出來的、**[推導]** = 由程式碼/實測值算出的、**[規格]** = 廠商 datasheet。
+>
+> **⚠️ 目錄異動（2026-11-18）**：本文提及的 `arm64_slam/`、`rf2o/`（頂層）、`map_to_nav2/`、`slam_toolbox_rf2o/nav2/` 已移除（對 demo flow 未使用）。以下路徑為歷史實驗記錄，現行流程見 `slam_toolbox_rf2o/README.md`（`nav2_1028/` + `slam_toolbox_rf2o/rf2o/`）。
 
 ---
 

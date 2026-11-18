@@ -5,6 +5,8 @@
 > 撰寫日期：2026-10-02
 > 實測環境：Ubuntu 24.04.5 + ROS 2 Jazzy；ARM 板 `NT98635-Ubuntu`（`192.168.50.240`）+ RPLIDAR S2（`model=113`，`DenseBoost` 10Hz）
 > 本文數值標示沿用 `report/rplidar_s2_lidar_report.md`：**[實測]** = 板上跑出來的、**[推導]** = 由程式碼算出的、**[規格]** = 官方定義。本節所有路徑已實讀驗證。
+>
+> **⚠️ 目錄異動（2026-11-18）**：本文提及的 `arm64_slam/`、`rf2o/`（頂層）、`map_to_nav2/`、`slam_toolbox_rf2o/nav2/` 已移除（對 demo flow 未使用）。以下路徑為歷史實驗記錄，現行流程見 `slam_toolbox_rf2o/README.md`（`nav2_1028/` + `slam_toolbox_rf2o/rf2o/`）。
 
 ---
 

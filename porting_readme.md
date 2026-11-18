@@ -25,7 +25,7 @@
 | `rtabmap/lidar/rtabmap_laser_mapping.ini` | `/nvt_ros2_example/rtabmap/` | rtabmap 參數（ICP 容差） |
 | `rtabmap/lidar/check_deps.sh` | `/nvt_ros2_example/rtabmap/` | 套件檢查 + 自動安裝 |
 | `rtabmap/lidar/nav2_slam_rviz.rviz` | 工作機 | RViz 設定（SLAM + Nav2 一起看） |
-| `map_to_nav2/nav2_params_min.yaml` | `/nvt_ros2_example/nav2/nav2_params.yaml` | Nav2 參數（frame / costmap / tolerance） |
+| `slam_toolbox_rf2o/nav2_1028/config/nav2_params_plugin.yaml` | `/nvt_ros2_example/nav2/nav2_params.yaml` | Nav2 參數（frame / costmap / tolerance，DeadbandController） |
 | — | `/nvt_ros2_example/nav2/start_nav2.sh` | 起 Nav2（`slam:=True` → 會帶 slam_toolbox） |
 | — | `/nvt_ros2_example/nav2/stop_nav2.sh` | 依 PID 檔收掉 Nav2 |
 
