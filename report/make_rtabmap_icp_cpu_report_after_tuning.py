@@ -406,8 +406,9 @@ scale = max(6.0, M["stats"][0]["avg"] * 1.15)
 for s in M["stats"]:
     if s["avg"] < 0.3:
         continue
-    if s["node"].startswith("process:") and s["node"] not in (
-            "process:python3", "process:ros2", "process:static_transfor"):
+    if (s["node"] in ("process:grep", "process:tail", "process:systemd-journal")
+            or "kworker" in s["node"]
+            or s["node"].startswith(("process:irq/", "process:rcu", "process:ksoftirqd"))):
         continue
     old = cby.get(s["node"], {}).get("avg")
     w(f'<tr><td><code>{esc(s["label"])}</code></td><td class="num"><strong>{s["avg"]:.1f}%</strong></td>'
