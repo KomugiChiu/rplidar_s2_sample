@@ -1,17 +1,12 @@
-# 底盤（Yahboomcar / Mcnamu driver）Patch 異動分析
+# 底盤（Yahboomcar / Mcnamu driver）Final Patch 分析
 
 > 分析日期：2026-11-18
-> 對象：`slam_toolbox_rf2o/nav2_1028/` 底盤 driver 與相關 patch
+> 對象：`slam_toolbox_rf2o/nav2_1028/scripts/tools/Mcnamu_driver_final.patch`
+> 現行 driver source：`slam_toolbox_rf2o/nav2_1028/driver/Mcnamu_driver.py`（192 行）
 
-## 1. 總覽
+## 1. 概述
 
-repo 中共有 3 個 patch，其中 2 個是底盤 driver（Mcnamu），1 個是 rf2o（與底盤無關）。板上實際執行的是 backup 的完整 source `Mcnamu_driver.py`（192 行），patch 是它的來源記錄。
-
-| 檔案 | 對象 | 行數 | 狀態 |
-|---|---|---|---|
-| `nav2_1028/scripts/tools/Mcnamu_driver_watchdog.patch` | 底盤 | 35 | 舊版，已被取代 |
-| `nav2_1028/scripts/tools/Mcnamu_driver_final.patch` | 底盤 | 141 | 現行完整版（2026-10-30） |
-| `patches/rf2o_laser_tf_retry.patch` | rf2o odometry | 22 | 非底盤（TF 初始化重試） |
+`Mcnamu_driver_final.patch`（141 行，2026-10-30）是目前板上使用的底盤 driver 完整修改版。它包含直線行駛校準、每馬達增益、PWM 常數化、PWM 輸出鉗制、watchdog 停車保護與 I2C 讀取容錯。
 
 板上使用路徑（`nav2_1028/driver/README.md`）：
 
@@ -22,7 +17,9 @@ repo 中共有 3 個 patch，其中 2 個是底盤 driver（Mcnamu），1 個是
 
 > 實際執行的是 `install/.../site-packages/...` 那份。修改時兩份都要同步，或重新 `colcon build --packages-select yahboomcar_bringup`。
 
-## 2. 底盤改了什麼（`Mcnamu_driver_final.patch`，現行版）
+Baseline 為原廠 backup：`Mcnamu_driver.py.bak.20261021-182215`。
+
+## 2. 改動內容
 
 ### 2.1 直線行駛校準（核心改動）— 修「叫它直走卻會偏」
 
@@ -41,7 +38,7 @@ STRAIGHT_TRIM_REVERSE = 0.30
 - 前進/後退分開補償（mecanum 底盤前後漂移不同）。
 - **原地旋轉（vx=0）不補償**，保留 Nav2 的旋轉校正（`wz_floor` / `rot_rate`）有效。
 - 調校方式：送 `vx=0.14` 0.7 s，讀 `/odom_rf2o` 的 yaw；yaw 為負（右轉）就提高 trim，為正就降低。
-- 本車2026-10-30實測：trim 0 → 前進 -0.20 rad / 後退 +0.08 rad（每 22 cm）。
+- 本車 2026-10-30 實測：trim 0 → 前進 -0.20 rad / 後退 +0.08 rad（每 22 cm）。
 
 新增函式：
 
@@ -108,17 +105,7 @@ if not track:
 # 超音波同理（0x1b / 0x1a）
 ```
 
-## 3. 兩個底盤 patch 的關係
-
-| | watchdog patch（舊） | final patch（現行） |
-|---|---|---|
-| 時間 | 2026-10-30 13:54 | 2026-10-30 17:18 |
-| 內容 | 只有 watchdog（2.5） | watchdog + 直線校準 + 增益 + PWM 常數 + I2C 容錯 |
-| 關係 | — | 完全取代 watchdog patch |
-
-`final` 是 `watchdog` 的超集。若先套 `watchdog` 再套 `final` 會衝突；依 `driver/README.md`，**直接用 `final` 即可**。
-
-套用方式：
+## 3. 套用方式
 
 ```bash
 cd /root/raspybot/yahboomcar_ws/src/yahboomcar_bringup/yahboomcar_bringup
@@ -126,9 +113,13 @@ patch -p1 < /path/to/Mcnamu_driver_final.patch
 cd /root/raspybot/yahboomcar_ws && colcon build --packages-select yahboomcar_bringup
 ```
 
-Baseline 為原廠 backup：`Mcnamu_driver.py.bak.20261021-182215`。
+完成後再用 `restart_driver.sh` 重啟 driver，讓頂部常數生效：
 
-## 4. 與底盤相關的「非 patch」調整（重要脈絡）
+```bash
+/nvt_ros2_example/slam_toolbox_rf2o/nav2_1028/tools/restart_driver.sh
+```
+
+## 4. 與底盤相關的「非 patch」調整（脈絡）
 
 由 `nav2_1028.md` 可見，底盤問題的解法不只 patch。因底盤為**純開環、無輪編碼器**，另搭配 Nav2 參數：
 
@@ -139,25 +130,17 @@ Baseline 為原廠 backup：`Mcnamu_driver.py.bak.20261021-182215`。
 - `yaw_goal_tolerance` 0.25 → 0.35（避免底盤最小起轉步進反覆抖動）。
 - 獨立 `start_chassis.sh` / `stop_chassis.sh`；`stop_nav2.sh` 支援 `KEEP_DRIVER=1` 保留底盤。
 
-## 5. 非底盤 patch：`rf2o_laser_tf_retry.patch`
-
-雖非底盤，但同屬車體相關，一併記錄。修改 `rf2o/src/CLaserOdometry2DNode.cpp`：
-
-- 雷達安裝 TF 只在第一幀讀取一次；開機 DDS discovery 慢時 TF 可能還沒進 buffer，原程式會 silently fallback 成「雷達 = base」，導致 odometry 被安裝角旋轉。
-- 改為 `setLaserPoseFromTf()` 失敗時以 `RCLCPP_WARN_THROTTLE` 警告並 `return`，下一幀重試。
-
-## 6. 注意事項
+## 5. 注意事項
 
 1. 板上執行的是 `install/.../site-packages/.../Mcnamu_driver.py`，不是 src 那份 — 修改要同步兩份或重新 build。
 2. 這台是 2026-10-30 調校版本；換電池、輪子或底盤後 trim 值需重新調整。
-3. `final` patch 已包含 watchdog，勿再套 `watchdog` patch。
+3. `final` patch 本身已包含 watchdog 功能，勿再套用其他 watchdog patch。
 
-## 7. 可引用路徑
+## 6. 可引用路徑
 
 | 用途 | 路徑 |
 |---|---|
 | 現行 driver source | `slam_toolbox_rf2o/nav2_1028/driver/Mcnamu_driver.py` |
 | 完整 patch | `slam_toolbox_rf2o/nav2_1028/scripts/tools/Mcnamu_driver_final.patch` |
-| 舊 watchdog patch | `slam_toolbox_rf2o/nav2_1028/scripts/tools/Mcnamu_driver_watchdog.patch` |
 | driver 說明 | `slam_toolbox_rf2o/nav2_1028/driver/README.md` |
 | Nav2 調校紀錄 | `nav2_1028.md` |
