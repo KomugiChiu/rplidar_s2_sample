@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
 # Start RPLIDAR S2 + static laser TFs + RTAB-Map (2D lidar mapping).
 #
-# Odometry is external: rf2o + EKF publish /odometry/filtered.
-# RTAB-Map only subscribes to /scan and /odometry/filtered, and publishes
-# /rtabmap/map + map -> odom.
+# Odometry comes from the rtabmap package itself:
+#   rtabmap_odom/icp_odometry  (scan matching on /scan)
+#     -> /odom_icp (topic)  +  TF odom -> base_footprint
+#   rtabmap_slam/rtabmap       (subscribe_scan, odom_topic=/odom_icp)
+#     -> /rtabmap/map       +  TF map -> odom
 #
-# No icp_odometry and no camera topics are used.
+# So this script is self-contained for mapping: no rf2o, no EKF, no camera.
+# (ODOM_SOURCE=external switches back to the rf2o + EKF stack, which publishes
+# /odometry/filtered and owns odom -> base_footprint.  Never run both: two
+# nodes publishing odom -> base_footprint makes the TF tree flip-flop.)
 #
 # Usage:
 #   ./start_rtabmap.sh
 #   SKIP_LIDAR=1 ./start_rtabmap.sh      # reuse an existing rplidar_node
 #   DELETE_DB_ON_START=1 ./start_rtabmap.sh
+#   ODOM_SOURCE=external ./start_rtabmap.sh   # rf2o + EKF instead of ICP
 #
 # Stop with: ./stop_rtabmap.sh
 set -eo pipefail
@@ -32,7 +38,12 @@ LASER_YAW_DEG="${LASER_YAW_DEG:-180}"
 SKIP_LIDAR="${SKIP_LIDAR:-0}"
 TF_WAIT="${TF_WAIT:-30}"
 
-ODOM_TOPIC="${ODOM_TOPIC:-/odometry/filtered}"
+ODOM_SOURCE="${ODOM_SOURCE:-icp}"          # icp | external
+if [ "$ODOM_SOURCE" = "icp" ]; then
+  ODOM_TOPIC="${ODOM_TOPIC:-/odom_icp}"
+else
+  ODOM_TOPIC="${ODOM_TOPIC:-/odometry/filtered}"
+fi
 VO_FRAME_ID="${VO_FRAME_ID:-odom}"
 MAP_TOPIC="${MAP_TOPIC:-/rtabmap/map}"
 RTABMAP_CFG="${RTABMAP_CFG:-$SCRIPT_DIR/rtabmap_laser_mapping.ini}"
@@ -103,10 +114,17 @@ trap cleanup EXIT INT TERM
 
 echo "== RTAB-Map lidar mapping =="
 echo "   scan   : $SCAN_TOPIC"
-echo "   odom   : $ODOM_TOPIC"
+echo "   odom   : $ODOM_TOPIC ($ODOM_SOURCE)"
 echo "   map    : $MAP_TOPIC"
 echo "   db     : $DATABASE_PATH"
 echo "   domain : $ROS_DOMAIN_ID"
+
+if [ "$ODOM_SOURCE" = "icp" ]; then
+  if pgrep -f '[r]f2o_laser_odometry_node|[e]kf_node' >/dev/null 2>&1; then
+    echo "WARN: rf2o/EKF is running; ICP odometry and EKF would both publish" >&2
+    echo "      TF odom -> $BASE_FRAME.  Stop them first: ../rf2o/stop.sh ../ekf/stop_ekf.sh" >&2
+  fi
+fi
 
 # --- lidar ---
 if [ "$SKIP_LIDAR" = "0" ]; then
@@ -143,11 +161,20 @@ if [ "$waited" -ge "$TF_WAIT" ]; then
   echo "WARN: TF $BASE_FRAME -> $LASER_FRAME not ready after ${TF_WAIT}s" >&2
 fi
 
-# --- RTAB-Map, external odometry ---
+# --- RTAB-Map (+ its own ICP odometry) ---
+if [ "$ODOM_SOURCE" = "icp" ]; then
+  ICP_ODOMETRY=true
+  PUBLISH_TF_ODOM=true
+else
+  ICP_ODOMETRY=false
+  PUBLISH_TF_ODOM=false
+fi
+
 RTABMAP_ARGS=(
   rtabmap_launch rtabmap.launch.py
   visual_odometry:=false
-  icp_odometry:=false
+  icp_odometry:="$ICP_ODOMETRY"
+  publish_tf_odom:="$PUBLISH_TF_ODOM"
   subscribe_rgbd:=false
   depth:=false
   subscribe_rgb:=false
@@ -191,4 +218,8 @@ echo "RTAB-Map started in the background"
 echo "  pids : $PID_FILE"
 echo "  logs : $LOG_DIR"
 echo "  stop : $SCRIPT_DIR/stop_rtabmap.sh"
-echo "  odom : start separately with ../rf2o/start.sh + ../ekf/start_ekf.sh"
+if [ "$ODOM_SOURCE" = "icp" ]; then
+  echo "  odom : icp_odometry -> $ODOM_TOPIC + TF odom -> $BASE_FRAME (self-contained)"
+else
+  echo "  odom : start separately with ../rf2o/start.sh + ../ekf/start_ekf.sh"
+fi

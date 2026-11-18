@@ -29,6 +29,7 @@ PID_FILE="${PID_FILE:-$RUN_DIR/pids}"
 
 PARAMS_FILE="${PARAMS_FILE:-$SCRIPT_DIR/nav2_params.yaml}"
 MAP_TOPIC="${MAP_TOPIC:-/map}"
+ODOM_TOPIC="${ODOM_TOPIC:-/odometry/filtered}"
 STOP_SCRIPT="${STOP_SCRIPT:-$SCRIPT_DIR/stop_nav2.sh}"
 USE_SIM_TIME="${USE_SIM_TIME:-false}"
 # 1 = static map + AMCL (map_server owns /map, AMCL owns map->odom)
@@ -88,7 +89,7 @@ unset ROS_LOCALHOST_ONLY
 # in AMCL mode wait for /scan + odom->base_link (AMCL itself creates map->odom).
 check_prerequisites() {
     local map_info odom_info scan_info tf_out
-    odom_info="$(timeout 10 ros2 topic info /odometry/filtered 2>/dev/null || true)"
+    odom_info="$(timeout 10 ros2 topic info "$ODOM_TOPIC" 2>/dev/null || true)"
     [[ "$odom_info" =~ Publisher\ count:\ [1-9] ]] || return 1
     if [ "$USE_LOCALIZATION" = "1" ]; then
         scan_info="$(timeout 10 ros2 topic info /scan 2>/dev/null || true)"
@@ -112,9 +113,9 @@ if [ "$SKIP_CHECK" != "1" ]; then
             break
         fi
         if [ "$USE_LOCALIZATION" = "1" ]; then
-            echo "preflight: waiting for /scan, /odometry/filtered, and TF odom -> base_link ($attempt/3)..."
+            echo "preflight: waiting for /scan, $ODOM_TOPIC, and TF odom -> base_link ($attempt/3)..."
         else
-            echo "preflight: waiting for $MAP_TOPIC, /odometry/filtered, and TF map -> base_link ($attempt/3)..."
+            echo "preflight: waiting for $MAP_TOPIC, $ODOM_TOPIC, and TF map -> base_link ($attempt/3)..."
         fi
         sleep 3
     done
@@ -241,7 +242,7 @@ start_process nav2 \
 echo
 echo "Nav2 stack started."
 echo "  params : $PARAMS_FILE"
-echo "  odom   : /odometry/filtered (ekf)"
+echo "  odom   : $ODOM_TOPIC"
 if [ "$KEEPOUT" = "1" ]; then
     echo "  keepout: $KEEPOUT_MASK -> /keepout_filter_mask (KeepoutFilter in both costmaps)"
 fi

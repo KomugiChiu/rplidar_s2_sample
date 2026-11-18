@@ -22,6 +22,7 @@ RPLIDAR_WS="${RPLIDAR_WS:-$SCRIPT_DIR/../rplidar_ros}"
 APT_PKGS=(
   "ros-${ROS_DISTRO}-rtabmap-launch"
   "ros-${ROS_DISTRO}-rtabmap-slam"
+  "ros-${ROS_DISTRO}-rtabmap-odom"      # rtabmap_odom/icp_odometry
   "ros-${ROS_DISTRO}-rtabmap-util"
   "ros-${ROS_DISTRO}-tf2-ros"
 )
@@ -64,7 +65,7 @@ fi
 source "$RPLIDAR_WS/local_setup.bash" 2>/dev/null || true
 
 echo "== ROS packages =="
-for p in rtabmap_slam rtabmap_launch rtabmap_util tf2_ros; do
+for p in rtabmap_slam rtabmap_launch rtabmap_odom rtabmap_util tf2_ros; do
   ros2 pkg prefix "$p" >/dev/null 2>&1 && ok "$p" || bad "$p"
 done
 

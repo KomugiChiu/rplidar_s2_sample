@@ -1,6 +1,10 @@
 #!/bin/bash
 # 啟動 D455 IMU + base->camera 靜態 TF + ekf（跟隨 start_*_rf2o.sh 風格）。
 # 前提：SLAM（rf2o publish_tf=false）已啟動。
+#
+# WITH_EKF=0 -> 只起 RealSense 與 base_footprint->camera_link 靜態 TF，不起
+# ekf_node。給「odom 由別的節點負責」的流程用（例如 RTAB-Map 內建
+# icp_odometry），因為兩個節點同時發佈 odom -> base_footprint 會互搶 TF。
 set -u
 # Every node of this stack must run in the same DDS domain.
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-99}"
@@ -13,6 +17,7 @@ CAM_X="${CAM_X:-0.08}"
 CAM_Y="${CAM_Y:-0.0}"
 CAM_Z="${CAM_Z:-0.10}"
 ROS_DISTRO="${ROS_DISTRO:-jazzy}"
+WITH_EKF="${WITH_EKF:-1}"
 
 mkdir -p "$RUN_DIR" "$LOG_DIR"
 [ -f "$PARAMS_FILE" ] || { echo "ERROR: params file not found: $PARAMS_FILE"; exit 1; }
@@ -55,10 +60,16 @@ start_process static_tf \
     --qx 0 --qy 0 --qz 0 --qw 1 \
     --frame-id base_footprint --child-frame-id camera_link
 
-start_process ekf \
-  ros2 run robot_localization ekf_node \
-    --ros-args --params-file "$PARAMS_FILE"
+if [ "$WITH_EKF" = "1" ]; then
+  start_process ekf \
+    ros2 run robot_localization ekf_node \
+      --ros-args --params-file "$PARAMS_FILE"
+fi
 
 echo
-echo "ekf fusion started (logs: $LOG_DIR)"
+if [ "$WITH_EKF" = "1" ]; then
+  echo "ekf fusion started (logs: $LOG_DIR)"
+else
+  echo "RealSense + camera TF started without ekf (WITH_EKF=0, logs: $LOG_DIR)"
+fi
 echo "stop it with: $SCRIPT_DIR/stop_ekf.sh"
