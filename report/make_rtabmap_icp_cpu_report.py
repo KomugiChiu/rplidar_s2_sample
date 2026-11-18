@@ -497,8 +497,9 @@ scale = max(6.0, M[0]["avg"] * 1.15)
 for s in M:
     if s["avg"] < 0.3:
         continue
-    if s["node"].startswith("process:") and s["node"] not in (
-            "process:python3", "process:ros2", "process:static_transfor"):
+    if (s["node"] in ("process:grep", "process:tail", "process:systemd-journal")
+            or "kworker" in s["node"]
+            or s["node"].startswith(("process:irq/", "process:rcu", "process:ksoftirqd"))):
         continue  # kernel threads / log watchers -> section 5
     w(row(s["node"], s["avg"], s["max"], scale))
 w(f"""  </tbody>
