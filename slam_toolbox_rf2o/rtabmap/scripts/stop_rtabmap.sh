@@ -51,6 +51,7 @@ fi
 if [ "$DRY_RUN" != "1" ]; then
   sweep() {
     pkill -TERM -f 'rtabmap_slam/rtabmap' 2>/dev/null || true
+    pkill -TERM -f 'rtabmap_odom/icp_odometry' 2>/dev/null || true
     pkill -TERM -f 'ros2 launch rtabmap_launch' 2>/dev/null || true
     pkill -TERM -f 'static_transform_publisher.*base_footprint.*base_link' 2>/dev/null || true
     pkill -TERM -f 'static_transform_publisher.*base_link.*laser' 2>/dev/null || true
@@ -62,6 +63,7 @@ if [ "$DRY_RUN" != "1" ]; then
   sweep
   sleep 2
   pkill -KILL -f 'rtabmap_slam/rtabmap' 2>/dev/null || true
+  pkill -KILL -f 'rtabmap_odom/icp_odometry' 2>/dev/null || true
   pkill -KILL -f 'ros2 launch rtabmap_launch' 2>/dev/null || true
   pkill -KILL -f 'static_transform_publisher.*base_footprint.*base_link' 2>/dev/null || true
   pkill -KILL -f 'static_transform_publisher.*base_link.*laser' 2>/dev/null || true

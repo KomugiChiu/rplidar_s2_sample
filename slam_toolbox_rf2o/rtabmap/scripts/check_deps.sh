@@ -50,6 +50,10 @@ echo "== files / scripts =="
 for f in rtabmap_laser_mapping.ini nav2_params_rtabmap.yaml; do
   [ -f "$SCRIPT_DIR/$f" ] && ok "$f" || bad "$f"
 done
+# EKF parameters used by this flow (odom0=/odom_icp).  The slam_toolbox flow
+# keeps using ekf_params.yaml; do not overwrite it.
+[ -f "$SCRIPT_DIR/../ekf/ekf_params_icp.yaml" ] \
+  && ok "../ekf/ekf_params_icp.yaml" || bad "../ekf/ekf_params_icp.yaml"
 for f in start_rtabmap.sh stop_rtabmap.sh check_deps.sh; do
   [ -x "$SCRIPT_DIR/$f" ] && ok "$f" || bad "$f (missing/not executable)"
 done

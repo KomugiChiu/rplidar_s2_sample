@@ -3,14 +3,19 @@
 #
 # Starts:
 #   RTAB-Map + icp_odometry -> /rtabmap/map + map -> odom
-#                              icp_odometry -> /odom_icp + odom -> base_footprint
-#   Nav2 + chassis          -> nav2_params_rtabmap.yaml (odom_topic=/odom_icp)
+#                              icp_odometry -> /odom_icp (no TF)
+#   EKF (ekf_params_icp)    -> /odometry/filtered + odom -> base_footprint
+#   Nav2 + chassis          -> nav2_params_rtabmap.yaml (odom=/odometry/filtered)
 #   AI + recovery + demo manager
 #
-# Odometry for this flow comes from rtabmap_odom/icp_odometry (scan matching),
-# so rf2o and EKF are NOT started: EKF would publish a second
-# odom -> base_footprint and fight the ICP one.
-# ODOM_SOURCE=external ./start_demo.sh restores the old rf2o + EKF stack.
+# Odometry chain: /scan -> icp_odometry -> /odom_icp -> EKF (+ D455 gyro)
+#                -> /odometry/filtered -> rtabmap / Nav2.
+# Only EKF publishes odom -> base_footprint; ICP runs with publish_tf=false.
+#
+# EKF uses ekf_params_icp.yaml (odom0=/odom_icp), so the slam_toolbox + rf2o
+# flow keeps its own ekf_params.yaml untouched.
+# ODOM_SOURCE=external brings back rf2o instead of ICP (same EKF tail: use
+# ekf_params.yaml in that case).
 #
 # Usage:
 #   ./start_demo.sh
@@ -30,12 +35,13 @@ RTABMAP_DIR="${RTABMAP_DIR:-/nvt_ros2_example/rtabmap}"
 NAV2_PARAMS_FILE="${RTABMAP_NAV2_PARAMS_FILE:-$RTABMAP_DIR/nav2_params_rtabmap.yaml}"
 MAP_TOPIC="${MAP_TOPIC:-/rtabmap/map}"
 ODOM_SOURCE="${ODOM_SOURCE:-icp}"                  # icp | external
+ODOM_TOPIC="${ODOM_TOPIC:-/odometry/filtered}"     # EKF output
 if [ "$ODOM_SOURCE" = "icp" ]; then
-  ODOM_TOPIC="${ODOM_TOPIC:-/odom_icp}"
+  EKF_PARAMS_FILE="${EKF_PARAMS_FILE:-$EKF_DIR/ekf_params_icp.yaml}"
 else
-  ODOM_TOPIC="${ODOM_TOPIC:-/odometry/filtered}"
+  EKF_PARAMS_FILE="${EKF_PARAMS_FILE:-$EKF_DIR/ekf_params.yaml}"
 fi
-export RTABMAP_DIR NAV2_PARAMS_FILE MAP_TOPIC ODOM_SOURCE ODOM_TOPIC
+export RTABMAP_DIR NAV2_PARAMS_FILE MAP_TOPIC ODOM_SOURCE ODOM_TOPIC EKF_PARAMS_FILE
 
 rtabmap_preflight() {
   mkdir -p "$LOG_DIR" "$RUN_DIR"
@@ -48,6 +54,7 @@ rtabmap_preflight() {
   fi
   [ -x "$EKF_DIR/start_ekf.sh" ] || demo_die "missing $EKF_DIR/start_ekf.sh"
   [ -x "$EKF_DIR/stop_ekf.sh" ] || demo_die "missing $EKF_DIR/stop_ekf.sh"
+  [ -f "$EKF_PARAMS_FILE" ] || demo_die "EKF params not found: $EKF_PARAMS_FILE"
   [ -x "$NAV2_DIR/start_nav2.sh" ] || demo_die "missing $NAV2_DIR/start_nav2.sh"
   [ -x "$NAV2_DIR/stop_nav2.sh" ] || demo_die "missing $NAV2_DIR/stop_nav2.sh"
 
@@ -84,8 +91,8 @@ rtabmap_wait() {
     fi
     sleep 2
   done
-  [ "$ready" = "1" ] || demo_die "RTAB-Map odom not ready after 60 s"
-  demo_log "      RTAB-Map odom ready"
+  [ "$ready" = "1" ] || demo_die "RTAB-Map/EKF not ready after 60 s"
+  demo_log "      RTAB-Map/EKF ready"
 }
 
 rtabmap_preflight
@@ -95,7 +102,8 @@ echo "== start_demo (RTAB-Map mapping) =="
 echo "   domain : $ROS_DOMAIN_ID"
 echo "   rtabmap: $RTABMAP_DIR"
 echo "   nav2   : $NAV2_PARAMS_FILE"
-echo "   odom   : $ODOM_TOPIC ($ODOM_SOURCE)"
+echo "   odom   : $ODOM_TOPIC ($ODOM_SOURCE -> EKF)"
+echo "   ekf    : $EKF_PARAMS_FILE"
 
 demo_log "[1/4] RTAB-Map + lidar/TF + icp_odometry"
 "$RTABMAP_DIR/start_rtabmap.sh"
@@ -103,16 +111,12 @@ demo_log "[1/4] RTAB-Map + lidar/TF + icp_odometry"
 if [ "$ODOM_SOURCE" = "external" ]; then
   demo_log "[1/4] rf2o"
   "$RF2O_DIR/start.sh"
-  demo_log "[2/4] RealSense + EKF"
-  "$EKF_DIR/start_ekf.sh"
-elif [ "$START_AI" = "1" ]; then
-  # Camera (and its base_footprint -> camera_link TF) is only needed by the AI
-  # stack here; odometry is the ICP one.  WITH_EKF=0 so no second odom TF.
-  demo_log "[2/4] RealSense + camera TF (no EKF: odom comes from icp_odometry)"
-  WITH_EKF=0 "$EKF_DIR/start_ekf.sh"
-else
-  demo_log "[2/4] RealSense + EKF skipped (odom = icp_odometry, START_AI=0)"
 fi
+
+# EKF always runs here: it is the only publisher of odom -> base_footprint and
+# the only source of $ODOM_TOPIC (icp_odometry / rf2o feed it).
+demo_log "[2/4] RealSense + EKF ($(basename "$EKF_PARAMS_FILE"))"
+"$EKF_DIR/start_ekf.sh"
 
 rtabmap_wait
 

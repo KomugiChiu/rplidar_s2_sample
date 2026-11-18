@@ -12,6 +12,7 @@ install(PROGRAMS
 
 install(FILES
   config/ekf_params.yaml
+  config/ekf_params_icp.yaml
   DESTINATION .
 )
 
