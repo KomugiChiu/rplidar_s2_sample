@@ -3,8 +3,8 @@
 #
 # Order:
 #   1. AI processes recorded in the demo PID file
-#   2. RTAB-Map + lidar/TF
-#   3. rf2o
+#   2. RTAB-Map + lidar/TF + icp_odometry
+#   3. rf2o            (no-op when ODOM_SOURCE=icp)
 #   4. Nav2 + driver
 #   5. EKF + RealSense
 #
