@@ -42,7 +42,14 @@ if [ -s "$PID_FILE" ]; then
   fi
 else
   log "no PID file: $PID_FILE"
-  if [ "$DRY_RUN" != "1" ]; then
+fi
+
+# --- sweep ---
+# ros2 launch children can survive the process-group TERM (they get
+# reparented to init), and a leftover rplidar_node keeps /dev/ttyUSB0 busy so
+# the next start fails with "process died: rplidar".  Always sweep by name.
+if [ "$DRY_RUN" != "1" ]; then
+  sweep() {
     pkill -TERM -f 'rtabmap_slam/rtabmap' 2>/dev/null || true
     pkill -TERM -f 'ros2 launch rtabmap_launch' 2>/dev/null || true
     pkill -TERM -f 'static_transform_publisher.*base_footprint.*base_link' 2>/dev/null || true
@@ -51,6 +58,16 @@ else
       pkill -TERM -f 'ros2 launch rplidar_ros rplidar_s2_launch.py' 2>/dev/null || true
       pkill -TERM -f 'rplidar_ros/rplidar_node' 2>/dev/null || true
     fi
+  }
+  sweep
+  sleep 2
+  pkill -KILL -f 'rtabmap_slam/rtabmap' 2>/dev/null || true
+  pkill -KILL -f 'ros2 launch rtabmap_launch' 2>/dev/null || true
+  pkill -KILL -f 'static_transform_publisher.*base_footprint.*base_link' 2>/dev/null || true
+  pkill -KILL -f 'static_transform_publisher.*base_link.*laser' 2>/dev/null || true
+  if [ "$KEEP_LIDAR" != "1" ]; then
+    pkill -KILL -f 'ros2 launch rplidar_ros rplidar_s2_launch.py' 2>/dev/null || true
+    pkill -KILL -f 'rplidar_ros/rplidar_node' 2>/dev/null || true
   fi
 fi
 
