@@ -52,6 +52,6 @@ slam_toolbox:
     set_initial_pose: false
     # localization mode: load the posegraph saved by serialize_map
     # (path WITHOUT .posegraph/.data extension)
-    map_file_name: "/nvt_ros2_example/slam_toolbox_rf2o/maps/slam_map_latest"
+    map_file_name: "/nvt_ros2_example/maps/slam_map_latest"
     map_start_pose: [0.0, 0.0, 0.0]
     map_start_at_dock: false

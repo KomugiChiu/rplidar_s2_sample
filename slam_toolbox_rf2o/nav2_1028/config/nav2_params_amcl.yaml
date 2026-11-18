@@ -414,7 +414,7 @@ map_server:
   ros__parameters:
     # static map saved from slam_toolbox on 2026-11-02
     # override at launch with: map:=/path/other_map.yaml
-    yaml_filename: "/nvt_ros2_example/slam_toolbox_rf2o/maps/slam_map_latest.yaml"
+    yaml_filename: "/nvt_ros2_example/maps/slam_map_latest.yaml"
     topic_name: "map"
     frame_id: "map"
 
