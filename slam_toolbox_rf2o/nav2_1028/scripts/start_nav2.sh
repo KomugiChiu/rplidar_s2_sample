@@ -28,6 +28,7 @@ LOG_DIR="${LOG_DIR:-$RUN_DIR/logs}"
 PID_FILE="${PID_FILE:-$RUN_DIR/pids}"
 
 PARAMS_FILE="${PARAMS_FILE:-$SCRIPT_DIR/nav2_params.yaml}"
+MAP_TOPIC="${MAP_TOPIC:-/map}"
 STOP_SCRIPT="${STOP_SCRIPT:-$SCRIPT_DIR/stop_nav2.sh}"
 USE_SIM_TIME="${USE_SIM_TIME:-false}"
 # 1 = static map + AMCL (map_server owns /map, AMCL owns map->odom)
@@ -95,7 +96,7 @@ check_prerequisites() {
         tf_out="$(timeout 6 ros2 run tf2_ros tf2_echo odom base_link 2>&1 || true)"
         [[ "$tf_out" == *Translation* ]] || return 1
     else
-        map_info="$(timeout 10 ros2 topic info /map 2>/dev/null || true)"
+        map_info="$(timeout 10 ros2 topic info "$MAP_TOPIC" 2>/dev/null || true)"
         [[ "$map_info" =~ Publisher\ count:\ [1-9] ]] || return 1
         tf_out="$(timeout 6 ros2 run tf2_ros tf2_echo map base_link 2>&1 || true)"
         [[ "$tf_out" == *Translation* ]] || return 1
@@ -113,15 +114,15 @@ if [ "$SKIP_CHECK" != "1" ]; then
         if [ "$USE_LOCALIZATION" = "1" ]; then
             echo "preflight: waiting for /scan, /odometry/filtered, and TF odom -> base_link ($attempt/3)..."
         else
-            echo "preflight: waiting for /map, /odometry/filtered, and TF map -> base_link ($attempt/3)..."
+            echo "preflight: waiting for $MAP_TOPIC, /odometry/filtered, and TF map -> base_link ($attempt/3)..."
         fi
         sleep 3
     done
     if [ "$CHECK_OK" != "1" ]; then
         echo "ERROR: prerequisites not ready."
         echo "       Please start:"
-        echo "         1) /nvt_ros2_example/slam_toolbox_rf2o/start_slam_toolbox_rf2o.sh"
-        echo "         2) /nvt_ros2_example/slam_toolbox_rf2o/ekf/start_ekf.sh"
+        echo "         1) /nvt_ros2_example/slam_toolbox/start_slam.sh mapping"
+        echo "         2) /nvt_ros2_example/ekf/start_ekf.sh"
         echo "       (or re-run with SKIP_CHECK=1)"
         exit 1
     fi
