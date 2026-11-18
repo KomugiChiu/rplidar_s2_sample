@@ -16,7 +16,7 @@
 #   RECORD=1 ./start_demo.sh
 #   NAV2_PARAMS_FILE=$NAV2_DIR/nav2_params_plugin.yaml ./start_demo.sh
 #
-# Stop with: ../stop_demo.sh
+# Stop with: ./stop_demo.sh
 set -eo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"

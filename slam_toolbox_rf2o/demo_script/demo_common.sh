@@ -254,5 +254,5 @@ demo_print_done() {
   echo "   domain : $ROS_DOMAIN_ID"
   echo "   nav2   : $NAV2_PARAMS_FILE"
   echo "   logs   : $LOG_DIR"
-  echo "   stop   : $ROOT_DIR/stop_demo.sh"
+  echo "   stop   : $SCRIPT_DIR/stop_demo.sh"
 }

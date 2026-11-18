@@ -20,7 +20,7 @@
 #   SLAM_PARAMS=../slam_toolbox_localization.yaml ./start_demo_static.sh
 #   START_AI=0 ./start_demo_static.sh
 #
-# Stop with: ../stop_demo.sh
+# Stop with: ./stop_demo.sh
 set -eo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"

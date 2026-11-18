@@ -45,8 +45,17 @@ if [ -s "$PID_FILE" ]; then
   done < "$PID_FILE"
 fi
 
-if ! ros2 topic info /scan 2>/dev/null | grep -qE 'Publisher count: [1-9]'; then
-  echo "ERROR: /scan has no publisher. Start the slam_toolbox/lidar script first." >&2
+SCAN_WAIT="${SCAN_WAIT:-20}"
+scan_ready=0
+for _ in $(seq 1 "$SCAN_WAIT"); do
+  if ros2 topic info /scan 2>/dev/null | grep -E 'Publisher count: [1-9]' >/dev/null; then
+    scan_ready=1
+    break
+  fi
+  sleep 1
+done
+if [ "$scan_ready" != "1" ]; then
+  echo "ERROR: /scan has no publisher after ${SCAN_WAIT}s. Start the slam_toolbox/lidar script first." >&2
   exit 1
 fi
 
