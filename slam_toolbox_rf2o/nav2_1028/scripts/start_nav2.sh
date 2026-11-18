@@ -71,7 +71,7 @@ if [ "$USE_LOCALIZATION" = "1" ]; then
     echo "localization: static map + AMCL"
     echo "  map file: $MAP_FILE"
 else
-    echo "localization: slam_toolbox (/map + map->odom)"
+    echo "localization: $MAP_TOPIC + map->odom from the mapping node"
 fi
 
 source "/opt/ros/$ROS_DISTRO/setup.bash"
@@ -250,7 +250,7 @@ if [ "$USE_LOCALIZATION" = "1" ]; then
     echo "  map    : /map (map_server: $MAP_FILE)"
     echo "  tf     : map->odom (AMCL), odom->base_footprint (ekf)"
 else
-    echo "  map    : /map (slam_toolbox)"
+    echo "  map    : $MAP_TOPIC (mapping node)"
 fi
 if [ "$USE_EXTERNAL_SAFETY" = "1" ]; then
     echo "  cmd_vel: $FLOOR_INPUT -> speed_floor (vx>=$VX_FLOOR, wz>=$WZ_FLOOR) -> $FLOOR_OUTPUT -> collision_monitor -> /cmd_vel -> directional_stop -> $SAFE_TOPIC -> driver"
