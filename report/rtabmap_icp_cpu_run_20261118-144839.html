@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RTAB-Map + ICP CPU 分析 — run_20261118-144839_follow</title>
+<style>
+  :root {
+    --bg:#f6f7fb; --card:#fff; --ink:#1f2430; --muted:#5b6472; --line:#e3e6ee;
+    --accent:#3a6df0; --ai:#2a9d8f; --cam:#6a5acd; --warn:#b26a00; --warn-bg:#fff4e0;
+    --bad:#c0392b; --good:#2a9d8f; --code:#f1f3f8;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 "Inter","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif; }
+  .wrap { max-width:1120px; margin:0 auto; padding:36px 22px 72px; }
+  header.hero { background:linear-gradient(135deg,#1f2430 0%,#2b3a55 58%,#35507a 100%);
+    color:#fff; border-radius:18px; padding:34px 36px 30px; box-shadow:0 12px 32px rgba(31,36,48,.18); }
+  header.hero h1 { margin:0 0 8px; font-size:30px; letter-spacing:.4px; }
+  header.hero p { margin:0; color:#c9d3e6; font-size:15px; }
+  .pills { margin-top:16px; display:flex; flex-wrap:wrap; gap:8px; }
+  .pill { display:inline-block; padding:5px 12px; border-radius:999px; font-size:12.5px;
+    letter-spacing:.3px; background:rgba(255,255,255,.14); color:#e8eefb; }
+  .pill.good { background:rgba(42,157,143,.28); color:#c8f2ea; }
+  .pill.warn { background:rgba(217,164,65,.28); color:#ffe6b8; }
+  h2 { font-size:21px; margin:44px 0 12px; padding-bottom:8px; border-bottom:2px solid var(--line); }
+  h3 { font-size:16.5px; margin:24px 0 8px; }
+  p.lead { color:var(--muted); margin-top:0; }
+  .kpis { display:grid; gap:14px; margin-top:22px;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:16px 18px; box-shadow:0 2px 8px rgba(31,36,48,.04); border-top:4px solid var(--accent); }
+  .kpi.warn { border-top-color:var(--warn); }
+  .kpi.good { border-top-color:var(--good); }
+  .kpi .label { font-size:12.5px; letter-spacing:.4px; color:var(--muted); text-transform:uppercase; }
+  .kpi .value { font-size:30px; font-weight:700; line-height:1.15; margin:4px 0 2px; font-variant-numeric:tabular-nums; }
+  .kpi .sub { font-size:12.5px; color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:20px 22px; box-shadow:0 2px 8px rgba(31,36,48,.04); }
+  .callout { border-left:4px solid var(--warn); background:var(--warn-bg);
+    border-radius:0 10px 10px 0; padding:14px 18px; margin:18px 0; color:#5a4300; font-size:15px; }
+  .callout.good { border-left-color:var(--good); background:#eaf7f4; color:#14544b; }
+  .flow { background:var(--code); border-radius:10px; padding:14px 16px;
+    font:13.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    white-space:pre; overflow-x:auto; color:#2b3445; }
+  table { width:100%; border-collapse:collapse; margin:14px 0 6px; background:var(--card);
+    border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(31,36,48,.04); font-size:14.5px; }
+  th,td { padding:10px 14px; text-align:left; border-bottom:1px solid var(--line); vertical-align:middle; }
+  thead th { background:#eef1f8; font-size:13px; letter-spacing:.3px; }
+  tbody tr:nth-child(even) { background:#fafbfe; }
+  tbody tr:last-child td { border-bottom:none; }
+  td.num { font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; }
+  .bars { min-width:170px; }
+  .bar-track { position:relative; height:12px; background:#eef1f8; border-radius:6px; overflow:hidden; }
+  .bar-fill { position:absolute; left:0; top:0; bottom:0; background:var(--accent); border-radius:6px; }
+  .bar-fill.ai { background:var(--ai); }
+  .bar-fill.cam { background:var(--cam); }
+  .bar-max { position:absolute; top:-2px; bottom:-2px; width:2px; background:rgba(192,57,43,.75); }
+  .legend { display:flex; flex-wrap:wrap; gap:16px; font-size:13px; color:var(--muted); margin-top:10px; }
+  .legend i { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  .timeline { margin:16px 0 6px; }
+  .tl-track { display:flex; height:42px; border-radius:10px; overflow:hidden; border:1px solid var(--line); }
+  .tl-seg { display:flex; align-items:center; justify-content:center; font-size:11.5px; color:#fff;
+    white-space:nowrap; overflow:hidden; }
+  .tl-idle { background:#9aa4b6; }
+  .tl-sel { background:#d9a441; }
+  .tl-follow { background:var(--accent); }
+  .tl-home { background:#2a9d8f; }
+  .tl-stop { background:#6b7484; }
+  .tl-labels { display:flex; font-size:12px; color:var(--muted); margin-top:6px; font-variant-numeric:tabular-nums; }
+  .grid2 { display:grid; gap:18px; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); }
+  .chart-box { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:16px 16px 8px; box-shadow:0 2px 8px rgba(31,36,48,.04); overflow-x:auto; }
+  .chart-box svg { display:block; width:100%; height:auto; min-width:640px; }
+  .small { font-size:13px; color:var(--muted); }
+  ul.tight { margin:8px 0 0; padding-left:22px; }
+  ul.tight li { margin:5px 0; }
+  code { background:var(--code); border-radius:5px; padding:1px 6px; font-size:13.5px; }
+  .good { color:var(--good); font-weight:600; }
+  footer { margin-top:52px; color:var(--muted); font-size:13px; border-top:1px solid var(--line); padding-top:18px; }
+  @media print { body { background:#fff; } .wrap { max-width:none; padding:0; }
+    header.hero,.card,table,.chart-box { box-shadow:none; }
+    h2 { page-break-after:avoid; } table,.chart-box { page-break-inside:avoid; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>RTAB-Map + ICP CPU 分析</h1>
+  <p>run_20261118-144839_follow（主）· run_20261118-144216_follow（對照）· 2026-11-18 · 117.8 s + 36.7 s · lite bag · 未收集 stack</p>
+  <div class="pills">
+    <span class="pill">for_rtabmap：rtabmap + icp_odometry</span>
+    <span class="pill">D455 640×480 @ 15</span>
+    <span class="pill">4 核 · node CPU 已換算四核佔比</span>
+    <span class="pill good">跟隨 mean 72.9%</span>
+    <span class="pill warn">待機基準 63.5%</span>
+  </div>
+</header>
+
+<div class="kpis">
+  <div class="kpi">
+    <div class="label">跟隨期間 mean</div>
+    <div class="value">72.9%</div>
+    <div class="sub">16.7 ~ 58.0 s（20 筆取樣）</div>
+  </div>
+  <div class="kpi">
+    <div class="label">跟隨期間 p95</div>
+    <div class="value">84.6%</div>
+    <div class="sub">max 85.7%</div>
+  </div>
+  <div class="kpi warn">
+    <div class="label">待機基準（未移動）</div>
+    <div class="value">63.5%</div>
+    <div class="sub">8.5 ~ 16.7 s，3 筆</div>
+  </div>
+  <div class="kpi warn">
+    <div class="label">整段 max</div>
+    <div class="value">94.7%</div>
+    <div class="sub">8 / 75 筆 ≥ 90%</div>
+  </div>
+</div>
+<p class="small" style="margin-top:12px">total_busy 是四核整體使用率（0~100%）；node / process 數值已由單核換算為四核佔比（單核 ÷ 4，1 核滿載 = 25%）。process 數值另以 <code>名目 2.0 s ÷ 實際取樣間隔</code> 修正，否則加總會比 <code>/proc/stat</code> 高約 6 個百分點。</p>
+
+<h2>1. Run 概況</h2>
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:0">狀態時間線（run_20261118-144839）</h3>
+    <div class="timeline">
+      <div class="tl-track">
+        <div class="tl-seg tl-idle" style="width:14.2%">IDLE / SELECT</div>
+        <div class="tl-seg tl-follow" style="width:35.1%">FOLLOWING</div>
+        <div class="tl-seg tl-home" style="width:38.2%">RETURN_HOME</div>
+        <div class="tl-seg tl-stop" style="width:12.5%">HOME</div>
+      </div>
+      <div class="tl-labels">
+        <span style="width:14.2%;text-align:left">0 s</span>
+        <span style="width:35.1%;text-align:center">16.7 → 58.0 s</span>
+        <span style="width:50.7%;text-align:right">117.8 s</span>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:14px">+10.9  TARGET_SELECTED
++16.7  FOLLOWING（51 個 goal）
++58.0  RETURN_HOME
++103.1 HOME（錄製仍在進行）
++117.8 錄製結束</div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">跟隨統計</h3>
+    <table style="margin-top:4px;box-shadow:none">
+      <tbody>
+        <tr><td>跟隨時間</td><td class="num">41.3 s</td></tr>
+        <tr><td>goals</td><td class="num">51</td></tr>
+        <tr><td>person（跟隨期間）</td><td class="num">695 筆 · 16.8 Hz</td></tr>
+        <tr><td>person ID</td><td class="num">ID 2（83%），共 121 個</td></tr>
+        <tr><td>confidence / z（p5~p95）</td><td class="num">0.86~0.90 / 1.14~2.26 m</td></tr>
+        <tr><td>robot（整段）</td><td class="num">net 2.53 m / path 20.81 m</td></tr>
+        <tr><td>max |vx| / |wz|（cmd）</td><td class="num">0.14 m/s / 0.90 rad/s</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="callout">
+  <strong>待機就要 63.5%，跟隨期間 72.9%。</strong>
+  這條流程的固定成本很高：機器人還沒開始跟隨（0 ~ 16.7 s）就已經用掉四核約 64%，
+  跟隨只再增加約 9.3 個百分點。降 CPU 要從「常駐節點」下手，而不是跟隨邏輯。
+</div>
+
+<h2>2. 整體 CPU</h2>
+<div class="chart-box">
+  <svg id="cpuChart" viewBox="0 0 900 350" role="img" aria-label="run_20261118-144839 CPU 使用率時間序列"></svg>
+  <div class="legend">
+    <span><i style="background:#3a6df0"></i>total_busy（2 s 取樣）</span>
+    <span><i style="background:rgba(58,109,240,.10)"></i>FOLLOWING 16.7 ~ 58.0 s</span>
+    <span><i style="background:rgba(42,157,143,.10)"></i>RETURN_HOME 58.0 ~ 103.1 s</span>
+    <span><i style="background:#d9a441"></i>啟動 0 ~ 8.5 s</span>
+    <span><i style="background:#c0392b"></i>follow p95 84.6%</span>
+  </div>
+</div>
+
+<table>
+  <thead><tr><th>區間</th><th class="num">筆數</th><th class="num">mean</th><th class="num">p95</th><th class="num">max</th></tr></thead>
+  <tbody>
+    <tr><td>整段 0 ~ 117.8 s</td><td class="num">57</td><td class="num">72.6%</td><td class="num">92.7%</td><td class="num">94.0%</td></tr>
+    <tr><td>啟動 0 ~ 8.5 s（bag discovery）</td><td class="num">5</td><td class="num">87.2%</td><td class="num">—</td><td class="num">94.0%</td></tr>
+    <tr><td>待機 / 選人 8.5 ~ 16.7 s</td><td class="num">3</td><td class="num">63.5%</td><td class="num">—</td><td class="num">64.4%</td></tr>
+    <tr><td>跟隨 16.7 ~ 58.0 s</td><td class="num">20</td><td class="num">72.9%</td><td class="num"><strong>84.6%</strong></td><td class="num">85.7%</td></tr>
+    <tr><td>返回 58.0 ~ 103.1 s</td><td class="num">21</td><td class="num">72.3%</td><td class="num">75.1%</td><td class="num">77.6%</td></tr>
+    <tr><td>回到原點後 103.1 ~ 117.8 s</td><td class="num">8</td><td class="num">66.8%</td><td class="num">—</td><td class="num">74.6%</td></tr>
+  </tbody>
+</table>
+<p class="small">「待機 / 選人」期間機器人沒有移動，只有 stack 本身在跑，因此可視為這條流程的 CPU 地板。</p>
+
+<div class="callout">
+  <strong>整段 max 94.7%（兩次 run 合計）都出現在啟動前 8 秒。</strong>
+  bag 訂閱 discovery 讓 <code>ros2 bag record</code>（python3 wrapper）衝高，相機同時初始化，
+  加上 RTAB-Map 載入 DB 與建立地圖；跟隨開始後就回到 60 ~ 86%。
+</div>
+
+<h2>3. Per-core</h2>
+<p class="lead">run_20261118-144839 整段每核 mean 72~73%、max 97~100%。（此區為每顆核心各自的使用率，100% = 該核滿載。）</p>
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:0">run_20261118-144839（117.8 s）</h3>
+    <table style="box-shadow:none;margin-top:4px">
+      <thead><tr><th>Core</th><th class="num">mean</th><th class="num">max</th><th class="bars">mean（每核 0~100%）</th></tr></thead>
+      <tbody>
+<tr><td>cpu0</td><td class="num">73.0%</td><td class="num">96.7%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:73.0%"></div><div class="bar-max" style="left:96.7%"></div></div></td></tr><tr><td>cpu1</td><td class="num">72.1%</td><td class="num">99.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:72.1%"></div><div class="bar-max" style="left:99.5%"></div></div></td></tr><tr><td>cpu2</td><td class="num">72.0%</td><td class="num">99.1%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:72.0%"></div><div class="bar-max" style="left:99.1%"></div></div></td></tr><tr><td>cpu3</td><td class="num">73.1%</td><td class="num">98.1%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:73.1%"></div><div class="bar-max" style="left:98.1%"></div></div></td></tr>      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">run_20261118-144216（36.7 s）</h3>
+    <table style="box-shadow:none;margin-top:4px">
+      <thead><tr><th>Core</th><th class="num">mean</th><th class="num">max</th><th class="bars">mean（每核 0~100%）</th></tr></thead>
+      <tbody>
+<tr><td>cpu0</td><td class="num">74.3%</td><td class="num">92.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:74.3%"></div><div class="bar-max" style="left:92.5%"></div></div></td></tr><tr><td>cpu1</td><td class="num">72.7%</td><td class="num">99.6%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:72.7%"></div><div class="bar-max" style="left:99.6%"></div></div></td></tr><tr><td>cpu2</td><td class="num">73.8%</td><td class="num">100.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:73.8%"></div><div class="bar-max" style="left:100.0%"></div></div></td></tr><tr><td>cpu3</td><td class="num">73.2%</td><td class="num">95.3%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:73.2%"></div><div class="bar-max" style="left:95.3%"></div></div></td></tr>      </tbody>
+    </table>
+  </div>
+</div>
+
+<h2>4. Node CPU — 整段（四核佔比）</h2>
+<p class="lead">RTAB-Map 本體 + ICP 合計約 18.3%；相機 + AI 約 17.9%；Nav2 + 底盤約 15.7%。</p>
+<p class="small">node / process 數值已由單核換算為<strong>四核總容量佔比</strong>（單核 ÷ 4）；1 核滿載 = 25%。</p>
+
+<div class="grid2" style="margin-bottom:16px">
+  <div class="card" style="border-top:4px solid var(--accent)">
+    <div class="label small">RTAB-Map + ICP</div>
+    <div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums">約 18.3%</div>
+    <div class="small">icp_odometry 14.2 + rtabmap 4.1</div>
+  </div>
+  <div class="card" style="border-top:4px solid var(--ai)">
+    <div class="label small">AI + camera</div>
+    <div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums">約 17.9%</div>
+    <div class="small">ai 6.5 + camera 11.3</div>
+  </div>
+  <div class="card" style="border-top:4px solid #6b7484">
+    <div class="label small">Nav2 + 底盤 + demo</div>
+    <div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums">約 15.7%</div>
+    <div class="small">controller / planner / BT / collision / driver …</div>
+  </div>
+</div>
+
+<table>
+  <thead><tr><th>Node</th><th class="num">mean</th><th class="num">max</th><th class="bars">mean 分布（0~16%）</th></tr></thead>
+  <tbody>
+<tr><td><code>/camera/camera</code></td><td class="num"><strong>11.3%</strong></td><td class="num">13.1%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:69.2%"></div><div class="bar-max" style="left:80.2%"></div></div></td></tr><tr><td><code>python3</code></td><td class="num"><strong>7.0%</strong></td><td class="num">11.9%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:42.6%"></div><div class="bar-max" style="left:72.8%"></div></div></td></tr><tr><td><code>/ai_human_detection</code></td><td class="num"><strong>6.5%</strong></td><td class="num">8.8%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:40.0%"></div><div class="bar-max" style="left:53.5%"></div></div></td></tr><tr><td><code>/rtabmap/rtabmap</code></td><td class="num"><strong>4.1%</strong></td><td class="num">9.4%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:25.1%"></div><div class="bar-max" style="left:57.4%"></div></div></td></tr><tr><td><code>/rplidar_node</code></td><td class="num"><strong>4.0%</strong></td><td class="num">5.8%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:24.5%"></div><div class="bar-max" style="left:35.5%"></div></div></td></tr><tr><td><code>/ekf_filter_node</code></td><td class="num"><strong>3.6%</strong></td><td class="num">4.3%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:22.1%"></div><div class="bar-max" style="left:26.1%"></div></div></td></tr><tr><td><code>ros2</code></td><td class="num"><strong>3.5%</strong></td><td class="num">22.8%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:21.7%"></div><div class="bar-max" style="left:100.0%"></div></div></td></tr><tr><td><code>/controller_server</code></td><td class="num"><strong>2.3%</strong></td><td class="num">4.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:14.2%"></div><div class="bar-max" style="left:27.7%"></div></div></td></tr><tr><td><code>/collision_monitor</code></td><td class="num"><strong>1.9%</strong></td><td class="num">3.6%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:11.4%"></div><div class="bar-max" style="left:22.0%"></div></div></td></tr><tr><td><code>/driver_node</code></td><td class="num"><strong>1.7%</strong></td><td class="num">3.2%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:10.2%"></div><div class="bar-max" style="left:19.4%"></div></div></td></tr><tr><td><code>/bt_navigator</code></td><td class="num"><strong>1.4%</strong></td><td class="num">4.2%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:8.4%"></div><div class="bar-max" style="left:25.6%"></div></div></td></tr><tr><td><code>/planner_server</code></td><td class="num"><strong>1.1%</strong></td><td class="num">4.1%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:7.0%"></div><div class="bar-max" style="left:25.0%"></div></div></td></tr><tr><td><code>/demo_manager_node</code></td><td class="num"><strong>1.1%</strong></td><td class="num">2.3%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:6.7%"></div><div class="bar-max" style="left:14.2%"></div></div></td></tr><tr><td><code>static_transfor</code></td><td class="num"><strong>0.7%</strong></td><td class="num">4.9%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:4.0%"></div><div class="bar-max" style="left:29.8%"></div></div></td></tr><tr><td><code>/behavior_server</code></td><td class="num"><strong>0.6%</strong></td><td class="num">2.3%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:3.8%"></div><div class="bar-max" style="left:14.0%"></div></div></td></tr><tr><td><code>/velocity_smoother</code></td><td class="num"><strong>0.6%</strong></td><td class="num">2.6%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:3.8%"></div><div class="bar-max" style="left:15.6%"></div></div></td></tr><tr><td><code>/docking_server</code></td><td class="num"><strong>0.6%</strong></td><td class="num">2.2%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:3.6%"></div><div class="bar-max" style="left:13.6%"></div></div></td></tr><tr><td><code>/route_server</code></td><td class="num"><strong>0.5%</strong></td><td class="num">2.2%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:3.3%"></div><div class="bar-max" style="left:13.4%"></div></div></td></tr><tr><td><code>/smoother_server</code></td><td class="num"><strong>0.5%</strong></td><td class="num">2.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:3.1%"></div><div class="bar-max" style="left:12.5%"></div></div></td></tr><tr><td><code>/person_target_recovery_node</code></td><td class="num"><strong>0.4%</strong></td><td class="num">1.9%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:2.6%"></div><div class="bar-max" style="left:11.4%"></div></div></td></tr>  </tbody>
+</table>
+<p class="small">長條為 mean，紅線為 max；CPU% 是 process 等級的 interval delta，一個 process 內含多個 node 時為合計值。
+RTAB-Map 與 ICP 是兩個獨立 process（<code>rtabmap_slam/rtabmap</code>、<code>rtabmap_odom/icp_odometry</code>）。
+kernel thread 與 log watcher 不列在此表。</p>
+
+<h2>5. Monitor / 非 node process（四核佔比）</h2>
+<p class="lead">量測本身約四核 8.2%（<code>python3</code> 7.0% + log watcher）；<code>ros2 launch</code> 的 3.5% 屬於堆疊啟動器，不算量測成本。</p>
+<table>
+  <thead><tr><th>Process</th><th>說明</th><th class="num">mean（四核）</th><th class="num">max</th></tr></thead>
+  <tbody>
+    <tr><td><code>python3</code></td><td>ros2 bag record + follow_watch.py + monitor_cpu.py</td><td class="num">7.0%</td><td class="num">11.9%</td></tr>
+    <tr><td><code>ros2</code></td><td>ros2 launch wrappers（rtabmap / nav2 / ekf …）— 堆疊成本</td><td class="num">3.5%</td><td class="num">22.8%</td></tr>
+    <tr><td><code>static_transfor</code></td><td>static_transform_publisher</td><td class="num">0.7%</td><td class="num">4.9%</td></tr>
+    <tr><td><code>grep</code> / <code>tail</code></td><td>每秒掃 AI log 的 watcher</td><td class="num">1.2%</td><td class="num">5.6%</td></tr>
+    <tr><td><strong>monitor 合計</strong></td><td>python3（bag + follow_watch + cpu monitor）+ grep/tail</td><td class="num"><strong>8.2%</strong></td><td class="num">—</td></tr>
+  </tbody>
+</table>
+<p class="small"><code>cpu_procs.csv</code> 只記 process 名稱，多個 python3 行程（bag、follow_watch、monitor）無法拆分，因此合併呈現。</p>
+
+<h2>6. 與另一筆 run（14:42）比較</h2>
+<table>
+  <thead><tr><th>指標</th><th class="num">14:42（36.7 s）</th><th class="num">14:48（本次）</th><th>說明</th></tr></thead>
+  <tbody>
+    <tr><td>狀態</td><td class="num">NAVIGATION_FAILED → STOPPED</td><td class="num">FOLLOWING → HOME</td><td>14:42 只有 1 個 goal 就失敗</td></tr>
+    <tr><td>整段 mean（四核）</td><td class="num">73.5%</td><td class="num">72.6%</td><td>—</td></tr>
+    <tr><td>整段 p95</td><td class="num">93.9%</td><td class="num">92.7%</td><td>都被啟動段拉高</td></tr>
+    <tr><td>整段 max</td><td class="num">94.7%</td><td class="num">94.0%</td><td>—</td></tr>
+    <tr><td>icp_odometry（四核）</td><td class="num">15.3%</td><td class="num">14.2%</td><td>最大單一消耗</td></tr>
+    <tr><td>rtabmap（四核）</td><td class="num">3.4%</td><td class="num">4.1%</td><td>—</td></tr>
+    <tr><td>camera（四核）</td><td class="num">11.2%</td><td class="num">11.3%</td><td>持平</td></tr>
+    <tr><td>AI（四核）</td><td class="num">6.7%</td><td class="num">6.5%</td><td>—</td></tr>
+  </tbody>
+</table>
+
+<h2>7. 結論</h2>
+<div class="callout">
+  <strong>跟隨期間 mean 72.9%、p95 84.6%、max 85.7%。</strong>
+  沒有飽和，但<strong>待機地板已達 63.5%</strong>，整段平均 72.8% 等於四核 2.9 顆。
+</div>
+<ul class="tight">
+  <li>啟動 0~8.5 s 衝到 94.0%（bag discovery + 相機初始化 + RTAB-Map 載入 DB），這是整段 max 的來源。</li>
+  <li><code>icp_odometry</code> 是最大單一消耗（14.2%，max 18.8%），
+      約為 rtabmap 本體（4.1%）的 3.5 倍。</li>
+  <li>相機（11.3%）+ AI（6.5%）是第二大塊；
+      純光達建圖其實不需要相機，它只是為了 EKF 的 gyro 與人物偵測。</li>
+  <li>Nav2 + 底盤 + demo 合計 15.7%，分散在十幾個 process；collision monitor 與 keepout 佔一部分。</li>
+  <li>量測本身約 8.2%（bag + follow_watch + log watcher），要評估純堆疊請用 <code>BAG=0</code> 再跑一次。</li>
+</ul>
+
+<h2>8. 建議</h2>
+<ul class="tight">
+  <li>先量基準：<code>BAG=0</code> 再跑一次，扣掉約 8.2% 的量測成本後，堆疊實際約 65%。</li>
+  <li>降 ICP：調 <code>Icp/MaxCorrespondenceDistance</code>、<code>Icp/CorrespondenceRatio</code>，或限制 scan 角度範圍；
+      ICP 每降 1 個百分點，等於省下約 0.04 顆核心。</li>
+  <li>關掉不需要的相機串流：若 AI 關閉，只留 gyro/accel（<code>enable_color:=false enable_depth:=false</code>），可省下相機大部分 11.3%。</li>
+  <li>關掉未使用的 Nav2 node：<code>docking_server</code>、<code>route_server</code>、<code>smoother_server</code>、<code>waypoint_follower</code>。</li>
+  <li>建圖不需要 bag 時不要錄：<code>BAG=0</code> 可省掉 <code>python3</code> 這 7.0% 的大部分（先前量測 bag 本身約 2~3 個百分點）。</li>
+  <li>待機地板 64% 偏高；若之後要同時跑其他服務，建議把 <code>icp_odometry</code> 與 <code>rtabmap</code> 綁在不同核心（taskset），避免搶同一核。</li>
+</ul>
+
+<h2>9. 紀錄檔</h2>
+<div class="flow">/nvt_ros2_example/slam_toolbox_rf2o/monitor_logs/
+  run_20261118-144216_follow/     36.7 s · 18 samples（NAVIGATION_FAILED）
+  run_20261118-144839_follow/    117.8 s · 57 samples（FOLLOWING → HOME）
+    bag/                 lite（mcap）
+    cpu.csv              total_busy + cpu0..cpu3
+    cpu_procs.csv        per-PID CPU / RSS
+    cpu_nodes.csv        per-node CPU / RSS / threads
+    follow_target.csv    robot / person / goal / state
+    RUN_INFO.txt, .env.sh</div>
+
+<p class="small" style="margin-top:14px">
+  產生器：<code>monitor_logs/make_report_style.py</code>（讀原始 CSV，無平滑）<br>
+  對照報告：<code>report/person_follow_cpu_run_20261113-195027.html</code>（同版型，slam_toolbox + rf2o）
+</p>
+
+<footer>
+  RTAB-Map + ICP CPU 分析 · run_20261118-144839_follow · 2026-11-18 ·
+  資料來源 <code>cpu.csv</code> / <code>cpu_nodes.csv</code> / <code>cpu_procs.csv</code> / <code>follow_target.csv</code> · monitor_cpu.py（--interval 2）
+</footer>
+
+</div>
+<script>
+(function () {
+  var data = [[0.0, 92.7], [2.1, 93.9], [4.3, 94.0], [6.4, 94.0], [8.5, 61.3], [10.6, 64.4], [12.6, 61.9], [14.8, 64.3], [16.9, 85.7], [19.0, 84.6], [21.1, 66.1], [23.2, 68.8], [25.3, 71.1], [27.4, 73.2], [29.5, 73.4], [31.6, 72.9], [33.8, 72.8], [35.8, 71.7], [38.0, 74.0], [40.0, 75.0], [42.1, 75.5], [44.2, 77.6], [46.3, 74.8], [48.4, 73.6], [50.5, 71.5], [52.6, 67.4], [54.7, 67.9], [56.8, 59.7], [58.9, 68.8], [61.0, 70.7], [63.2, 72.2], [65.3, 73.1], [67.3, 68.8], [69.4, 72.1], [71.6, 72.5], [73.7, 74.0], [75.8, 77.6], [78.0, 74.1], [80.0, 75.1], [82.2, 74.8], [84.3, 73.6], [86.4, 74.6], [88.5, 74.0], [90.6, 74.0], [92.7, 74.9], [94.7, 56.0], [96.9, 74.7], [99.0, 74.5], [101.1, 67.3], [103.2, 74.0], [105.2, 63.4], [107.3, 63.4], [109.4, 62.7], [111.5, 74.6], [113.6, 65.7], [115.7, 66.8], [117.8, 63.6]];
+  var followStart = 16.707, followEnd = 58.027, homeEnd = 103.077;
+  var p95 = 84.6, peakT = 4.3, peakV = 94.0;
+  var W = 900, H = 350;
+  var m = { l: 54, r: 24, t: 24, b: 42 };
+  var iw = W - m.l - m.r, ih = H - m.t - m.b;
+  var xMax = 120, yMax = 100;
+  function X(t) { return m.l + t / xMax * iw; }
+  function Y(v) { return m.t + (1 - v / yMax) * ih; }
+  var NS = "http://www.w3.org/2000/svg";
+  var svg = document.getElementById("cpuChart");
+  function el(name, attrs, text) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    svg.appendChild(e);
+    return e;
+  }
+
+  el("rect", { x: X(0), y: m.t, width: X(8.5) - X(0), height: ih, fill: "rgba(217,164,65,.10)" });
+  el("line", { x1: X(8.5), y1: m.t, x2: X(8.5), y2: m.t + ih, stroke: "#d9a441",
+    "stroke-width": "1", "stroke-dasharray": "4 4", opacity: ".8" });
+  el("text", { x: X(4.2), y: m.t + 14, "text-anchor": "middle", "font-size": "11",
+    fill: "#9a6a12", "font-weight": "600" }, "啟動");
+
+  el("rect", { x: X(followStart), y: m.t, width: X(followEnd) - X(followStart), height: ih, fill: "rgba(58,109,240,.10)" });
+  el("text", { x: (X(followStart) + X(followEnd)) / 2, y: m.t + 14, "text-anchor": "middle",
+    "font-size": "11.5", fill: "#3a6df0", "font-weight": "600", "letter-spacing": ".6" }, "FOLLOWING");
+
+  el("rect", { x: X(followEnd), y: m.t, width: X(homeEnd) - X(followEnd), height: ih, fill: "rgba(42,157,143,.10)" });
+  el("text", { x: (X(followEnd) + X(homeEnd)) / 2, y: m.t + 14, "text-anchor": "middle",
+    "font-size": "11.5", fill: "#2a9d8f", "font-weight": "600", "letter-spacing": ".6" }, "RETURN_HOME");
+
+  [0, 25, 50, 75, 100].forEach(function (v) {
+    el("line", { x1: m.l, y1: Y(v), x2: m.l + iw, y2: Y(v), stroke: "#e3e6ee", "stroke-width": v === 0 ? "1.4" : "1" });
+    el("text", { x: m.l - 9, y: Y(v) + 4, "text-anchor": "end", "font-size": "11", fill: "#7b8494" }, v + "%");
+  });
+
+  for (var t = 0; t <= xMax; t += 20) {
+    el("line", { x1: X(t), y1: m.t + ih, x2: X(t), y2: m.t + ih + 4, stroke: "#c8ceda", "stroke-width": "1" });
+    el("text", { x: X(t), y: m.t + ih + 18, "text-anchor": "middle", "font-size": "11", fill: "#7b8494" }, t + "s");
+  }
+  el("text", { x: m.l + iw / 2, y: H - 6, "text-anchor": "middle", "font-size": "11", fill: "#7b8494" }, "run time (s)");
+
+  el("line", { x1: X(followStart), y1: Y(p95), x2: X(followEnd), y2: Y(p95),
+    stroke: "#c0392b", "stroke-width": "1.2", "stroke-dasharray": "6 5", opacity: ".75" });
+  el("text", { x: X(followEnd) - 4, y: Y(p95) - 6, "text-anchor": "end",
+    "font-size": "11", fill: "#c0392b", "font-weight": "600" }, "follow p95 " + p95.toFixed(1) + "%");
+
+  var d = data.map(function (p, i) { return (i ? "L" : "M") + X(p[0]).toFixed(2) + " " + Y(p[1]).toFixed(2); }).join(" ");
+  el("path", { d: d + " L" + X(data[data.length - 1][0]).toFixed(2) + " " + Y(0) +
+    " L" + X(data[0][0]).toFixed(2) + " " + Y(0) + " Z", fill: "rgba(58,109,240,.14)" });
+  el("path", { d: d, fill: "none", stroke: "#3a6df0", "stroke-width": "2.2",
+    "stroke-linejoin": "round", "stroke-linecap": "round" });
+
+  el("circle", { cx: X(peakT), cy: Y(peakV), r: "4", fill: "#fff", stroke: "#3a6df0", "stroke-width": "2" });
+  el("text", { x: X(peakT), y: Y(peakV) - 12, "text-anchor": "middle", "font-size": "11",
+    fill: "#1f2430", "font-weight": "600" }, peakV.toFixed(1) + "%");
+
+  data.forEach(function (p) {
+    el("circle", { cx: X(p[0]), cy: Y(p[1]), r: "1.8", fill: "#2c5fd6", opacity: ".55" });
+  });
+})();
+</script>
+</body>
+</html>
