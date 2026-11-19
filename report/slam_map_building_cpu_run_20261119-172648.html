@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>slam_toolbox 建圖 + rf2o + Nav2 CPU 分析 — run_20261119-172648_follow</title>
+<style>
+  :root { --bg:#f6f7fb; --card:#fff; --ink:#1f2430; --muted:#5b6472; --line:#e3e6ee;
+    --accent:#3a6df0; --ai:#2a9d8f; --cam:#6a5acd; --warn:#b26a00; --warn-bg:#fff4e0;
+    --bad:#c0392b; --good:#2a9d8f; --code:#f1f3f8; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 "Inter","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif; }
+  .wrap { max-width:1120px; margin:0 auto; padding:36px 22px 72px; }
+  header.hero { background:linear-gradient(135deg,#1f2430 0%,#2b3a55 58%,#35507a 100%);
+    color:#fff; border-radius:18px; padding:34px 36px 30px; box-shadow:0 12px 32px rgba(31,36,48,.18); }
+  header.hero h1 { margin:0 0 8px; font-size:30px; letter-spacing:.4px; }
+  header.hero p { margin:0; color:#c9d3e6; font-size:15px; }
+  .pills { margin-top:16px; display:flex; flex-wrap:wrap; gap:8px; }
+  .pill { display:inline-block; padding:5px 12px; border-radius:999px; font-size:12.5px;
+    letter-spacing:.3px; background:rgba(255,255,255,.14); color:#e8eefb; }
+  .pill.good { background:rgba(42,157,143,.28); color:#c8f2ea; }
+  .pill.warn { background:rgba(217,164,65,.28); color:#ffe6b8; }
+  h2 { font-size:21px; margin:44px 0 12px; padding-bottom:8px; border-bottom:2px solid var(--line); }
+  h3 { font-size:16.5px; margin:24px 0 8px; }
+  p.lead { color:var(--muted); margin-top:0; }
+  .kpis { display:grid; gap:14px; margin-top:22px;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:16px 18px; box-shadow:0 2px 8px rgba(31,36,48,.04); border-top:4px solid var(--accent); }
+  .kpi.warn { border-top-color:var(--warn); }
+  .kpi.good { border-top-color:var(--good); }
+  .kpi .label { font-size:12.5px; letter-spacing:.4px; color:var(--muted); text-transform:uppercase; }
+  .kpi .value { font-size:30px; font-weight:700; line-height:1.15; margin:4px 0 2px; font-variant-numeric:tabular-nums; }
+  .kpi .sub { font-size:12.5px; color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:20px 22px; box-shadow:0 2px 8px rgba(31,36,48,.04); }
+  .callout { border-left:4px solid var(--warn); background:var(--warn-bg);
+    border-radius:0 10px 10px 0; padding:14px 18px; margin:18px 0; color:#5a4300; font-size:15px; }
+  .callout.good { border-left-color:var(--good); background:#eaf7f4; color:#14544b; }
+  .flow { background:var(--code); border-radius:10px; padding:14px 16px;
+    font:13.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    white-space:pre; overflow-x:auto; color:#2b3445; }
+  table { width:100%; border-collapse:collapse; margin:14px 0 6px; background:var(--card);
+    border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(31,36,48,.04); font-size:14.5px; }
+  th,td { padding:10px 14px; text-align:left; border-bottom:1px solid var(--line); vertical-align:middle; }
+  thead th { background:#eef1f8; font-size:13px; letter-spacing:.3px; }
+  tbody tr:nth-child(even) { background:#fafbfe; }
+  tbody tr:last-child td { border-bottom:none; }
+  td.num { font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; }
+  .bars { min-width:170px; }
+  .bar-track { position:relative; height:12px; background:#eef1f8; border-radius:6px; overflow:hidden; }
+  .bar-fill { position:absolute; left:0; top:0; bottom:0; background:var(--accent); border-radius:6px; }
+  .bar-max { position:absolute; top:-2px; bottom:-2px; width:2px; background:rgba(192,57,43,.75); }
+  .legend { display:flex; flex-wrap:wrap; gap:16px; font-size:13px; color:var(--muted); margin-top:10px; }
+  .legend i { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  .timeline { margin:16px 0 6px; }
+  .tl-track { display:flex; height:42px; border-radius:10px; overflow:hidden; border:1px solid var(--line); }
+  .tl-seg { display:flex; align-items:center; justify-content:center; font-size:11.5px; color:#fff;
+    white-space:nowrap; overflow:hidden; }
+  .tl-idle { background:#9aa4b6; } .tl-sel { background:#d9a441; }
+  .tl-follow { background:var(--accent); } .tl-home { background:#2a9d8f; }
+  .tl-stop { background:#6b7484; }
+  .tl-labels { display:flex; font-size:12px; color:var(--muted); margin-top:6px; font-variant-numeric:tabular-nums; }
+  .grid2 { display:grid; gap:18px; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); }
+  .chart-box { background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:16px 16px 8px; box-shadow:0 2px 8px rgba(31,36,48,.04); overflow-x:auto; }
+  .chart-box svg { display:block; width:100%; height:auto; min-width:640px; }
+  .small { font-size:13px; color:var(--muted); }
+  ul.tight { margin:8px 0 0; padding-left:22px; } ul.tight li { margin:5px 0; }
+  code { background:var(--code); border-radius:5px; padding:1px 6px; font-size:13.5px; }
+  .good { color:var(--good); font-weight:600; }
+  footer { margin-top:52px; color:var(--muted); font-size:13px; border-top:1px solid var(--line); padding-top:18px; }
+  @media print { body { background:#fff; } .wrap { max-width:none; padding:0; }
+    header.hero,.card,table,.chart-box { box-shadow:none; }
+    h2 { page-break-after:avoid; } table,.chart-box { page-break-inside:avoid; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>slam_toolbox 建圖 + rf2o + Nav2 CPU 分析（slam map building）</h1>
+  <p>run_20261119-172648_follow · 2026-11-19 17:26:55 · 110.5 s · online_async mapping（static map building）· lite bag</p>
+  <div class="pills">
+    <span class="pill">slam_toolbox async mapping + rf2o</span>
+    <span class="pill">Nav2 + 底盤 · 無 AI / demo_manager</span>
+    <span class="pill">4 核 · node CPU 已換算四核佔比</span>
+    <span class="pill good">整段 mean 36.4% / p95 68.9%</span>
+    <span class="pill warn">整段 max 78.3%（啟動）</span>
+  </div>
+</header>
+
+<div class="kpis">
+  <div class="kpi good">
+    <div class="label">整段 mean</div>
+    <div class="value">36.4%</div>
+    <div class="sub">0 ~ 110.5 s（54 筆）</div>
+  </div>
+  <div class="kpi good">
+    <div class="label">整段 p95</div>
+    <div class="value">68.9%</div>
+    <div class="sub">max 78.3%；建圖段 p95 42.2%、後段 p95 64.3%</div>
+  </div>
+  <div class="kpi">
+    <div class="label">slam_toolbox（四核）</div>
+    <div class="value">7.5%</div>
+    <div class="sub">max 33.7%（+85.4 s）；本次最大節點</div>
+  </div>
+  <div class="kpi">
+    <div class="label">rf2o（四核）</div>
+    <div class="value">1.6%</div>
+    <div class="sub">max 2.8%；odom 不是瓶頸</div>
+  </div>
+</div>
+<p class="small" style="margin-top:12px">total_busy 為四核整體使用率（0~100%）；node / process 已由單核換算四核佔比（單核 ÷ 4，1 核滿載 = 25%），並以 <code>名目 2.0 s ÷ 實際間隔</code> 修正。這次是 <strong>mapping（建立 static map）</strong>，沒有 AI、demo_manager 或 follow 狀態。</p>
+
+<h2>1. Run 概況</h2>
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:0">分析分段（不是 ROS 狀態）</h3>
+    <div class="timeline">
+      <div class="tl-track">
+        <div class="tl-seg tl-idle" style="width:9.1%">STARTUP</div>
+        <div class="tl-seg tl-follow" style="width:63.4%">MAPPING</div>
+        <div class="tl-seg tl-sel" style="width:27.6%">LATE MAP UPDATE</div>
+      </div>
+      <div class="tl-labels">
+        <span style="width:9.1%;text-align:left">0 s</span>
+        <span style="width:63.4%;text-align:center">10.0 → 80.0 s</span>
+        <span style="width:27.6%;text-align:right">110.5 s</span>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:14px">0 ~ 10.0 s   bag / monitor / DDS discovery
+10.0 ~ 80.0 s   穩定建圖（主要行駛段）
+80.0 ~ 110.5 s   後段 map update / loop closure 尖峰</div>
+    <p class="small" style="margin-bottom:0">`follow_target.csv` 沒有 <code>state</code> 或 <code>goal</code> 筆；本次是手動 / Nav2 駕駛建圖，所以用時間分段分析。</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">建圖統計</h3>
+    <table style="margin-top:4px;box-shadow:none">
+      <tbody>
+        <tr><td>錄製時間</td><td class="num">110.5 s</td></tr>
+        <tr><td>robot path / net</td><td class="num">19.30 m / 0.62 m</td></tr>
+        <tr><td>max |vx| / |wz|</td><td class="num">0.14 m/s / 0.90 rad/s</td></tr>
+        <tr><td>Nav2 global costmap</td><td class="num">203 × 332 @ 0.05 m → 10.15 × 16.60 m</td></tr>
+        <tr><td>AI / demo_manager</td><td class="num">off（本次沒有啟動）</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<h2>2. 整體 CPU</h2>
+<div class="chart-box">
+  <svg id="cpuChart" viewBox="0 0 900 350" role="img" aria-label="map building CPU 使用率時間序列"></svg>
+  <div class="legend">
+    <span><i style="background:#3a6df0"></i>total_busy（2 s 取樣）</span>
+    <span><i style="background:rgba(58,109,240,.10)"></i>MAPPING 10.0 ~ 80.0 s</span>
+    <span><i style="background:rgba(217,164,65,.12)"></i>LATE MAP UPDATE 80.0 ~ 110.5 s</span>
+    <span><i style="background:#c0392b"></i>mapping p95 42.2%</span>
+  </div>
+</div>
+
+<table>
+  <thead><tr><th>區間</th><th class="num">筆數</th><th class="num">mean</th><th class="num">p95</th><th class="num">max</th></tr></thead>
+  <tbody>
+    <tr><td>整段 0 ~ 110.5 s</td><td class="num">54</td><td class="num">36.4%</td><td class="num">68.9%</td><td class="num">78.3%</td></tr>
+    <tr><td>啟動 0 ~ 10.0 s</td><td class="num">5</td><td class="num">62.5%</td><td class="num">78.3%</td><td class="num">78.3%</td></tr>
+    <tr><td>建圖 10.0 ~ 80.0 s</td><td class="num">34</td><td class="num">31.0%</td><td class="num"><strong>42.2%</strong></td><td class="num">47.3%</td></tr>
+    <tr><td>後段 80.0 ~ 110.5 s</td><td class="num">15</td><td class="num">39.9%</td><td class="num">64.3%</td><td class="num">68.9%</td></tr>
+  </tbody>
+</table>
+<p class="small">整段最高 78.3% 在 +2.1 s（bag / monitor 啟動與 DDS discovery）；建圖主段很穩（mean 31.0%、p95 42.2%）；後段在 +85.4 s 出現 68.9%，對應 slam_toolbox 的 33.7%（四核）尖峰，較可能是 map update / loop closure。</p>
+
+<h2>3. Per-core</h2>
+<p class="lead">本次整段每核 mean 35.0~38.1%，單核 max 77.6~81.6%。</p>
+<table>
+  <thead><tr><th>Core</th><th class="num">本次 mean</th><th class="num">本次 max</th><th class="num">17:07 static follow</th><th class="num">16:42 動態建圖+follow</th><th class="num">15:45 RTAB-Map</th><th class="bars">本次 mean（每核 0~100%）</th></tr></thead>
+  <tbody>
+<tr><td>cpu0</td><td class="num">38.1%</td><td class="num">77.6%</td><td class="num">57.6% / 86.7%</td><td class="num">62.7% / 92.1%</td><td class="num">73.2% / 91.2%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:38.1%"></div><div class="bar-max" style="left:77.6%"></div></div></td></tr><tr><td>cpu1</td><td class="num">35.0%</td><td class="num">79.5%</td><td class="num">51.7% / 99.1%</td><td class="num">56.5% / 100.0%</td><td class="num">71.3% / 100.0%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:35.0%"></div><div class="bar-max" style="left:79.5%"></div></div></td></tr><tr><td>cpu2</td><td class="num">35.7%</td><td class="num">81.6%</td><td class="num">52.4% / 95.2%</td><td class="num">59.5% / 96.7%</td><td class="num">71.4% / 99.6%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:35.7%"></div><div class="bar-max" style="left:81.6%"></div></div></td></tr><tr><td>cpu3</td><td class="num">36.5%</td><td class="num">78.8%</td><td class="num">55.7% / 95.0%</td><td class="num">60.2% / 99.5%</td><td class="num">72.3% / 99.6%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:36.5%"></div><div class="bar-max" style="left:78.8%"></div></div></td></tr>  </tbody>
+</table>
+<p class="small">建圖 run 每核 mean 約 35~38%，明顯低於 static follow（52~58%）、動態建圖+follow（56~63%）與 RTAB-Map（71~73%），主要因為這次沒有 AI / demo_manager / follow。單核 max 仍在啟動段碰到 81.6%。</p>
+
+<h2>4. 建圖 vs follow vs RTAB-Map</h2>
+<p class="lead">這不是嚴格 A/B：本次是 <strong>mapping only（無 AI / demo）</strong>，其餘三筆都有 AI + demo_manager（follow）。重點是看「建圖本身」的 SLAM 成本，以及加上 AI / follow 後增加的幅度。</p>
+<table>
+  <thead><tr><th>指標（四核佔比）</th><th class="num">17:26 建圖（本次）</th><th class="num">17:07 static follow</th><th class="num">16:42 動態建圖+follow</th><th class="num">15:45 RTAB-Map + ICP</th></tr></thead>
+  <tbody>
+    <tr><td>雷射 odom</td><td class="num">rf2o <strong>1.6%</strong>（max 2.8）</td><td class="num">rf2o 1.7%</td><td class="num">rf2o 1.7%</td><td class="num">ICP <strong>13.4%</strong>（max 19.0）</td></tr>
+    <tr><td>SLAM 節點</td><td class="num">slam_toolbox <strong>7.5%</strong>（max 33.7）</td><td class="num">slam_toolbox 6.5%（max 25.4）</td><td class="num">slam_toolbox 8.9%（max 35.3）</td><td class="num">rtabmap 4.5%（max 9.0）</td></tr>
+    <tr><td>odom + SLAM 合計</td><td class="num"><strong>9.2%</strong></td><td class="num">8.3%</td><td class="num">10.6%</td><td class="num">17.9%</td></tr>
+    <tr><td>camera / AI</td><td class="num">6.5% / —</td><td class="num">10.8% / 6.8%</td><td class="num">11.0% / 6.6%</td><td class="num">11.3% / 6.6%</td></tr>
+    <tr><td>整段總 CPU mean</td><td class="num"><strong>36.4%</strong></td><td class="num">54.6%</td><td class="num">59.8%</td><td class="num">72.1%</td></tr>
+    <tr><td>整段 p95 / max</td><td class="num">68.9 / 78.3%</td><td class="num">69.2 / 76.4%</td><td class="num">89.8 / 96.5%</td><td class="num">94.5 / 95.1%</td></tr>
+    <tr><td>robot path</td><td class="num">19.30 m</td><td class="num">16.97 m</td><td class="num">16.81 m</td><td class="num">11.18 m</td></tr>
+    <tr><td>run 長度</td><td class="num">110.5 s</td><td class="num">114.1 s</td><td class="num">81.4 s</td><td class="num">58.9 s</td></tr>
+  </tbody>
+</table>
+<div class="callout good">
+  <strong>建圖本身只要 36.4%（p95 68.9%），是這幾種流程裡最低的。</strong>
+  SLAM 節點（slam_toolbox 7.5% + rf2o 1.6%）合計 9.2%；最大的固定成本是 camera 6.5% 與 Nav2 / 底盤 12.7%。
+</div>
+<div class="callout">
+  <strong>與 follow 的差距主要來自 AI + demo_manager。</strong>static follow 多了 AI 6.8% + demo_manager 約 1%，總 CPU 從 36.4% 拉到 54.6%；動態建圖+follow 則是 slam_toolbox 本身也較忙（8.9%），總 CPU 59.8%。
+</div>
+
+<h2>5. Node CPU — 整段（四核佔比）</h2>
+<p class="lead">odom + SLAM 約 9.2%（rf2o + slam_toolbox）；camera 6.5%；Nav2 + 底盤約 12.7%；光達 + EKF 約 6.6%；量測本身（python3 + ros2 + static TF）約 7.1%。</p>
+<div class="grid2" style="margin-bottom:16px">
+  <div class="card" style="border-top:4px solid var(--accent)">
+    <div class="label small">odom + SLAM</div>
+    <div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums">約 9.2%</div>
+    <div class="small">rf2o 1.6 + slam_toolbox 7.5（max 33.7）</div>
+  </div>
+  <div class="card" style="border-top:4px solid var(--ai)">
+    <div class="label small">camera（EKF 用）</div>
+    <div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums">約 6.5%</div>
+    <div class="small">RealSense；本次沒有 AI / demo_manager</div>
+  </div>
+  <div class="card" style="border-top:4px solid #6b7484">
+    <div class="label small">Nav2 + 底盤</div>
+    <div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums">約 12.7%</div>
+    <div class="small">controller / planner / BT / collision / driver …</div>
+  </div>
+</div>
+<table>
+  <thead><tr><th>Node</th><th class="num">mean</th><th class="num">max</th><th class="num">RSS</th><th class="num">17:07 static follow</th><th class="bars">mean 分布（0~9%）</th></tr></thead>
+  <tbody>
+<tr><td><code>slam_toolbox</code></td><td class="num"><strong>7.5%</strong></td><td class="num">33.7%</td><td class="num">63 MB</td><td class="num">6.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:87.0%"></div><div class="bar-max" style="left:100.0%"></div></div></td></tr><tr><td><code>camera</code></td><td class="num"><strong>6.5%</strong></td><td class="num">8.0%</td><td class="num">123 MB</td><td class="num">10.8%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:74.7%"></div><div class="bar-max" style="left:92.2%"></div></div></td></tr><tr><td><code>python3 (bag/watch/monitor)</code></td><td class="num"><strong>4.3%</strong></td><td class="num">11.5%</td><td class="num">76 MB</td><td class="num">6.8%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:49.4%"></div><div class="bar-max" style="left:100.0%"></div></div></td></tr><tr><td><code>ekf_node</code></td><td class="num"><strong>3.4%</strong></td><td class="num">4.8%</td><td class="num">44 MB</td><td class="num">3.6%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:38.8%"></div><div class="bar-max" style="left:55.3%"></div></div></td></tr><tr><td><code>rplidar_node</code></td><td class="num"><strong>3.2%</strong></td><td class="num">4.9%</td><td class="num">37 MB</td><td class="num">3.6%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:36.9%"></div><div class="bar-max" style="left:56.7%"></div></div></td></tr><tr><td><code>ros2 launch</code></td><td class="num"><strong>2.5%</strong></td><td class="num">15.2%</td><td class="num">82 MB</td><td class="num">3.1%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:28.7%"></div><div class="bar-max" style="left:100.0%"></div></div></td></tr><tr><td><code>controller_server</code></td><td class="num"><strong>2.2%</strong></td><td class="num">4.5%</td><td class="num">59 MB</td><td class="num">2.2%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:25.6%"></div><div class="bar-max" style="left:52.0%"></div></div></td></tr><tr><td><code>Mcnamu_driver</code></td><td class="num"><strong>2.0%</strong></td><td class="num">2.5%</td><td class="num">76 MB</td><td class="num">1.8%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:22.7%"></div><div class="bar-max" style="left:29.3%"></div></div></td></tr><tr><td><code>collision_monitor</code></td><td class="num"><strong>1.8%</strong></td><td class="num">2.5%</td><td class="num">50 MB</td><td class="num">1.8%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:21.2%"></div><div class="bar-max" style="left:28.4%"></div></div></td></tr><tr><td><code>rf2o (CLaserOdometry2D)</code></td><td class="num"><strong>1.6%</strong></td><td class="num">2.8%</td><td class="num">42 MB</td><td class="num">1.7%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:19.0%"></div><div class="bar-max" style="left:32.4%"></div></div></td></tr><tr><td><code>bt_navigator</code></td><td class="num"><strong>1.4%</strong></td><td class="num">4.3%</td><td class="num">74 MB</td><td class="num">1.4%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:15.8%"></div><div class="bar-max" style="left:49.7%"></div></div></td></tr><tr><td><code>planner_server</code></td><td class="num"><strong>0.9%</strong></td><td class="num">3.8%</td><td class="num">60 MB</td><td class="num">0.9%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:10.0%"></div><div class="bar-max" style="left:43.7%"></div></div></td></tr><tr><td><code>velocity_smoother</code></td><td class="num"><strong>0.5%</strong></td><td class="num">1.9%</td><td class="num">38 MB</td><td class="num">0.6%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:6.1%"></div><div class="bar-max" style="left:22.5%"></div></div></td></tr><tr><td><code>docking_server</code></td><td class="num"><strong>0.4%</strong></td><td class="num">2.1%</td><td class="num">50 MB</td><td class="num">0.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:5.0%"></div><div class="bar-max" style="left:24.3%"></div></div></td></tr><tr><td><code>behavior_server</code></td><td class="num"><strong>0.4%</strong></td><td class="num">2.7%</td><td class="num">51 MB</td><td class="num">0.5%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:4.7%"></div><div class="bar-max" style="left:30.7%"></div></div></td></tr><tr><td><code>route_server</code></td><td class="num"><strong>0.3%</strong></td><td class="num">2.1%</td><td class="num">51 MB</td><td class="num">0.4%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:3.9%"></div><div class="bar-max" style="left:23.6%"></div></div></td></tr><tr><td><code>smoother_server</code></td><td class="num"><strong>0.3%</strong></td><td class="num">1.5%</td><td class="num">47 MB</td><td class="num">0.3%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:3.5%"></div><div class="bar-max" style="left:17.7%"></div></div></td></tr><tr><td><code>static TF</code></td><td class="num"><strong>0.3%</strong></td><td class="num">3.8%</td><td class="num">36 MB</td><td class="num">0.4%</td><td class="bars"><div class="bar-track"><div class="bar-fill" style="width:3.5%"></div><div class="bar-max" style="left:43.7%"></div></div></td></tr>  </tbody>
+</table>
+<p class="small">長條為整段 mean、紅線為 max；「17:07 static follow」是同名節點在 static follow run 的整段 mean（該 run 有 AI / demo_manager）。本次沒有 <code>ai_human_detection</code>、<code>demo_manager_node</code>、<code>person_target_recovery</code>。</p>
+
+<h2>6. 觀察與建議</h2>
+<ul class="tight">
+  <li><strong>建圖成本集中在 slam_toolbox。</strong>整段 7.5%、max 33.7%（+85.4 s）；後段 +85.4 s 的總 CPU 68.9% 與 slam_toolbox 33.7% 同步，較可能是 map update / loop closure（<code>do_loop_closing: true</code>、<code>map_update_interval: 5.0</code>）。若地圖品質正常，這是預期行為；若同時出現 scan drop 或 map→odom 延遲，再調 <code>loop_match_*</code> / <code>map_update_interval</code>。</li>
+  <li><strong>rf2o 很便宜。</strong>1.6%（max 2.8%）；與 17:07（1.7%）、16:42（1.7%）一致，odom 不是建圖瓶頸。</li>
+  <li><strong>camera 是第二大固定成本（6.5%）。</strong>它是 EKF 的 RealSense；若建圖不需要視覺/IMU，關掉可省下大部分，但 EKF 的 odom 融合也會受影響。</li>
+  <li><strong>量測負擔約 7.1%。</strong>python3（bag / follow_watch / monitor）4.3% + ros2 launch 2.5%；要更乾淨的基準可用 <code>--no-bag --no-watch</code> 再跑一次。</li>
+  <li><strong>啟動尖峰與建圖無關。</strong>整段 max 78.3% 在 +2.1 s（bag/monitor/DDS discovery）；建圖主段 p95 只有 42.2%。</li>
+  <li><strong>scan drop 集中在啟動。</strong><code>/tmp/slam_toolbox_only/logs/slam.log</code> 共 9 次 <code>Message Filter dropping</code>，大多在 17:25:56~17:26:12（啟動/前段），後段 map update 尖峰期間沒有再出現。</li>
+  <li><strong>地圖尚未存檔。</strong><code>/nvt_ros2_example/maps</code> 最新仍是 11-18 的 <code>slam_map_20261118-0959.*</code>；本次只建圖、沒有新的 <code>.posegraph</code> / <code>.pgm</code>。要保留這次地圖，請跑 <code>record_map.sh</code> / <code>save_map.sh</code>（或 slam_toolbox 的 map_saver）。</li>
+</ul>
+
+<h2>7. 紀錄檔</h2>
+<div class="flow">/nvt_ros2_example/slam_toolbox_rf2o/monitor_logs/run_20261119-172648_follow/
+  cpu.csv / cpu_nodes.csv / cpu_procs.csv
+  follow_target.csv   0 person 筆 · 0 goals（本次是手動建圖）
+  RUN_INFO.txt, .env.sh, bag/
+slam_toolbox log: /tmp/slam_toolbox_only/logs/slam.log
+  （9 次 queue-full drop，集中在啟動/前段）
+Nav2 log: /tmp/raspybot_nav2/logs/nav2.log
+  （global costmap 203 × 332 @ 0.05 m = 10.15 × 16.60 m）
+對照：17:07 static follow · 16:42 動態建圖+follow · 15:45 RTAB-Map + ICP</div>
+
+<footer>
+  slam_toolbox map building + rf2o + Nav2 CPU 分析 · run_20261119-172648_follow · 2026-11-19 ·
+  資料來源 <code>cpu.csv</code> / <code>cpu_nodes.csv</code> / <code>follow_target.csv</code> · monitor_cpu.py（--interval 2）
+</footer>
+
+</div>
+<script>
+(function () {
+  var data = [[0.0, 74.2], [2.1, 78.3], [4.6, 76.7], [6.6, 61.2], [8.7, 21.9], [10.8, 24.7], [12.8, 18.2], [15.0, 32.2], [17.1, 36.5], [19.1, 27.8], [21.2, 24.5], [23.3, 21.6], [25.3, 28.7], [27.4, 32.6], [29.5, 41.9], [31.6, 38.1], [33.6, 41.9], [35.7, 34.4], [37.8, 30.7], [39.8, 41.2], [41.9, 34.9], [44.0, 42.2], [46.0, 27.3], [48.1, 25.9], [50.1, 29.2], [52.3, 45.7], [54.4, 33.9], [56.4, 23.0], [58.5, 28.3], [60.6, 24.3], [62.6, 22.5], [64.7, 25.8], [66.7, 27.9], [68.8, 24.3], [70.9, 23.6], [72.9, 24.5], [75.0, 37.2], [77.1, 31.6], [79.2, 47.3], [81.2, 39.2], [83.4, 43.1], [85.4, 68.9], [87.6, 64.3], [89.8, 49.6], [91.8, 56.2], [94.0, 57.4], [96.0, 45.7], [98.1, 35.7], [100.2, 25.1], [102.2, 24.3], [104.3, 29.8], [106.4, 17.4], [108.4, 22.3], [110.5, 20.1]];
+  var startupEnd = 10.000, mappingEnd = 80.000, runEnd = 110.485;
+  var p95 = 42.2, peakT = 2.1, peakV = 78.3;
+  var lateT = 85.4, lateV = 68.9;
+  var W = 900, H = 350, m = { l: 54, r: 24, t: 24, b: 42 };
+  var iw = W - m.l - m.r, ih = H - m.t - m.b;
+  var xMax = 120, yMax = 100;
+  function X(t) { return m.l + t / xMax * iw; }
+  function Y(v) { return m.t + (1 - v / yMax) * ih; }
+  var NS = "http://www.w3.org/2000/svg", svg = document.getElementById("cpuChart");
+  function el(name, attrs, text) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    svg.appendChild(e); return e;
+  }
+  el("rect", { x: X(startupEnd), y: m.t, width: X(mappingEnd) - X(startupEnd), height: ih, fill: "rgba(58,109,240,.10)" });
+  el("text", { x: (X(startupEnd) + X(mappingEnd)) / 2, y: m.t + 14, "text-anchor": "middle",
+    "font-size": "11.5", fill: "#3a6df0", "font-weight": "600", "letter-spacing": ".6" }, "MAPPING");
+  el("rect", { x: X(mappingEnd), y: m.t, width: X(runEnd) - X(mappingEnd), height: ih, fill: "rgba(217,164,65,.12)" });
+  el("text", { x: (X(mappingEnd) + X(runEnd)) / 2, y: m.t + 14, "text-anchor": "middle",
+    "font-size": "11.5", fill: "#9a6a00", "font-weight": "600", "letter-spacing": ".6" }, "LATE MAP UPDATE");
+  [0, 25, 50, 75, 100].forEach(function (v) {
+    el("line", { x1: m.l, y1: Y(v), x2: m.l + iw, y2: Y(v), stroke: "#e3e6ee", "stroke-width": v === 0 ? "1.4" : "1" });
+    el("text", { x: m.l - 9, y: Y(v) + 4, "text-anchor": "end", "font-size": "11", fill: "#7b8494" }, v + "%");
+  });
+  for (var t = 0; t <= xMax; t += 10) {
+    el("line", { x1: X(t), y1: m.t + ih, x2: X(t), y2: m.t + ih + 4, stroke: "#c8ceda", "stroke-width": "1" });
+    el("text", { x: X(t), y: m.t + ih + 18, "text-anchor": "middle", "font-size": "11", fill: "#7b8494" }, t + "s");
+  }
+  el("text", { x: m.l + iw / 2, y: H - 6, "text-anchor": "middle", "font-size": "11", fill: "#7b8494" }, "run time (s)");
+  el("line", { x1: X(startupEnd), y1: Y(p95), x2: X(mappingEnd), y2: Y(p95),
+    stroke: "#c0392b", "stroke-width": "1.2", "stroke-dasharray": "6 5", opacity: ".75" });
+  el("text", { x: X(mappingEnd) - 4, y: Y(p95) - 6, "text-anchor": "end",
+    "font-size": "11", fill: "#c0392b", "font-weight": "600" }, "mapping p95 " + p95.toFixed(1) + "%");
+  el("line", { x1: X(lateT), y1: m.t, x2: X(lateT), y2: m.t + ih,
+    stroke: "#b26a00", "stroke-width": "1", "stroke-dasharray": "3 4", opacity: ".7" });
+  var d = data.map(function (p, i) { return (i ? "L" : "M") + X(p[0]).toFixed(2) + " " + Y(p[1]).toFixed(2); }).join(" ");
+  el("path", { d: d + " L" + X(data[data.length - 1][0]).toFixed(2) + " " + Y(0) +
+    " L" + X(data[0][0]).toFixed(2) + " " + Y(0) + " Z", fill: "rgba(58,109,240,.14)" });
+  el("path", { d: d, fill: "none", stroke: "#3a6df0", "stroke-width": "2.2",
+    "stroke-linejoin": "round", "stroke-linecap": "round" });
+  el("circle", { cx: X(peakT), cy: Y(peakV), r: "4", fill: "#fff", stroke: "#3a6df0", "stroke-width": "2" });
+  el("text", { x: X(peakT), y: Y(peakV) - 12, "text-anchor": "middle", "font-size": "11",
+    fill: "#1f2430", "font-weight": "600" }, peakV.toFixed(1) + "%");
+  el("circle", { cx: X(lateT), cy: Y(lateV), r: "4", fill: "#fff", stroke: "#b26a00", "stroke-width": "2" });
+  el("text", { x: X(lateT), y: Y(lateV) - 12, "text-anchor": "middle", "font-size": "11",
+    fill: "#8a5200", "font-weight": "600" }, "late max " + lateV.toFixed(1) + "%");
+  data.forEach(function (p) {
+    el("circle", { cx: X(p[0]), cy: Y(p[1]), r: "1.8", fill: "#2c5fd6", opacity: ".55" });
+  });
+})();
+</script>
+</body>
+</html>
