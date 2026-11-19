@@ -76,7 +76,6 @@ colcon build --packages-select yahboomcar_bringup
 
 ```bash
 /nvt_ros2_example/slam_toolbox_rf2o/nav2_1028/stop_nav2.sh
-USE_EXTERNAL_SAFETY=0 \
 PARAMS_FILE=/nvt_ros2_example/slam_toolbox_rf2o/nav2_1028/nav2_params_plugin.yaml \
   /nvt_ros2_example/slam_toolbox_rf2o/nav2_1028/start_nav2.sh
 ```

@@ -2,7 +2,7 @@
 # Stop everything started by start_all.sh (and clean up leftovers).
 #
 #   ./stop_all.sh
-#   KEEP_DRIVER=1 ./stop_all.sh   # keep the chassis driver + speed_floor
+#   KEEP_DRIVER=1 ./stop_all.sh   # keep the chassis driver
 set -u
 
 SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]:-$0}" 2>/dev/null || echo "${BASH_SOURCE[0]:-$0}")"
@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"
 
 echo "== stop_all =="
 
-# --- Nav2 + speed_floor + chassis driver ------------------------------------
+# --- Nav2 + chassis driver ---------------------------------------------------
 if [ -x "$SCRIPT_DIR/nav2_1028/scripts/stop_nav2.sh" ]; then
     "$SCRIPT_DIR/nav2_1028/scripts/stop_nav2.sh" || true
 fi
@@ -24,9 +24,6 @@ fi
 if [ -x "$SCRIPT_DIR/stop_slam_toolbox_rf2o.sh" ]; then
     "$SCRIPT_DIR/stop_slam_toolbox_rf2o.sh" || true
 fi
-
-# --- cmd_vel logger ----------------------------------------------------------
-pkill -f '[r]ecord_cmd_vel.py' 2>/dev/null || true
 
 # --- leftovers (old/partial sessions, no PID file) ---------------------------
 for pat in '[r]plidar_node' '[s]tatic_transform_publisher' \

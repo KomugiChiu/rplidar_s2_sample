@@ -20,7 +20,6 @@
 # Usage:
 #   ./start_demo.sh
 #   START_AI=0 ./start_demo.sh
-#   RECORD=1 ./start_demo.sh
 #
 # Stop with: ./stop_demo.sh
 set -eo pipefail
@@ -126,5 +125,4 @@ demo_start_nav2
 demo_log "[4/4] AI + person recovery + demo manager"
 demo_start_ai
 
-demo_maybe_record
 demo_print_done

@@ -14,10 +14,7 @@ EKF_DIR="${EKF_DIR:-/nvt_ros2_example/ekf}"
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-99}"
 
 NAV2_PARAMS_FILE="${NAV2_PARAMS_FILE:-$NAV2_DIR/nav2_params_plugin.yaml}"
-USE_EXTERNAL_SAFETY="${USE_EXTERNAL_SAFETY:-0}"
-export USE_EXTERNAL_SAFETY
 export USE_LOCALIZATION=0
-RECORD="${RECORD:-0}"
 START_AI="${START_AI:-1}"
 START_REALSENSE="${START_REALSENSE:-0}"
 CAMERA_X="${CAMERA_X:-0.0}"
@@ -236,20 +233,6 @@ demo_start_ai() {
   demo_start_bg demo_runtime "$DEMO_INSTALL/start_demo_only.sh"
   demo_wait_topic /person_infos_stable "$TOPIC_WAIT" "person target recovery" || true
   demo_wait_topic /demo/person_markers "$TOPIC_WAIT" "demo manager" || true
-}
-
-demo_maybe_record() {
-  local recorder="$NAV2_DIR/tools/record_cmd_vel.py"
-  [ "$RECORD" = "1" ] || return 0
-  [ -f "$recorder" ] || { demo_log "WARN: recorder not found: $recorder"; return 0; }
-
-  mkdir -p "$LOG_DIR"
-  pkill -f '[r]ecord_cmd_vel.py' 2>/dev/null || true
-  local log_file="$LOG_DIR/cmd_vel_$(date +%Y%m%d-%H%M%S).csv"
-  setsid bash -c "source /opt/ros/jazzy/setup.bash; export ROS_DOMAIN_ID=$ROS_DOMAIN_ID; exec python3 '$recorder' '$log_file'" \
-    </dev/null >"$LOG_DIR/logger.out" 2>&1 &
-  echo "$!" > "$LOG_DIR/logger.pid"
-  demo_log "cmd_vel log: $log_file (pid $(cat "$LOG_DIR/logger.pid"))"
 }
 
 demo_print_done() {

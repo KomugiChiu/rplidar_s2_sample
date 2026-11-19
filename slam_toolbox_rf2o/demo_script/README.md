@@ -121,7 +121,6 @@ Useful variants:
 
 ```bash
 START_AI=0 ./start_demo.sh          # SLAM + EKF + Nav2 only
-RECORD=1 ./start_demo.sh            # also record /cmd_vel_nav to CSV
 SLAM_PARAMS=/path/to/other.yaml ./start_demo_static.sh
 NAV2_PARAMS_FILE=$NAV2_DIR/nav2_params_plugin.yaml ./start_demo.sh
 ```
@@ -132,14 +131,12 @@ NAV2_PARAMS_FILE=$NAV2_DIR/nav2_params_plugin.yaml ./start_demo.sh
 |---|---|---|
 | `ROS_DOMAIN_ID` | `99` | DDS domain |
 | `START_AI` | `1` | Start AI/recovery/demo manager |
-| `RECORD` | `0` | Start `$NAV2_DIR/tools/record_cmd_vel.py` |
 | `NAV2_PARAMS_FILE` | `$NAV2_DIR/nav2_params_plugin.yaml` | Nav2 params |
 | `SLAM_PARAMS` | `$SLAM_DIR/...` yaml | SLAM params |
 | `SLAM_DIR` | `/nvt_ros2_example/slam_toolbox` | Standalone SLAM scripts |
 | `RF2O_DIR` | `/nvt_ros2_example/rf2o` | Standalone rf2o scripts |
 | `NAV2_DIR` | `/nvt_ros2_example/nav2` | Standalone Nav2 scripts |
 | `EKF_DIR` | `/nvt_ros2_example/ekf` | Standalone EKF scripts |
-| `USE_EXTERNAL_SAFETY` | `0` | Passed to `start_nav2.sh` |
 | `START_REALSENSE` | `0` | Keep at 0; EKF starts the camera |
 | `CAMERA_X` / `CAMERA_Y` / `CAMERA_Z` | `0.0` / `0.0` / `0.0` | AI TF offset |
 | `LOG_DIR` | temp directory | Logs and PID files |

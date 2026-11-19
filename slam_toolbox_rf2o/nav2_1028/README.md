@@ -43,13 +43,12 @@ install/bringup_bond_launch.py
 install/keepout_filter_launch.py
 install/nav2_params*.yaml
 install/behavior_trees/
-install/tools/record_cmd_vel.py
 ```
 
-Only the files above are installed. The other helpers under `scripts/tools/`
-(`monitor_cpu.py`, `relocalize.py`, `set_initial_pose.py`, `trim_test.py`,
-`restart_driver.sh`, driver patches, `tools/legacy/`) are dev-only and stay in
-the source tree.
+Only the files above are installed; nothing from `scripts/tools/` is
+deployed. The helpers there (`monitor_cpu.py`, `relocalize.py`,
+`set_initial_pose.py`, `trim_test.py`, `restart_driver.sh`, driver patches) are
+dev-only and stay in the source tree.
 
 Copy `install/.` to:
 

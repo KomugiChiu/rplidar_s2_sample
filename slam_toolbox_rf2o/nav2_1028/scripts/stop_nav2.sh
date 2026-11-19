@@ -59,8 +59,6 @@ if [ "$KEEP_DRIVER" != "1" ]; then
     PATTERNS+=(
         "ros2 launch yahboomcar_bringup bringup.launch.py"
         "Mcnamu_driver"
-        "speed_floor.py"
-        "directional_stop.py"
     )
 fi
 

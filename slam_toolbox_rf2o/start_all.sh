@@ -2,8 +2,6 @@
 # Start the whole slam_toolbox_rf2o + EKF + Nav2 (nav2_1028) stack.
 #
 #   ./start_all.sh                          # plugin mode (default)
-#   USE_EXTERNAL_SAFETY=1 NAV2_PARAMS_FILE=.../yaml_legacy/nav2_params_omni_rotation.yaml ./start_all.sh
-#   RECORD=1 ./start_all.sh                 # start the cmd_vel logger (default: off)
 #   USE_LOCALIZATION=1 MAP_FILE=.../maps/x.yaml ./start_all.sh   # static map + AMCL
 #
 # Order: lidar+rf2o+slam_toolbox -> RealSense+EKF -> Nav2 (+ plugin safety) + driver.
@@ -18,9 +16,6 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"
 # NOTE: do not leak this name into ekf/start_ekf.sh (it also uses PARAMS_FILE).
 NAV2_PARAMS_FILE="${NAV2_PARAMS_FILE:-${PARAMS_FILE:-$SCRIPT_DIR/nav2_1028/config/nav2_params_plugin.yaml}}"
 unset PARAMS_FILE
-# default: controller plugin does floor/stop; set 1 for the external chain
-USE_EXTERNAL_SAFETY="${USE_EXTERNAL_SAFETY:-0}"
-export USE_EXTERNAL_SAFETY
 # 0 = slam_toolbox provides /map + map->odom; 1 = map_server + AMCL from MAP_FILE
 USE_LOCALIZATION="${USE_LOCALIZATION:-0}"
 MAP_FILE="${MAP_FILE:-}"
@@ -28,10 +23,7 @@ export USE_LOCALIZATION MAP_FILE
 # SLAM_MODE=none is used by the AMCL flow (start_all_amcl.sh)
 SLAM_MODE="${SLAM_MODE:-mapping}"
 export SLAM_MODE
-# cmd_vel logging is opt-in: set RECORD=1 to enable it.
-RECORD="${RECORD:-0}"
 LOG_DIR="${LOG_DIR:-/tmp/nav2_logs}"
-RECORDER="$SCRIPT_DIR/nav2_1028/scripts/tools/record_cmd_vel.py"
 
 echo "== start_all (ROS_DOMAIN_ID=$ROS_DOMAIN_ID) =="
 echo "   params: $NAV2_PARAMS_FILE"
@@ -89,25 +81,10 @@ echo "      lidar/EKF ready"
 echo "[3/3] Nav2 + chassis driver"
 PARAMS_FILE="$NAV2_PARAMS_FILE" "$SCRIPT_DIR/nav2_1028/scripts/start_nav2.sh"
 
-# --- optional cmd_vel logger ------------------------------------------------
-if [ "$RECORD" = "1" ] && [ -f "$RECORDER" ]; then
-    mkdir -p "$LOG_DIR"
-    pkill -f '[r]ecord_cmd_vel.py' 2>/dev/null || true
-    LOG_FILE="$LOG_DIR/cmd_vel_$(date +%Y%m%d-%H%M%S).csv"
-    setsid bash -c "source /opt/ros/jazzy/setup.bash; export ROS_DOMAIN_ID=$ROS_DOMAIN_ID; exec python3 '$RECORDER' '$LOG_FILE'" \
-        </dev/null >"$LOG_DIR/logger.out" 2>&1 &
-    echo "$!" > "$LOG_DIR/logger.pid"
-    echo "      cmd_vel log: $LOG_FILE (pid $(cat "$LOG_DIR/logger.pid"))"
-fi
-
 echo
 echo "== all started =="
 echo "   domain : $ROS_DOMAIN_ID"
 echo "   params : $NAV2_PARAMS_FILE"
-if [ "$USE_EXTERNAL_SAFETY" = "1" ]; then
-    echo "   cmd_vel: external speed_floor + directional_stop"
-else
-    echo "   cmd_vel: controller plugin (DeadbandController + MPPI)"
-fi
+echo "   cmd_vel: controller plugin (DeadbandController + MPPI)"
 echo "   logs   : /tmp/raspybot_nav2/logs , /tmp/lidar_*.log , $LOG_DIR"
 echo "   stop   : $SCRIPT_DIR/stop_all.sh"

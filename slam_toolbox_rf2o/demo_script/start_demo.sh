@@ -13,7 +13,6 @@
 # Usage:
 #   ./start_demo.sh
 #   START_AI=0 ./start_demo.sh
-#   RECORD=1 ./start_demo.sh
 #   NAV2_PARAMS_FILE=$NAV2_DIR/nav2_params_plugin.yaml ./start_demo.sh
 #
 # Stop with: ./stop_demo.sh
@@ -42,5 +41,4 @@ demo_start_ekf
 demo_wait_for_slam
 demo_start_nav2
 demo_start_ai
-demo_maybe_record
 demo_print_done

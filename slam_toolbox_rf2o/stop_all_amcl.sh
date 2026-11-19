@@ -2,7 +2,7 @@
 # Stop everything started by start_all_amcl.sh.
 #
 # Same process tree as the mapping flow (lidar, rf2o, static TF, RealSense+EKF,
-# Nav2 launch + driver + cmd_vel logger), so this delegates to stop_all.sh and
+# Nav2 launch + driver), so this delegates to stop_all.sh and
 # then sweeps the two nodes that only exist in AMCL mode.
 #
 #   ./stop_all_amcl.sh

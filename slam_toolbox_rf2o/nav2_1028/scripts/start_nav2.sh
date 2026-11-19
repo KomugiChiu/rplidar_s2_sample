@@ -37,19 +37,6 @@ USE_LOCALIZATION="${USE_LOCALIZATION:-0}"
 MAP_FILE="${MAP_FILE:-}"
 START_DRIVER="${START_DRIVER:-true}"
 SKIP_CHECK="${SKIP_CHECK:-0}"
-# minimum-command floor between collision_monitor and the chassis driver
-FLOOR_SCRIPT="${FLOOR_SCRIPT:-$SCRIPT_DIR/tools/legacy/speed_floor.py}"
-VX_FLOOR="${VX_FLOOR:-0.16}"
-WZ_FLOOR="${WZ_FLOOR:-0.52}"
-# floor sits BEFORE collision_monitor so the safety layer keeps the final say
-FLOOR_INPUT="${FLOOR_INPUT:-/cmd_vel_smoothed}"
-FLOOR_OUTPUT="${FLOOR_OUTPUT:-/cmd_vel_floor}"
-# directional stop sits AFTER collision_monitor: only forward is blocked
-DIR_STOP_SCRIPT="${DIR_STOP_SCRIPT:-$SCRIPT_DIR/tools/legacy/directional_stop.py}"
-SAFE_TOPIC="${SAFE_TOPIC:-/cmd_vel_safe}"
-STOP_DISTANCE="${STOP_DISTANCE:-0.30}"
-# 0 = controller plugin does it (default); 1 = legacy external speed_floor + directional_stop
-USE_EXTERNAL_SAFETY="${USE_EXTERNAL_SAFETY:-0}"
 # workspace containing nav2_deadband_controller (plugin mode)
 PLUGIN_WS="${PLUGIN_WS:-/root/nav2_deadband_ws}"
 # keep-out zones (costmap KeepoutFilter); mask is drawn in the web console Map tab
@@ -171,42 +158,14 @@ start_process() {
 }
 
 if [ "$START_DRIVER" = "true" ]; then
-    # collision_monitor -> directional_stop -> driver
-    DRIVER_TOPIC="/cmd_vel"
-    if [ "$USE_EXTERNAL_SAFETY" != "1" ]; then
-        echo "external speed_floor/directional_stop disabled (controller plugin mode)"
-    elif [ -f "$FLOOR_SCRIPT" ]; then
-        if pgrep -f "[s]peed_floor.py" >/dev/null 2>&1; then
-            echo "speed_floor already running - skipping"
-        else
-            start_process speed_floor python3 "$FLOOR_SCRIPT" \
-                --ros-args -p input_topic:="$FLOOR_INPUT" \
-                           -p output_topic:="$FLOOR_OUTPUT" \
-                           -p vx_floor:="$VX_FLOOR" \
-                           -p wz_floor:="$WZ_FLOOR"
-        fi
-    else
-        echo "WARN: $FLOOR_SCRIPT not found - no deadband compensation"
-    fi
-    if [ "$USE_EXTERNAL_SAFETY" = "1" ] && [ -f "$DIR_STOP_SCRIPT" ]; then
-        DRIVER_TOPIC="$SAFE_TOPIC"
-        if pgrep -f "[d]irectional_stop.py" >/dev/null 2>&1; then
-            echo "directional_stop already running - skipping"
-        else
-            start_process directional_stop python3 "$DIR_STOP_SCRIPT" \
-                --ros-args -p input_topic:=/cmd_vel \
-                           -p output_topic:="$SAFE_TOPIC" \
-                           -p stop_distance:="$STOP_DISTANCE"
-        fi
-    elif [ "$USE_EXTERNAL_SAFETY" = "1" ]; then
-        echo "WARN: $DIR_STOP_SCRIPT not found - driver uses /cmd_vel"
-    fi
+    # The controller plugin (DeadbandController) raises sub-deadband commands
+    # and collision_monitor does the forward hard-stop, so the driver simply
+    # takes /cmd_vel.
     if pgrep -f "[M]cnamu_driver" >/dev/null 2>&1; then
         echo "yahboomcar driver already running - skipping"
     else
         start_process yahboomcar \
-            ros2 run yahboomcar_bringup Mcnamu_driver \
-                --ros-args -r cmd_vel:="$DRIVER_TOPIC"
+            ros2 run yahboomcar_bringup Mcnamu_driver
     fi
 fi
 
@@ -252,10 +211,6 @@ if [ "$USE_LOCALIZATION" = "1" ]; then
 else
     echo "  map    : $MAP_TOPIC (mapping node)"
 fi
-if [ "$USE_EXTERNAL_SAFETY" = "1" ]; then
-    echo "  cmd_vel: $FLOOR_INPUT -> speed_floor (vx>=$VX_FLOOR, wz>=$WZ_FLOOR) -> $FLOOR_OUTPUT -> collision_monitor -> /cmd_vel -> directional_stop -> $SAFE_TOPIC -> driver"
-else
-    echo "  cmd_vel: controller plugin (DeadbandController + MPPI) -> velocity_smoother -> collision_monitor -> /cmd_vel -> driver"
-fi
+echo "  cmd_vel: controller plugin (DeadbandController + MPPI) -> velocity_smoother -> collision_monitor -> /cmd_vel -> driver"
 echo "  logs   : $LOG_DIR"
 echo "Stop with: $STOP_SCRIPT"

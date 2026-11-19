@@ -24,7 +24,7 @@ cd /nvt_ros2_example/slam_toolbox_rf2o
 `start_all.sh` 會依序做完：
 
 ```text
-lidar + rf2o + slam_toolbox  →  RealSense + EKF  →  Nav2 + 底盤 driver  →  cmd_vel logger
+lidar + rf2o + slam_toolbox  →  RealSense + EKF  →  Nav2 + 底盤 driver
 ```
 
 啟動大約 **60~90 秒**（等 `/map`、`/odometry/filtered`、TF 就緒）。停止用 `./stop_all.sh`。
@@ -105,7 +105,7 @@ slam_toolbox_rf2o/
 
 ### 4.1 `start_all.sh` / `stop_all.sh`（建議入口）
 
-啟動：`start_slam_toolbox_rf2o.sh` → `ekf/start_ekf.sh` → 等 preflight → `nav2_1028/start_nav2.sh` → 可選 cmd_vel logger。
+啟動：`start_slam_toolbox_rf2o.sh` → `ekf/start_ekf.sh` → 等 preflight → `nav2_1028/start_nav2.sh`。
 
 | 變數 | 預設 | 說明 |
 |---|---|---|
@@ -114,15 +114,12 @@ slam_toolbox_rf2o/
 | `SLAM_MODE` | `mapping` | `mapping` / `localization` / `none`（AMCL 用） |
 | `USE_LOCALIZATION` | `0` | `1` = map_server + AMCL |
 | `MAP_FILE` | 空 | `USE_LOCALIZATION=1` 時必填 |
-| `USE_EXTERNAL_SAFETY` | `0` | `0` = DeadbandController plugin；`1` = 舊的外部 speed_floor/directional_stop |
-| `RECORD` | `1` | `0` = 不啟動 `tools/record_cmd_vel.py` |
 | `LOG_DIR` | `/tmp/nav2_logs` | cmd_vel CSV 位置 |
 
 範例：
 
 ```bash
 ./start_all.sh
-RECORD=0 ./start_all.sh
 NAV2_PARAMS_FILE=$PWD/nav2_1028/yaml_legacy/nav2_params_omni_rotation.yaml ./start_all.sh
 USE_LOCALIZATION=1 MAP_FILE=$PWD/maps/slam_map_20261102.yaml ./start_all.sh
 ```
@@ -133,7 +130,7 @@ USE_LOCALIZATION=1 MAP_FILE=$PWD/maps/slam_map_20261102.yaml ./start_all.sh
 |---|---|---|
 | `KEEP_DRIVER` | `0` | `1` = 保留底盤 driver（只停 Nav2 / EKF / SLAM） |
 
-停止順序：Nav2 + driver → EKF/RealSense → slam_toolbox/rf2o/lidar → cmd_vel logger → 清孤兒，約 12 秒。
+停止順序：Nav2 + driver → EKF/RealSense → slam_toolbox/rf2o/lidar → 清孤兒，約 12 秒。
 
 ---
 
@@ -145,7 +142,7 @@ USE_LOCALIZATION=1 MAP_FILE=$PWD/maps/slam_map_20261102.yaml ./start_all.sh
 |---|---|---|
 | `MAP_FILE` | `maps/slam_map_20261102.yaml` | 靜態地圖 |
 | `NAV2_PARAMS_FILE` | `nav2_1028/nav2_params_amcl.yaml` | AMCL 參數 |
-| `RECORD` / `LOG_DIR` | 同上 | 透傳給 `start_all.sh` |
+| `LOG_DIR` | `/tmp/nav2_logs` | log 位置 |
 
 ```bash
 ./start_all_amcl.sh
@@ -258,8 +255,6 @@ CAM_X=0.10 ./ekf/start_ekf.sh
 | `MAP_FILE` | 空 | 靜態地圖 yaml |
 | `START_DRIVER` | `true` | `false` = 不動底盤 driver |
 | `SKIP_CHECK` | `0` | `1` = 跳過 preflight |
-| `USE_EXTERNAL_SAFETY` | `0` | `1` = 舊的外部安全鏈（`tools/legacy/`） |
-| `VX_FLOOR` / `WZ_FLOOR` | `0.16` / `0.52` | 僅外部安全鏈使用 |
 | `PLUGIN_WS` | `/root/nav2_deadband_ws` | DeadbandController overlay |
 | `RUN_DIR` / `PID_FILE` / `LOG_DIR` | `/tmp/raspybot_nav2` | PID / log |
 
@@ -416,7 +411,6 @@ PARAMS_FILE=$PWD/nav2_1028/nav2_params_plugin.yaml ./nav2_1028/start_nav2.sh
 | Nav2 / driver | `/tmp/raspybot_nav2/logs/nav2.log`、`yahboomcar.log` | `/tmp/raspybot_nav2/pids` |
 | 底盤（獨立） | `/tmp/nav2_chassis/logs/chassis.log` | `/tmp/nav2_chassis/pids` |
 | AI | `/tmp/slam_toolbox_rf2o_ai/` | 同左 |
-| cmd_vel CSV | `/tmp/nav2_logs/cmd_vel_*.csv` | `/tmp/nav2_logs/logger.pid` |
 
 CPU / 溫度監控：
 

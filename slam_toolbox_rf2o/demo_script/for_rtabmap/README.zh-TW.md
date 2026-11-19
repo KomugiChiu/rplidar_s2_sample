@@ -70,7 +70,6 @@ cd /nvt_ros2_example/demo_script/for_rtabmap
 
 ```bash
 START_AI=0 ./start_demo.sh          # 只起建圖 + EKF + Nav2
-RECORD=1 ./start_demo.sh            # 另外把 /cmd_vel_nav 錄成 CSV
 DRY_RUN=1 ./stop_demo.sh            # 只印出會停哪些，不動手
 ODOM_SOURCE=external ./start_demo.sh    # 改用 rf2o + /odom_rf2o
 ```
@@ -90,7 +89,6 @@ rplidar 是獨佔的：要跑這個之前，先停掉 slam_toolbox demo（或任
 |---|---|---|
 | `ROS_DOMAIN_ID` | `99` | DDS domain |
 | `START_AI` | `1` | 是否起 AI / recovery / demo manager |
-| `RECORD` | `0` | 把 `/cmd_vel_nav` 錄成 CSV |
 | `ODOM_SOURCE` | `icp` | `icp` = icp_odometry，`external` = rf2o |
 | `ODOM_TOPIC` | `/odometry/filtered` | RTAB-Map 與 Nav2 吃的 odom |
 | `MAP_TOPIC` | `/rtabmap/map` | RTAB-Map 發佈的地圖 topic |

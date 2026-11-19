@@ -71,7 +71,6 @@ Variants:
 
 ```bash
 START_AI=0 ./start_demo.sh          # mapping + EKF + Nav2 only
-RECORD=1 ./start_demo.sh            # also record /cmd_vel_nav to CSV
 DRY_RUN=1 ./stop_demo.sh            # show what stop_demo.sh would stop
 ODOM_SOURCE=external ./start_demo.sh    # rf2o + /odom_rf2o instead of ICP
 ```
@@ -91,7 +90,6 @@ The rplidar is exclusive: stop the slam_toolbox demo (or anything else using
 |---|---|---|
 | `ROS_DOMAIN_ID` | `99` | DDS domain |
 | `START_AI` | `1` | Start AI / recovery / demo manager |
-| `RECORD` | `0` | Record `/cmd_vel_nav` to CSV |
 | `ODOM_SOURCE` | `icp` | `icp` = icp_odometry, `external` = rf2o |
 | `ODOM_TOPIC` | `/odometry/filtered` | Odometry RTAB-Map and Nav2 consume |
 | `MAP_TOPIC` | `/rtabmap/map` | Map topic RTAB-Map publishes |

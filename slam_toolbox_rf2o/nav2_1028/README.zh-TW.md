@@ -43,12 +43,11 @@ install/bringup_bond_launch.py
 install/keepout_filter_launch.py
 install/nav2_params*.yaml
 install/behavior_trees/
-install/tools/record_cmd_vel.py
 ```
 
-只會安裝上面這些檔案；`scripts/tools/` 其餘的輔助工具
-（`monitor_cpu.py`、`relocalize.py`、`set_initial_pose.py`、`trim_test.py`、
-`restart_driver.sh`、driver patch、`tools/legacy/`）只留在原始碼裡，不部署。
+只會安裝上面這些檔案，`scripts/tools/` 底下的工具完全不部署。
+那些檔案（`monitor_cpu.py`、`relocalize.py`、`set_initial_pose.py`、
+`trim_test.py`、`restart_driver.sh`、driver patch）只留在原始碼裡。
 
 把 `install/.` 的內容複製到：
 

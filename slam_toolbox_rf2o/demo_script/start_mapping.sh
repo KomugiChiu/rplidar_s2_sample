@@ -17,7 +17,6 @@
 # Usage:
 #   ./start_mapping.sh
 #   SLAM_PARAMS=/path/other_mapping.yaml ./start_mapping.sh
-#   RECORD=1 ./start_mapping.sh
 set -eo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"

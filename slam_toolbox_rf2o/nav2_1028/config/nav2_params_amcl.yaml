@@ -540,7 +540,7 @@ collision_monitor:
     stop_pub_timeout: 2.0
     # Polygons represent zone around the robot for "stop", "slowdown" and "limit" action types,
     # and robot footprint for "approach" action type.
-    # forward hard-stop is handled by directional_stop after this node
+    # collision_monitor is the forward hard-stop (no external chain anymore)
     polygons: ["FootprintApproach"]
     FootprintApproach:
       type: "polygon"

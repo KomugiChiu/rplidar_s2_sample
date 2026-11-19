@@ -47,5 +47,4 @@ demo_start_ekf
 demo_wait_for_slam
 demo_start_nav2
 demo_start_ai
-demo_maybe_record
 demo_print_done

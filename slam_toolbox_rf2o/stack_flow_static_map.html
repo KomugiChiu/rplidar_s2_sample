@@ -311,7 +311,6 @@
       <span class="badge purple"><b>FollowPath</b> DeadbandController · simple</span>
       <span class="badge amber"><b>wz_floor</b> 0.90（底盤限制，勿改）</span>
       <span class="badge"><b>KEEPOUT</b> 1</span>
-      <span class="badge"><b>USE_EXTERNAL_SAFETY</b> 0</span>
     </div>
   </header>
 
@@ -1017,7 +1016,7 @@
           <tr><td>velocity_smoother</td><td>OPEN_LOOP</td></tr>
           <tr><td>collision_monitor</td><td>smoothed → /cmd_vel</td></tr>
         </table>
-        <p class="hint"><b>wz_floor 0.90 是底盤限制，不可變更。</b>legacy speed_floor / directional_stop 在 plugin 模式關閉。</p>
+        <p class="hint"><b>wz_floor 0.90 是底盤限制，不可變更。</b>legacy speed_floor / directional_stop 已移除，deadband 與前向硬停都由 plugin 負責。</p>
       </div>
 
       <div class="param-card" style="--accent:#0ea5e9">

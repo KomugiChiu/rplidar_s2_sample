@@ -15,15 +15,6 @@ install(PROGRAMS
   DESTINATION .
 )
 
-# Only this tool is reachable from the demo flow (RECORD=1 in
-# demo_script/start_demo.sh). monitor_cpu / relocalize / set_initial_pose /
-# trim_test / restart_driver / driver patches / tools/legacy are dev-only and
-# stay in the source tree.
-install(PROGRAMS
-  scripts/tools/record_cmd_vel.py
-  DESTINATION tools
-)
-
 install(FILES
   config/nav2_params.yaml
   config/nav2_params_plugin.yaml

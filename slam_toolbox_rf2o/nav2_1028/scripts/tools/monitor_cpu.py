@@ -51,7 +51,6 @@ ROS_HINTS = (
     "route_server",
     "docking_server",
     "Mcnamu_driver",
-    "record_cmd_vel",
     "ai_human_detect",
 )
 

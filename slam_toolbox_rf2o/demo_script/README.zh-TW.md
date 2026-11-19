@@ -120,7 +120,6 @@ mapping 時儲存 map：
 
 ```bash
 START_AI=0 ./start_demo.sh          # 只跑 SLAM + EKF + Nav2
-RECORD=1 ./start_demo.sh            # 另外記錄 /cmd_vel_nav CSV
 SLAM_PARAMS=/path/to/other.yaml ./start_demo_static.sh
 NAV2_PARAMS_FILE=$NAV2_DIR/nav2_params_plugin.yaml ./start_demo.sh
 ```
@@ -131,14 +130,12 @@ NAV2_PARAMS_FILE=$NAV2_DIR/nav2_params_plugin.yaml ./start_demo.sh
 |---|---|---|
 | `ROS_DOMAIN_ID` | `99` | DDS domain |
 | `START_AI` | `1` | 啟動 AI / recovery / demo manager |
-| `RECORD` | `0` | 啟動 `$NAV2_DIR/tools/record_cmd_vel.py` |
 | `NAV2_PARAMS_FILE` | `$NAV2_DIR/nav2_params_plugin.yaml` | Nav2 參數 |
 | `SLAM_PARAMS` | `$SLAM_DIR/...` yaml | SLAM 參數 |
 | `SLAM_DIR` | `/nvt_ros2_example/slam_toolbox` | 獨立 SLAM script |
 | `RF2O_DIR` | `/nvt_ros2_example/rf2o` | 獨立 rf2o script |
 | `NAV2_DIR` | `/nvt_ros2_example/nav2` | 獨立 Nav2 script |
 | `EKF_DIR` | `/nvt_ros2_example/ekf` | 獨立 EKF script |
-| `USE_EXTERNAL_SAFETY` | `0` | 傳給 `start_nav2.sh` |
 | `START_REALSENSE` | `0` | 保持 0；相機由 EKF 啟動 |
 | `CAMERA_X` / `CAMERA_Y` / `CAMERA_Z` | `0.0` / `0.0` / `0.0` | AI TF 偏移 |
 | `LOG_DIR` | 系統暫存目錄 | log 與 PID |
