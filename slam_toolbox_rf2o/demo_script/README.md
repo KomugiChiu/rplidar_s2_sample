@@ -22,16 +22,57 @@ start_mapping.sh       mapping mode, no AI
 `start_mapping.sh` starts layers 1-3 only, so you can drive the robot with
 RViz goals while building a map, then save it with `record_map.sh`.
 
+## Build layout
+
+Source layout:
+
+```text
+scripts/                  start/stop/demo_common + record_map
+scripts/for_rtabmap/      RTAB-Map demo scripts + READMEs
+```
+
+Build with colcon:
+
+```bash
+cd slam_toolbox_rf2o
+colcon build --merge-install --packages-select demo_script_bringup
+```
+
+The install tree is flat:
+
+```text
+install/start_demo.sh
+install/start_demo_static.sh
+install/start_mapping.sh
+install/stop_demo.sh
+install/record_map.sh
+install/demo_common.sh
+install/for_rtabmap/start_demo.sh
+install/for_rtabmap/stop_demo.sh
+install/for_rtabmap/README.md
+install/for_rtabmap/README.zh-TW.md
+```
+
+Copy `install/.` to:
+
+```text
+/nvt_ros2_example/demo_script/
+```
+
+Do not copy an `install/` subdirectory to the board.
+
 ## 1. Files
 
 | File | Purpose |
 |---|---|
-| `start_demo.sh` | Full demo, slam_toolbox mapping mode + AI |
-| `start_demo_static.sh` | Full demo, slam_toolbox localization mode + AI |
-| `start_mapping.sh` | Mapping stack: SLAM + EKF + Nav2, no AI |
-| `record_map.sh` | Save pgm/yaml + posegraph (calls `$SLAM_DIR/save_map.sh`) |
-| `stop_demo.sh` | Stop the stack started by any of the three start scripts |
-| `demo_common.sh` | Shared helpers (sourced by the start scripts) |
+| `scripts/start_demo.sh` | Full demo, slam_toolbox mapping mode + AI |
+| `scripts/start_demo_static.sh` | Full demo, slam_toolbox localization mode + AI |
+| `scripts/start_mapping.sh` | Mapping stack: SLAM + EKF + Nav2, no AI |
+| `scripts/record_map.sh` | Save pgm/yaml + posegraph (calls `$SLAM_DIR/save_map.sh`) |
+| `scripts/stop_demo.sh` | Stop the stack started by any of the three start scripts |
+| `scripts/demo_common.sh` | Shared helpers (sourced by the start scripts) |
+| `scripts/for_rtabmap/start_demo.sh` | Full RTAB-Map demo + AI |
+| `scripts/for_rtabmap/stop_demo.sh` | Stop the RTAB-Map demo |
 
 ## 2. Mapping vs. localization
 
@@ -84,24 +125,27 @@ Then set `map_file_name` in `slam_toolbox_localization.yaml`.
 
 ## 3. Usage
 
+Run from the deployed prefix (`/nvt_ros2_example/demo_script`) or from
+`demo_script/scripts` in the source tree.
+
 Mapping demo:
 
 ```bash
-cd demo_script
+cd /nvt_ros2_example/demo_script
 ./start_demo.sh
 ```
 
 Static/localization demo:
 
 ```bash
-cd demo_script
+cd /nvt_ros2_example/demo_script
 ./start_demo_static.sh
 ```
 
 Mapping stack without AI:
 
 ```bash
-cd demo_script
+cd /nvt_ros2_example/demo_script
 ./start_mapping.sh
 ```
 
@@ -258,4 +302,6 @@ slam_toolbox + rf2o scripts, then the Nav2/EKF/driver stack.
 - START_AI=0 is useful when only bringing up navigation.
 - The AI helper scripts source the vendor workspaces themselves; this folder
   only provides the orchestration and logging.
+- The colcon package name is `demo_script_bringup`; the deployed prefix is
+  `/nvt_ros2_example/demo_script`.
 ```

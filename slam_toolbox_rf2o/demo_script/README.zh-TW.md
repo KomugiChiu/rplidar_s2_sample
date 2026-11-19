@@ -22,16 +22,57 @@ start_mapping.sh       mapping 模式，不含 AI
 `start_mapping.sh` 只啟動第 1~3 層，讓你可以用 RViz 設 goal 建圖，
 再用 `record_map.sh` 儲存。
 
+## 建置方式
+
+來源結構：
+
+```text
+scripts/                  start/stop/demo_common + record_map
+scripts/for_rtabmap/      RTAB-Map demo scripts + README
+```
+
+用 colcon 編譯：
+
+```bash
+cd slam_toolbox_rf2o
+colcon build --merge-install --packages-select demo_script_bringup
+```
+
+install 會是扁平結構：
+
+```text
+install/start_demo.sh
+install/start_demo_static.sh
+install/start_mapping.sh
+install/stop_demo.sh
+install/record_map.sh
+install/demo_common.sh
+install/for_rtabmap/start_demo.sh
+install/for_rtabmap/stop_demo.sh
+install/for_rtabmap/README.md
+install/for_rtabmap/README.zh-TW.md
+```
+
+把 `install/.` 複製到：
+
+```text
+/nvt_ros2_example/demo_script/
+```
+
+不要複製 `install/` 子目錄到板子。
+
 ## 1. 檔案
 
 | 檔案 | 用途 |
 |---|---|
-| `start_demo.sh` | 完整 demo，slam_toolbox mapping 模式 + AI |
-| `start_demo_static.sh` | 完整 demo，slam_toolbox localization 模式 + AI |
-| `start_mapping.sh` | mapping stack：SLAM + EKF + Nav2，不含 AI |
-| `record_map.sh` | 儲存 pgm/yaml + posegraph（呼叫 `$SLAM_DIR/save_map.sh`） |
-| `stop_demo.sh` | 關閉三個 start script 啟動的 stack |
-| `demo_common.sh` | 共用函式（由 start script source） |
+| `scripts/start_demo.sh` | 完整 demo，slam_toolbox mapping 模式 + AI |
+| `scripts/start_demo_static.sh` | 完整 demo，slam_toolbox localization 模式 + AI |
+| `scripts/start_mapping.sh` | mapping stack：SLAM + EKF + Nav2，不含 AI |
+| `scripts/record_map.sh` | 儲存 pgm/yaml + posegraph（呼叫 `$SLAM_DIR/save_map.sh`） |
+| `scripts/stop_demo.sh` | 關閉三個 start script 啟動的 stack |
+| `scripts/demo_common.sh` | 共用函式（由 start script source） |
+| `scripts/for_rtabmap/start_demo.sh` | 完整 RTAB-Map demo + AI |
+| `scripts/for_rtabmap/stop_demo.sh` | 停止 RTAB-Map demo |
 
 ## 2. Mapping 與 localization 的差別
 
@@ -83,24 +124,27 @@ Localization 會從 localization yaml 的 `map_file_name` 讀取：
 
 ## 3. 使用方式
 
+從部署後的 prefix（`/nvt_ros2_example/demo_script`）或來源樹的
+`demo_script/scripts` 執行。
+
 Mapping demo：
 
 ```bash
-cd demo_script
+cd /nvt_ros2_example/demo_script
 ./start_demo.sh
 ```
 
 Localization demo：
 
 ```bash
-cd demo_script
+cd /nvt_ros2_example/demo_script
 ./start_demo_static.sh
 ```
 
 不含 AI 的 mapping stack：
 
 ```bash
-cd demo_script
+cd /nvt_ros2_example/demo_script
 ./start_mapping.sh
 ```
 
@@ -254,4 +298,6 @@ log 與 PID 會放在 `LOG_DIR`（預設是系統暫存目錄）：
 - Nav2 預設是 DeadbandController（simple 模式）。
 - START_AI=0 可以只起導航，不跑 AI。
 - AI helper 會自己 source vendor workspace；這個資料夾只負責組合與 log。
+- colcon package 名稱是 `demo_script_bringup`；部署位置是
+  `/nvt_ros2_example/demo_script`。
 ```

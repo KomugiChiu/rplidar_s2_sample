@@ -72,7 +72,7 @@ slam_toolbox_rf2o/
 ├── check_deps.sh                           # 依賴檢查 / apt 自動安裝
 ├── rf2o/                                   # rf2o standalone install / scripts
 ├── slam_toolbox/                           # standalone SLAM mapping / localization
-├── demo_script/                            # 一鍵 mapping / static demo
+├── demo_script/                            # 一鍵 mapping / static demo（demo_script_bringup）
 ├── slam_toolbox_rf2o.yaml                  # slam_toolbox 參數
 ├── rf2o_params.yaml                        # rf2o 參數
 ├── rviz_slam_toolbox_rf2o.rviz             # 這條流程用的 RViz

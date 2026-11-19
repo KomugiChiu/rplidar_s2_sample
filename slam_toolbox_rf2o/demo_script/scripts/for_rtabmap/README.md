@@ -2,7 +2,7 @@
 
 # for_rtabmap
 
-The [demo_script](../README.md) flow, but with **RTAB-Map** doing the 2D lidar
+The demo_script flow, but with **RTAB-Map** doing the 2D lidar
 mapping instead of slam_toolbox.
 
 Two entry points:
@@ -61,6 +61,9 @@ fuses the D455 gyro. Without it the EKF would have no yaw rate input.
 | `README.zh-TW.md` | 繁體中文版 |
 
 ## 4. Usage
+
+From the deployed prefix (`/nvt_ros2_example/demo_script/for_rtabmap`) or
+`demo_script/scripts/for_rtabmap` in the source tree:
 
 ```bash
 cd /nvt_ros2_example/demo_script/for_rtabmap
@@ -188,6 +191,6 @@ otherwise keep `/dev/ttyUSB0` busy for the next run.
 - RTAB-Map publishes map -> odom, Nav2 must use /rtabmap/map and
   /odometry/filtered; that is what nav2_params_rtabmap.yaml contains.
 - Only one process may own the rplidar serial port at a time.
-- There is no static/localization mode here; use ../start_demo_static.sh with
-  slam_toolbox for that.
+- There is no static/localization mode here; use the top-level
+  `start_demo_static.sh` with slam_toolbox for that.
 ```

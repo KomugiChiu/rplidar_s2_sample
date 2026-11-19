@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>demo_script_bringup</name>
+  <version>0.1.0</version>
+  <description>One-command demo orchestration scripts (mapping, static follow, RTAB-Map).</description>
+  <maintainer email="komugi@example.com">Komugi</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Upstream packages (apt).  The local bringup packages (demo_manager,
+       slam_toolbox_bringup, rf2o_bringup, ekf_bringup, nav2_1028_bringup,
+       rtabmap_bringup, ai_human_detection) are runtime dependencies documented
+       in README.md; they are deliberately not declared here so this package
+       can be built with packages-select on its own. -->
+  <exec_depend>slam_toolbox</exec_depend>
+  <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>robot_localization</exec_depend>
+  <exec_depend>realsense2_camera</exec_depend>
+  <exec_depend>rtabmap_slam</exec_depend>
+  <exec_depend>rtabmap_odom</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

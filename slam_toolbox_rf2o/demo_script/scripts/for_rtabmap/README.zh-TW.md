@@ -2,7 +2,7 @@
 
 # for_rtabmap
 
-這是 [demo_script](../README.zh-TW.md) 流程的 **RTAB-Map** 版本：2D 光達建圖改由
+這是 demo_script 流程的 **RTAB-Map** 版本：2D 光達建圖改由
 RTAB-Map 負責，而不是 slam_toolbox。
 
 兩個進入點：
@@ -60,6 +60,9 @@ rtabmap_slam/rtabmap (subscribe_scan, odom_topic=/odometry/filtered)
 | `README.zh-TW.md` | 本檔 |
 
 ## 4. 用法
+
+從部署後的 prefix（`/nvt_ros2_example/demo_script/for_rtabmap`）或來源樹的
+`demo_script/scripts/for_rtabmap` 執行：
 
 ```bash
 cd /nvt_ros2_example/demo_script/for_rtabmap
@@ -186,5 +189,5 @@ SIGTERM、等待，再送 SIGKILL 並按名稱掃一遍；因為 `rplidar_node`�
   這也是 nav2_params_rtabmap.yaml 裡的設定。
 - 同時間只能有一個行程佔用 rplidar 的序列埠。
 - 這裡沒有 static/localization 模式；那要用 slam_toolbox 的
-  ../start_demo_static.sh。
+  `start_demo_static.sh`。
 ```
