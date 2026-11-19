@@ -1,0 +1,22 @@
+--- a/src/CLaserOdometry2DNode.cpp
++++ b/src/CLaserOdometry2DNode.cpp
+@@ -97,8 +97,17 @@
+     }
+     else
+     {
+-      // Initialize module on first scan (from laser params)
+-      setLaserPoseFromTf();
++      // Initialize module on first scan (from laser params).
++      // The laser mounting TF is read exactly once: if the static transforms
++      // are not in the buffer yet (right after boot DDS discovery can take a
++      // while), retry with the next scan instead of silently falling back to
++      // laser == base (which rotates the odometry by the mounting yaw).
++      if (!setLaserPoseFromTf())
++      {
++        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
++          "Laser mounting TF not available yet, retrying on the next scan");
++        return;
++      }
+       rf2o_ref.init(last_scan, initial_robot_pose.pose.pose);
+       rf2o_ref.first_laser_scan = false;
+     }
