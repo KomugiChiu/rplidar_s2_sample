@@ -214,3 +214,128 @@ ros2 launch rf2o_laser_odometry rf2o_laser_odometry.launch.py
 - **ros2 分支是 2021 年的舊 code**（Foxy/Galactic 時代），在 Jazzy 上「大概率可編」，但若遇到 API 問題，常見修法是：C++17、`package.xml` 的 `<run_depend>` 改成 `<exec_depend>`、移除 Boost。
 - recipe 是 `_git.bb`、`SRCREV` 已釘最新 `ros2` 分支 commit；若要固定可重現性，保留這個 SRCREV。
 - 不建議把 recipe 直接丟進 meta-ros checkout，更新 meta-ros 時容易衝突或遺失。
+
+---
+
+# 將 rf2o 加入既有的 meta-company
+
+## 問題
+
+如果有一個既有的 meta-company，我可以怎麼把 rf2o 加入？
+
+## 回答
+
+可以把 recipe 直接放進既有的 `meta-company`，不需要新開 layer。重點只有三個：**路徑要被 `BBFILES` 掃到、層依賴要宣告、image 要安裝**。
+
+### 1. 先看 meta-company 的 layer.conf
+
+```bash
+cat meta-company/conf/layer.conf
+```
+
+確認兩件事：
+
+```bitbake
+# 1) BBFILES 是否已涵蓋 recipes-* 路徑
+BBFILES += "${LAYERDIR}/recipes-*/*/*.bb ${LAYERDIR}/recipes-*/*/*.bbappend"
+
+# 2) 是否已依賴 meta-ros 的 jazzy layer
+LAYERDEPENDS_<collection> = " \
+    core \
+    ros2-jazzy-layer \
+"
+```
+
+- 若 `BBFILES` 是 `${LAYERDIR}/recipes-*/*/*.bb`，那放在 `recipes-ros/...` 或任何 `recipes-xxx/` 都會被找到，**不用改 layer.conf**。
+- 若 `LAYERDEPENDS` 還沒列 `ros2-jazzy-layer`，補上。`ros2-jazzy-layer` 是 meta-ros2-jazzy 的 collection 名稱（不是目錄名）。
+- 注意變數後綴要跟 layer.conf 裡實際的 collection 名一致（例如 `LAYERDEPENDS_meta-company`）。
+
+### 2. 放 recipe
+
+建議沿用 meta-company 現有的分類，例如：
+
+```
+meta-company/
+└── recipes-ros/
+    └── rf2o-laser-odometry/
+        └── rf2o-laser-odometry_git.bb
+```
+
+如果 meta-company 已經有 `recipes-ros2/`，放那裡也可以；OE 不在意目錄名稱，只在意 `BBFILES` 是否符合。
+
+`rf2o-laser-odometry_git.bb` 內容跟之前一樣：
+
+```bitbake
+SUMMARY = "RF2O planar laser odometry for ROS 2"
+HOMEPAGE = "https://github.com/MAPIRlab/rf2o_laser_odometry"
+LICENSE = "GPL-3.0-only"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=84dcc94da3adb52b53ae4fa38fe49e5d"
+
+SRC_URI = "git://github.com/MAPIRlab/rf2o_laser_odometry.git;branch=ros2;protocol=https"
+SRCREV = "b38c68e46387b98845ecbfeb6660292f967a00d3"
+PV = "0.1.0+git"
+S = "${WORKDIR}/git"
+
+inherit ros_distro_jazzy
+inherit ros_component
+
+ROS_CN = "rf2o_laser_odometry"
+ROS_BPN = "rf2o_laser_odometry"
+
+ROS_BUILD_DEPENDS = " \
+    geometry-msgs nav-msgs rclcpp sensor-msgs std-msgs \
+    tf2 tf2-geometry-msgs tf2-ros libeigen \
+"
+
+ROS_BUILDTOOL_DEPENDS = " \
+    ament-cmake-native \
+    eigen3-cmake-module-native \
+"
+
+ROS_BUILDTOOL_EXPORT_DEPENDS = "eigen3-cmake-module-native"
+ROS_EXPORT_DEPENDS = "libeigen"
+
+ROS_EXEC_DEPENDS = " \
+    geometry-msgs nav-msgs rclcpp sensor-msgs std-msgs \
+    tf2 tf2-geometry-msgs tf2-ros \
+"
+
+DEPENDS = "${ROS_BUILD_DEPENDS} ${ROS_BUILDTOOL_DEPENDS} boost"
+DEPENDS += "${ROS_EXPORT_DEPENDS} ${ROS_BUILDTOOL_EXPORT_DEPENDS}"
+RDEPENDS:${PN} += "${ROS_EXEC_DEPENDS}"
+
+EXTRA_OECMAKE += "-DCMAKE_CXX_STANDARD=17"
+
+ROS_BUILD_TYPE = "ament_cmake"
+inherit ros_${ROS_BUILD_TYPE}
+```
+
+### 3. 加進 image 或 packagegroup
+
+如果 meta-company 有自己的 image/packagegroup，建議加在 packagegroup：
+
+```bitbake
+RDEPENDS:${PN} += " rf2o-laser-odometry"
+```
+
+或直接加在 image / `local.conf`：
+
+```bitbake
+IMAGE_INSTALL:append = " rf2o-laser-odometry"
+```
+
+### 4. 編譯驗證
+
+```bash
+bitbake rf2o-laser-odometry
+bitbake <your-image>
+bitbake -g <your-image> && grep rf2o pn-buildlist
+```
+
+### 幾個實務建議
+
+- **不要用 bbappend 新增**：bbappend 只能改既有 recipe；rf2o 沒有既有 recipe，一定要新增 `.bb`。
+- recipe 檔名用 hyphen（`rf2o-laser-odometry`），ROS package 名稱底線由 `ROS_BPN` 處理；不要直接把檔名寫成 `rf2o_laser_odometry_git.bb`，否則 OE package 名稱會變底線，較不慣例。
+- 若 `meta-company` 是 BSP/distro 層、團隊會定期 rebase，較乾淨的做法是另開 `meta-company-ros` 子 layer 放這類第三方 recipe；但功能上直接放進 meta-company 完全可行。
+- 層依賴只是 QA/文件用途；只要 `bblayers.conf` 裡 meta-ros 的 layer 有加，recipe 就能 build，但還是建議把 `ros2-jazzy-layer` 寫進 `LAYERDEPENDS`。
+- 若 meta-company 的 `BBFILES` 是寫死特定目錄（很少見），把 recipe 放到那個目錄，或在 layer.conf 補一行對應 glob。
