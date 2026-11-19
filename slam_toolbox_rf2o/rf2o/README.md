@@ -1,116 +1,141 @@
-# rf2o recipe（yocto 模擬）
+[English] | [繁體中文](README.zh-TW.md)
 
-把 rf2o（上游 `MAPIRlab/rf2o_laser_odometry`）變成「可複製的編譯配方」：
-**上游 source 用 git clone 取得、本地新增的檔案用事先 copy 的 overlay 模擬
-bbappend、最後 colcon build 出一個同時含 node 與 scripts/yaml 的扁平 prefix**。
+# rf2o recipe (yocto simulation)
 
-## 目錄（= 一個 recipe）
+Turns rf2o (upstream `MAPIRlab/rf2o_laser_odometry`) into a **copyable build
+recipe**: the upstream source is obtained with `git clone`, local additions are
+pre-copied overlay files (simulating a bbappend), and a single `colcon build`
+produces a flat prefix that contains both the compiled node and the
+scripts/yaml.
+
+## Layout (one recipe)
 
 ```
 rf2o/
-├── Makefile                        ← 對外門面：給上一層 makefile $(MAKE) -C rf2o 用
-├── src.env                         ← 唯一變數出處（URL / branch / SRCREV / DESTDIR）
-├── fetch.sh                        ← do_fetch + do_patch：clone + git apply（冪等）
-├── build.sh                        ← do_compile + do_install：colcon build --merge-install
-├── patches/rf2o_laser_tf_retry.patch  ← 本地 patch（雷射 TF 未就緒時重試，不退回 laser==base）
-├── files/                          ← bbappend 的 file://：scripts + yaml 唯一正本
+├── Makefile                        <- front-end for an outer makefile: $(MAKE) -C rf2o ...
+├── src.env                         <- single source of truth (URL / branch / SRCREV / DESTDIR)
+├── fetch.sh                        <- do_fetch + do_patch: clone + git apply (idempotent)
+├── build.sh                        <- do_compile + do_install: colcon build --merge-install
+├── patches/rf2o_laser_tf_retry.patch  <- local patch (retry laser TF, never fall back to laser==base)
+├── files/                          <- the bbappend "file://" part: scripts + yaml (single copy)
 │   ├── start.sh / stop.sh / rf2o_params.yaml
-├── rf2o_bringup/                   ← colcon package：把 files/ 裝進 prefix 根（上游 clone 不動）
-└── src/rf2o_laser_odometry/        ← fetch.sh 的 clone 目標（不進 git）
+├── rf2o_bringup/                   <- colcon package that installs files/ at the prefix root
+└── src/rf2o_laser_odometry/        <- clone target of fetch.sh (not tracked by git)
 ```
 
-## yocto 對照
+The upstream clone is never modified: `rf2o_bringup` only installs the overlay
+files, so the same tree can be rebuilt from scratch at any time.
 
-| yocto | 這裡 |
+## Yocto mapping
+
+| yocto | here |
 |---|---|
-| `SRC_URI = git://...;branch=ros2` | `src.env` 的 `RF2O_GIT_URL` / `RF2O_BRANCH` |
-| `SRCREV` | `RF2O_SRCREV`（釘在 `b38c68e`，ros2 branch 當時的 head） |
-| `SRC_URI += file://*.patch` | `patches/*.patch`，由 `fetch.sh` 套上 |
-| `FILESEXTRAPATHS` / append 補檔案 | `files/` + `rf2o_bringup`（只負責安裝，不改上游） |
-| `do_compile` / `do_install` | `build.sh`（colcon build --merge-install） |
-| image 部署 | `make install`（DESTDIR） |
+| `SRC_URI = git://...;branch=ros2` | `RF2O_GIT_URL` / `RF2O_BRANCH` in `src.env` |
+| `SRCREV` | `RF2O_SRCREV` (pinned to `b38c68e`, head of the ros2 branch) |
+| `SRC_URI += file://*.patch` | `patches/*.patch`, applied by `fetch.sh` |
+| `FILESEXTRAPATHS` / append files | `files/` + `rf2o_bringup` (installs, never patches upstream) |
+| `do_compile` / `do_install` | `build.sh` (colcon build --merge-install) |
+| image deployment | `make install` (DESTDIR) |
 
-## 用法
+## Usage
 
 ```bash
-make all                     # fetch + compile（重跑安全）
-make fetch                   # 只補 source + patch
-make compile                 # 只 colcon build
-make install                 # 部署扁平 prefix 到 DESTDIR（舊目錄自動備份 *.bak.<ts>）
-make install-files           # 只鋪 files/（給已經自己會編 rf2o 的環境）
-make check                   # 看 src/ 與產物狀態
-make clean / distclean       # 清輸出 / 連 src/ 一起清
+make all                     # fetch + compile (safe to re-run)
+make fetch                   # source + patches only
+make compile                 # colcon build only
+make stage                   # copy install/ to DESTDIR, do NOT build
+make install                 # compile + stage (existing DESTDIR is backed up to *.bak.<ts>)
+make install-files           # overlay only (scripts + yaml), no build
+make check                   # show src/ and artifact state
+make clean / distclean       # remove outputs / also remove src/
 ```
 
-外層 makefile（`dir1/Makefile`）只要：
+An outer makefile (`dir1/Makefile`) only needs:
 
 ```makefile
 all clean install:
 	$(MAKE) -C rf2o $@
 ```
 
-或以 SDK 慣例帶 staging：`$(MAKE) -C rf2o install DESTDIR=$(STAGE)/rf2o`。
+or, with SDK-style staging: `$(MAKE) -C rf2o install DESTDIR=$(STAGE)/rf2o`.
 
-## 交叉編譯（由外層注入，rf2o 內不認識任何 wrapper）
+`fetch` is offline on re-runs: the clone is skipped when `src/` already exists
+at the pinned rev, and patches are skipped when already applied. The network is
+only touched when the pinned rev is missing from the local clone (e.g. after
+bumping `RF2O_SRCREV`); `RF2O_SRCREV=<sha> ./fetch.sh` and
+`make fetch RF2O_SRCREV=<sha>` both work (environment variables win over
+`src.env`).
 
-`compile` 不直接寫死 colcon，而是執行 `$(BUILD_CMD)`（預設 `./build.sh`）；
-`fetch` 同理是 `$(FETCH_CMD)`。外層（cross 環境）只要把自己的 wrapper 塞進來：
+## Cross compilation (injected by the outer layer)
+
+`compile` does not hard-code colcon: it runs `$(BUILD_CMD)` (default
+`./build.sh`), and `fetch` runs `$(FETCH_CMD)`. A cross-compile layer can plug
+in its own build/rosdep wrapper without this directory knowing its name:
 
 ```makefile
-# 外層 Makefile（wrapper 只存在這一層）
+# outer Makefile (the wrapper lives only in this layer)
 all:
 	$(MAKE) -C rf2o fetch FETCH_CMD="<your-fetch-wrapper>"
 	$(MAKE) -C rf2o compile BUILD_CMD="<your-build-wrapper> $(CURDIR)/rf2o"
 	$(MAKE) -C rf2o stage DESTDIR=$(CURDIR)/stage
 ```
 
-或由環境變數注入（Make 會沿用已存在的 `BUILD_CMD`）：
+or through the environment (make keeps an already defined `BUILD_CMD`):
 
 ```bash
 export BUILD_CMD=/path/to/cross-build-wrapper
 make -C rf2o compile
 ```
 
-契約：wrapper 收到「workspace 路徑」，最後要在該路徑留下 **merge-install** 的
-`install/`（`lib/rf2o_laser_odometry/...`、`share/...`、`setup.bash`）。
-`stage` 只複製 `install/`，不會再觸發預設的 colcon；若 wrapper 只編上游、
-沒編 `rf2o_bringup`，再補一次 `make install-files` 把 `files/` 疊上去即可。
+Contract: the wrapper receives the workspace path and must leave a
+**merge-install** `install/` there (`lib/rf2o_laser_odometry/...`,
+`share/...`, `setup.bash`). `stage` only copies `install/` and never triggers
+the default colcon; if the wrapper builds only the upstream package, add
+`make install-files` to put `files/` on top.
 
-## ⚠️ 架構限制
+## Architecture constraint
 
-`rf2o_laser_odometry_node` 是**編譯產物**，編譯機器 = 執行機器：
+`rf2o_laser_odometry_node` is a compiled artifact, so the build host must match
+the run host:
 
-- 板子是 **aarch64** → 正式 build 在**板子上**跑（`fetch.sh` 會直接在板上 clone，
-  板子有網路）
-- notebook（x86_64）的 build 只用來驗證 recipe 結構，產物**不能**部署到板子
+- the board is **aarch64** -> run the real build **on the board** (`fetch.sh`
+  clones there; the board has network access)
+- a notebook (x86_64) build only validates the recipe and **must not** be
+  deployed to the board
 
-板上流程：
+Board flow:
 
 ```bash
-# notebook 端把整包 recipe 丢過去（src/build/install 都不用帶）
+# from the notebook: ship the recipe (no src/build/install/log needed)
 rsync -a --exclude src --exclude build --exclude install --exclude log \
       slam_toolbox_rf2o/rf2o/ root@BOARD:/root/rf2o_build/
 
-# 板上
+# on the board
 cd /root/rf2o_build
-./fetch.sh                     # clone + patch（冪等）
+./fetch.sh                     # clone + patch (idempotent)
 ./build.sh                     # colcon build --merge-install
-make install DESTDIR=/nvt_ros2_example/rf2o   # 自動備份舊目錄
+make install DESTDIR=/nvt_ros2_example/rf2o   # backs up the previous directory
 ```
 
-## 產出（install/，與 /nvt_ros2_example/rf2o 同構）
+Stop the demo before building: a full compile on top of a running stack can
+push the board hard enough to reboot it.
+
+## Output (install/, same shape as /nvt_ros2_example/rf2o)
 
 ```
-install/lib/rf2o_laser_odometry/rf2o_laser_odometry_node   ← 上游編譯產物
+install/lib/rf2o_laser_odometry/rf2o_laser_odometry_node   <- upstream build
 install/share/rf2o_laser_odometry/launch
-install/start.sh  install/stop.sh  install/rf2o_params.yaml ← files/ overlay
-install/setup.bash / local_setup.bash                       ← start.sh 會 source 的
+install/start.sh  install/stop.sh  install/rf2o_params.yaml <- files/ overlay
+install/setup.bash / local_setup.bash                       <- sourced by start.sh
 ```
 
-`start.sh` 行為不變：只吃 `/scan` 與 `base_footprint→laser` TF，發佈
-`/odom_rf2o`（`publish_tf: false`，`odom→base_footprint` 仍由 EKF 擁有）。
+`start.sh` behaviour is unchanged: it consumes `/scan` and the
+`base_footprint -> laser` TF and publishes `/odom_rf2o`
+(`publish_tf: false`; `odom -> base_footprint` stays owned by the EKF).
 
-## patch 內容
+## Patch
 
-`rf2o_laser_tf_retry.patch`：第一張 scan 初始化時若 static TF 還沒進 buffer，
-改為等下一張 scan 重試；原本會 silently 退回 laser==base，讓 odom 旋轉 180°。
+`rf2o_laser_tf_retry.patch`: when the first scan arrives before the static
+transforms are in the buffer, wait for the next scan instead of silently
+falling back to `laser == base` (which rotated the odometry by the mounting
+yaw).
