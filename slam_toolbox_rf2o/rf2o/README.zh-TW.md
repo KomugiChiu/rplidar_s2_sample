@@ -29,7 +29,7 @@ rf2o/
 | yocto | 這裡 |
 |---|---|
 | `SRC_URI = git://...;branch=ros2` | `src.env` 的 `RF2O_GIT_URL` / `RF2O_BRANCH` |
-| `SRCREV` | `RF2O_SRCREV`（釘在 `b38c68e`，ros2 branch 當時的 head） |
+| `SRCREV` | `RF2O_SRCREV`（釘在 `b38c68e`，2026-11-20 時 ros2 branch 最新 head） |
 | `SRC_URI += file://*.patch` | `patches/*.patch`，由 `fetch.sh` 套上 |
 | `FILESEXTRAPATHS` / append 補檔案 | `files/` + `rf2o_bringup`（只負責安裝，不改上游） |
 | `do_compile` / `do_install` | `build.sh`（colcon build --merge-install） |
@@ -60,7 +60,9 @@ all clean install:
 `fetch` 重跑時完全離線：`src/` 已存在且停在 pin 的版本就不 clone，patch 已套
 就跳過。只有在「本地 clone 沒有這個 rev」時（例如改了 `RF2O_SRCREV`）才會上
 網抓；`RF2O_SRCREV=<sha> ./fetch.sh` 與 `make fetch RF2O_SRCREV=<sha>` 都可用
-（環境變數優先於 `src.env`）。
+（環境變數優先於 `src.env`）。pin 一定是 commit SHA，不會退回 branch head：
+`fetch.sh` 會拒絕空的或非 hex 的 `RF2O_SRCREV`，也不會 fallback 到
+`RF2O_BRANCH`。
 
 ## 交叉編譯（由外層注入）
 

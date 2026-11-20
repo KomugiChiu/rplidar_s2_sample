@@ -31,7 +31,7 @@ files, so the same tree can be rebuilt from scratch at any time.
 | yocto | here |
 |---|---|
 | `SRC_URI = git://...;branch=ros2` | `RF2O_GIT_URL` / `RF2O_BRANCH` in `src.env` |
-| `SRCREV` | `RF2O_SRCREV` (pinned to `b38c68e`, head of the ros2 branch) |
+| `SRCREV` | `RF2O_SRCREV` (pinned to `b38c68e`, latest `ros2` head as of 2026-11-20) |
 | `SRC_URI += file://*.patch` | `patches/*.patch`, applied by `fetch.sh` |
 | `FILESEXTRAPATHS` / append files | `files/` + `rf2o_bringup` (installs, never patches upstream) |
 | `do_compile` / `do_install` | `build.sh` (colcon build --merge-install) |
@@ -64,7 +64,9 @@ at the pinned rev, and patches are skipped when already applied. The network is
 only touched when the pinned rev is missing from the local clone (e.g. after
 bumping `RF2O_SRCREV`); `RF2O_SRCREV=<sha> ./fetch.sh` and
 `make fetch RF2O_SRCREV=<sha>` both work (environment variables win over
-`src.env`).
+`src.env`). The pin is a commit SHA, never the moving branch head: `fetch.sh`
+refuses an empty/non-hex `RF2O_SRCREV` and does not fall back to
+`RF2O_BRANCH`.
 
 ## Cross compilation (injected by the outer layer)
 
