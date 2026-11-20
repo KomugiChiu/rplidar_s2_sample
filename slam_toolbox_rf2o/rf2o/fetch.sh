@@ -23,21 +23,8 @@ _env_srcrev="${RF2O_SRCREV:-}"
 source "$SCRIPT_DIR/src.env"
 RF2O_GIT_URL="${_env_url:-$RF2O_GIT_URL}"
 RF2O_BRANCH="${_env_branch:-$RF2O_BRANCH}"
-SRCREV="${_env_srcrev:-${RF2O_SRCREV:-}}"
+SRCREV="${_env_srcrev:-${RF2O_SRCREV:-$RF2O_BRANCH}}"
 unset _env_url _env_branch _env_srcrev
-
-# The recipe is pinned to a commit, never to the moving branch head.
-# Overrides are allowed for testing, but they must be a commit SHA.
-case "$SRCREV" in
-  ""|*[!0-9a-fA-F]*)
-    echo "ERROR: RF2O_SRCREV must be a commit SHA (got '${SRCREV:-<empty>}')" >&2
-    exit 1
-    ;;
-esac
-if [ "${#SRCREV}" -lt 7 ] || [ "${#SRCREV}" -gt 40 ]; then
-  echo "ERROR: RF2O_SRCREV must be 7-40 hex chars (got '$SRCREV')" >&2
-  exit 1
-fi
 
 SRC="$SCRIPT_DIR/src/rf2o_laser_odometry"
 
@@ -49,22 +36,21 @@ if [ ! -d "$SRC/.git" ]; then
 fi
 
 cd "$SRC"
-# Only touch the network when the pinned rev is not in the local clone
-# (e.g. after bumping RF2O_SRCREV).  Otherwise a re-run is fully offline.
-if ! git cat-file -e "${SRCREV}^{commit}" 2>/dev/null; then
-  echo "fetch:  $RF2O_BRANCH (rev not in the local clone)"
-  git fetch --quiet origin "$RF2O_BRANCH" \
-    || { echo "ERROR: cannot fetch $RF2O_BRANCH from $RF2O_GIT_URL" >&2; exit 1; }
-  git cat-file -e "${SRCREV}^{commit}" 2>/dev/null \
-    || { echo "ERROR: rev $SRCREV not found on $RF2O_BRANCH" >&2; exit 1; }
-fi
-WANT="$(git rev-parse "${SRCREV}^{commit}")"
 CURRENT="$(git rev-parse HEAD)"
-if [ "$CURRENT" != "$WANT" ]; then
-  echo "checkout: $WANT (was ${CURRENT:-none})"
+if [ "$CURRENT" != "$SRCREV" ]; then
+  # Only touch the network when the pinned rev is not in the local clone
+  # (e.g. after bumping RF2O_SRCREV).  Otherwise a re-run is fully offline.
+  if ! git cat-file -e "${SRCREV}^{commit}" 2>/dev/null; then
+    echo "fetch:  $RF2O_BRANCH (rev not in the local clone)"
+    git fetch --quiet origin "$RF2O_BRANCH" \
+      || { echo "ERROR: cannot fetch $RF2O_BRANCH from $RF2O_GIT_URL" >&2; exit 1; }
+    git cat-file -e "${SRCREV}^{commit}" 2>/dev/null \
+      || { echo "ERROR: rev $SRCREV not found on $RF2O_BRANCH" >&2; exit 1; }
+  fi
+  echo "checkout: $SRCREV (was ${CURRENT:-none})"
   git checkout --quiet -- .
-  git checkout --quiet --detach "$WANT" \
-    || { echo "ERROR: cannot checkout $WANT; run 'make distclean' first" >&2; exit 1; }
+  git checkout --quiet --detach "$SRCREV" \
+    || { echo "ERROR: cannot checkout $SRCREV; run 'make distclean' first" >&2; exit 1; }
 fi
 
 for patch in "$SCRIPT_DIR"/patches/*.patch; do
