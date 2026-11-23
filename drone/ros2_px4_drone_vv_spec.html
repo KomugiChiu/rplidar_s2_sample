@@ -1,0 +1,1805 @@
+<!DOCTYPE html>
+<html lang="zh-Tw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="ROS 2 無人機系統驗證與確認規格：六層驗證階層、需求驗證矩陣、S1–S4 問題分級、實飛測試程序與 M5 完整任務確認。">
+<title>ROS 2 無人機系統 — 驗證與確認規格（V&amp;V Specification）</title>
+<style>
+  :root {
+    --bg: #f3f6fb;
+    --surface: #ffffff;
+    --surface-soft: #f8fafc;
+    --ink: #182230;
+    --ink-soft: #334155;
+    --muted: #5f6f83;
+    --line: #e2e8f0;
+    --line-strong: #cbd5e1;
+    --accent: #0e7490;
+    --accent-deep: #155e75;
+    --accent-soft: #ecfeff;
+    --blue-soft: #eff6ff;
+    --amber: #b45309;
+    --amber-soft: #fffbeb;
+    --amber-line: #fcd34d;
+    --code-bg: #eef2f7;
+    --code-ink: #0f4c5c;
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 18px 40px -28px rgba(15, 23, 42, .35);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Helvetica Neue", sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    color: var(--ink);
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(900px 420px at 8% -8%, rgba(14, 116, 144, .10), transparent 60%),
+      radial-gradient(760px 360px at 100% 0%, rgba(37, 99, 235, .08), transparent 55%);
+    background-repeat: no-repeat;
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.72;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection { background: #bae6fd; color: #0c4a6e; }
+
+  a { color: var(--accent); }
+  a:hover { color: var(--accent-deep); }
+
+  .skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -4rem;
+    z-index: 100;
+    padding: .6rem 1rem;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: top .15s ease;
+  }
+  .skip-link:focus { top: 1rem; color: #fff; }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    border-bottom: 1px solid rgba(203, 213, 225, .8);
+    background:
+      linear-gradient(135deg, rgba(236, 254, 255, .92) 0%, rgba(239, 246, 255, .92) 48%, rgba(255, 251, 235, .9) 100%);
+    scroll-margin-top: 0;
+  }
+
+  .hero-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 3.25rem 1.5rem 2.75rem;
+  }
+
+  .hero-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem 1rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .eyebrow {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    color: var(--accent);
+  }
+
+  .hero-version {
+    margin: 0;
+    padding: .25rem .7rem;
+    border: 1px solid rgba(14, 116, 144, .25);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .65);
+    color: var(--accent-deep);
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .02em;
+  }
+
+  h1 {
+    margin: 0;
+    max-width: 60rem;
+    font-size: clamp(1.8rem, 4.1vw, 3rem);
+    line-height: 1.25;
+    letter-spacing: -.025em;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  h1 .h1-accent {
+    display: block;
+    margin-top: .2rem;
+    font-size: .58em;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    color: var(--accent-deep);
+  }
+
+  .subtitle {
+    margin: 1rem 0 0;
+    color: #3f5266;
+    font-size: clamp(.98rem, 2vw, 1.12rem);
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin: 1.4rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .chips li {
+    padding: .34rem .8rem;
+    border: 1px solid rgba(148, 163, 184, .45);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .72);
+    color: #334155;
+    font-family: var(--mono);
+    font-size: .74rem;
+    line-height: 1.5;
+  }
+
+  /* ---------- Layout ---------- */
+  .layout {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 3.5rem;
+    display: grid;
+    grid-template-columns: 252px minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
+  }
+
+  /* ---------- TOC ---------- */
+  .toc {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    max-height: calc(100vh - 3rem);
+    overflow: auto;
+    padding: 1rem;
+    background: rgba(255, 255, 255, .88);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+  }
+
+  .toc-title {
+    margin: 0 0 .55rem;
+    padding: 0 .5rem .55rem;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+
+  .toc nav {
+    display: grid;
+    gap: .15rem;
+  }
+
+  .toc nav a {
+    display: flex;
+    align-items: baseline;
+    gap: .55rem;
+    padding: .48rem .55rem;
+    border-radius: 8px;
+    color: #46586d;
+    font-size: .86rem;
+    line-height: 1.4;
+    text-decoration: none;
+    transition: background .15s ease, color .15s ease;
+  }
+
+  .toc nav a .n {
+    flex: 0 0 auto;
+    width: 1.25rem;
+    color: #94a3b8;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .toc nav a:hover,
+  .toc nav a:focus-visible {
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    outline: none;
+  }
+
+  .toc-note {
+    margin: .9rem .3rem 0;
+    padding-top: .8rem;
+    border-top: 1px dashed var(--line-strong);
+    color: #64748b;
+    font-size: .74rem;
+    line-height: 1.6;
+  }
+
+  /* ---------- Sections ---------- */
+  main { min-width: 0; }
+
+  .section {
+    margin-bottom: 1.75rem;
+    padding: clamp(1.25rem, 2.8vw, 2.1rem);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    scroll-margin-top: 1.5rem;
+  }
+
+  .section:last-of-type { margin-bottom: 0; }
+
+  .section-heading {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin: 0 0 1.1rem;
+    padding-bottom: .85rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .section-num {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #0e7490, #155e75);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: .88rem;
+    font-weight: 700;
+    box-shadow: 0 6px 14px -8px rgba(14, 116, 144, .8);
+  }
+
+  h2 {
+    margin: 0;
+    font-size: clamp(1.18rem, 2.2vw, 1.45rem);
+    line-height: 1.35;
+    letter-spacing: -.01em;
+    color: #16202e;
+  }
+
+  h3 {
+    position: relative;
+    margin: 1.8rem 0 .7rem;
+    padding-left: .8rem;
+    font-size: 1.02rem;
+    line-height: 1.4;
+    color: #24364a;
+  }
+
+  h3::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: .18em;
+    bottom: .18em;
+    width: 3px;
+    border-radius: 3px;
+    background: #22d3ee;
+  }
+
+  h3:first-of-type { margin-top: .25rem; }
+
+  .lede {
+    margin: 1rem 0 0;
+    color: #4a5b6e;
+    font-size: .94rem;
+  }
+
+  p { margin: .75rem 0; }
+  .section > p:first-of-type { margin-top: 0; }
+
+  strong { color: #1e293b; }
+
+  /* ---------- Code chips ---------- */
+  code {
+    padding: .08em .38em;
+    border: 1px solid #dbe3ec;
+    border-radius: .4em;
+    background: var(--code-bg);
+    color: var(--code-ink);
+    font-family: var(--mono);
+    font-size: .855em;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- Tables ---------- */
+  .table-wrap {
+    margin: .8rem 0 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    background: var(--surface);
+  }
+
+  table {
+    width: 100%;
+    min-width: 560px;
+    border-collapse: collapse;
+    font-size: .905rem;
+    line-height: 1.62;
+  }
+
+  thead th {
+    padding: .7rem .85rem;
+    border-bottom: 1px solid var(--line-strong);
+    background: #f1f5f9;
+    color: #334155;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  tbody th,
+  tbody td {
+    padding: .72rem .85rem;
+    border-bottom: 1px solid #edf2f7;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  tbody th {
+    color: #334155;
+    font-weight: 700;
+  }
+
+  tbody td:first-child {
+    color: #334155;
+    font-weight: 600;
+  }
+
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody tr:last-child th,
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody tr:hover { background: #f1f9fb; }
+
+  .table-note {
+    margin: .55rem 0 0;
+    color: #6b7c90;
+    font-size: .78rem;
+  }
+
+  /* ---------- Callouts ---------- */
+  .note {
+    position: relative;
+    margin: 1.35rem 0 0;
+    padding: 1rem 1.15rem 1rem 1.2rem;
+    border: 1px solid var(--amber-line);
+    border-left: 4px solid #f59e0b;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, #fffdf6, var(--amber-soft));
+    color: #4b3b20;
+  }
+
+  .note p { margin: .25rem 0 0; font-size: .92rem; }
+
+  .note-title {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin: 0;
+    color: var(--amber);
+    font-size: .8rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+  }
+
+  .note-title::before { content: "◆"; font-size: .68rem; }
+
+  .note.info {
+    border-color: #a5f3fc;
+    border-left-color: var(--accent);
+    background: linear-gradient(135deg, #f7feff, var(--accent-soft));
+    color: #134e5e;
+  }
+
+  .note.info .note-title { color: var(--accent-deep); }
+
+  /* ---------- Diagrams ---------- */
+  .diagram {
+    margin: 1rem 0 0;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background:
+      linear-gradient(#fbfdff, #fbfdff) padding-box,
+      repeating-linear-gradient(45deg, #f8fafc 0 8px, #f1f5f9 8px 16px) border-box;
+    overflow-x: auto;
+  }
+
+  .diagram-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .4rem .8rem;
+    margin-bottom: .6rem;
+    padding-bottom: .55rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .diagram-title {
+    margin: 0;
+    color: #334155;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+  }
+
+  .diagram-badge {
+    padding: .18rem .55rem;
+    border: 1px solid #bae6fd;
+    border-radius: 999px;
+    background: #f0f9ff;
+    color: #0369a1;
+    font-family: var(--mono);
+    font-size: .68rem;
+  }
+
+  .scroll-hint {
+    display: none;
+    margin: .35rem 0 0;
+    color: #7b8a9c;
+    font-family: var(--mono);
+    font-size: .7rem;
+    text-align: center;
+  }
+
+  details {
+    margin-top: .85rem;
+    padding: .6rem .85rem .7rem;
+    border: 1px dashed var(--line-strong);
+    border-radius: 10px;
+    background: #f8fafc;
+  }
+
+  details summary {
+    cursor: pointer;
+    color: #475569;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .01em;
+  }
+
+  details summary:hover { color: var(--accent-deep); }
+
+  details[open] summary { margin-bottom: .6rem; }
+
+  details pre {
+    margin: 0;
+    padding: .9rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1e293b;
+    font-family: var(--mono);
+    font-size: .74rem;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  /* ---------- Steps ---------- */
+  .steps {
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+    display: grid;
+    gap: .8rem;
+  }
+
+  .steps > li {
+    position: relative;
+    counter-increment: step;
+    padding: .95rem 1.05rem .95rem 3.4rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface-soft);
+  }
+
+  .steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    display: grid;
+    place-items: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: .78rem;
+    font-weight: 700;
+    box-shadow: 0 5px 12px -7px rgba(14, 116, 144, .9);
+  }
+
+  .steps h3 {
+    margin: 0 0 .15rem;
+    padding-left: 0;
+    font-size: .98rem;
+  }
+
+  .steps h3::before { display: none; }
+
+  .steps p {
+    margin: 0;
+    color: #5b6b7f;
+    font-size: .9rem;
+    line-height: 1.65;
+  }
+
+  /* ---------- References ---------- */
+  .refs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+    gap: .65rem;
+    margin: .9rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .refs li { min-width: 0; }
+
+  .refs a {
+    display: flex;
+    flex-direction: column;
+    gap: .12rem;
+    height: 100%;
+    padding: .75rem .85rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    text-decoration: none;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+  }
+
+  .refs a:hover,
+  .refs a:focus-visible {
+    border-color: #67e8f9;
+    box-shadow: 0 8px 20px -16px rgba(8, 145, 178, .8);
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  .refs .ref-name {
+    color: var(--accent-deep);
+    font-size: .88rem;
+    font-weight: 700;
+  }
+
+  .refs .ref-url {
+    color: #7b8a9c;
+    font-family: var(--mono);
+    font-size: .7rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .refs .ref-tag {
+    color: #94a3b8;
+    font-size: .72rem;
+  }
+
+  /* ---------- Footer ---------- */
+  .site-footer {
+    border-top: 1px solid var(--line);
+    background: rgba(255, 255, 255, .6);
+  }
+
+  .footer-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: .5rem 1rem;
+    color: #6b7c90;
+    font-size: .78rem;
+  }
+
+  .footer-inner code { font-size: .72rem; }
+
+  /* ---------- Back to top ---------- */
+  .to-top {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    width: 2.65rem;
+    height: 2.65rem;
+    border-radius: 50%;
+    background: #0f172a;
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 10px 24px -10px rgba(15, 23, 42, .7);
+    opacity: .92;
+    transition: background .15s ease, transform .15s ease, opacity .15s ease;
+  }
+
+  .to-top:hover,
+  .to-top:focus-visible {
+    background: var(--accent);
+    color: #fff;
+    opacity: 1;
+    transform: translateY(-2px);
+    outline: none;
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 920px) {
+    .layout {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+      padding: 1.25rem 1rem 2.5rem;
+    }
+
+    .toc {
+      position: static;
+      max-height: none;
+      overflow: visible;
+      padding: .85rem;
+    }
+
+    .toc nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+    }
+
+    .toc nav a {
+      flex: 0 0 auto;
+      padding: .38rem .6rem;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      font-size: .8rem;
+    }
+
+    .toc nav a .n { width: auto; }
+    .toc-note { display: none; }
+
+    .hero-inner { padding: 2.4rem 1rem 2.1rem; }
+    .section { scroll-margin-top: .75rem; }
+
+    .scroll-hint { display: block; }
+  }
+
+  @media (max-width: 560px) {
+    body { font-size: 15px; }
+    h1 { font-size: 1.75rem; }
+    h1 .h1-accent { font-size: .62em; }
+    .section { padding: 1.1rem; border-radius: 14px; }
+    .section-heading { align-items: flex-start; }
+    .section-num { width: 1.9rem; height: 1.9rem; }
+    .table-wrap { margin-left: -.15rem; margin-right: -.15rem; }
+    table { font-size: .84rem; }
+    thead th, tbody th, tbody td { padding: .6rem .65rem; }
+    .steps > li { padding-left: 3.1rem; }
+    .to-top { right: .9rem; bottom: .9rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .toc, .to-top, .skip-link { display: none !important; }
+    .layout { display: block; max-width: none; padding: 0; }
+    .hero { background: #fff; }
+    .section { box-shadow: none; break-inside: avoid; }
+    details { display: block; }
+    details[open] summary { margin-bottom: .4rem; }
+  }
+
+  /* ---------- Vendor spec additions ---------- */
+  .hero-version a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(14, 116, 144, .45);
+  }
+  .hero-version a:hover,
+  .hero-version a:focus-visible { color: var(--accent); outline: none; }
+
+  .req,
+  .opt {
+    display: inline-block;
+    padding: .06rem .5rem;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 700;
+    line-height: 1.55;
+    white-space: nowrap;
+  }
+
+  .req {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+
+  .opt {
+    border: 1px solid #cbd5e1;
+    background: #f1f5f9;
+    color: #475569;
+  }
+
+  .check-id {
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--accent-deep);
+    white-space: nowrap;
+  }
+
+  .group-cell {
+    color: var(--accent-deep);
+    font-family: var(--mono);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .spec-footer-note {
+    margin: 1.1rem 0 0;
+    padding-top: .9rem;
+    border-top: 1px dashed var(--line-strong);
+    color: #64748b;
+    font-size: .82rem;
+  }
+
+  /* ---------- V&V additions ---------- */
+  .req-id {
+    color: var(--accent-deep);
+    font-family: var(--mono);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .method {
+    display: inline-block;
+    min-width: 1.7rem;
+    padding: .06rem .42rem;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    background: #f0f9ff;
+    color: #0369a1;
+    font-family: var(--mono);
+    font-size: .74rem;
+    font-weight: 700;
+    line-height: 1.55;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .level {
+    font-family: var(--mono);
+    font-size: .82em;
+    color: #334155;
+    white-space: nowrap;
+  }
+
+  .criteria {
+    color: #1e293b;
+  }
+</style>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">跳至主要內容</a>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-top">
+      <p class="eyebrow">V&amp;V SPECIFICATION / 2026</p>
+      <p class="hero-version"><a href="ros2_px4_drone_architecture.html">架構藍圖</a> · <a href="ros2_px4_drone_team_plan.html">團隊執行規劃</a> · <a href="ros2_px4_drone_vendor_spec.html">供應商規格</a></p>
+    </div>
+    <h1>ROS 2 無人機系統 <span class="h1-accent">— 驗證與確認規格（V&amp;V Specification）</span></h1>
+    <p class="subtitle">Verification &amp; Validation · 需求追溯 · SITL 至實飛全階段</p>
+    <ul class="chips" aria-label="文件關鍵字">
+      <li>V0–V6 六層驗證</li>
+      <li>需求驗證矩陣</li>
+      <li>T / A / I / D 方法</li>
+      <li>S1–S4 問題分級</li>
+      <li>M5 完整任務確認</li>
+    </ul>
+    <p class="lede">本規格書將<a href="ros2_px4_drone_architecture.html">架構藍圖</a>、<a href="ros2_px4_drone_team_plan.html">團隊執行規劃</a>與<a href="ros2_px4_drone_vendor_spec.html">供應商規格</a>三份文件所定義的功能、性能與安全需求，轉化為可執行、可追溯的驗證與確認活動；需求驗證於模擬、台架與受控實飛中完成，最終確認以完整任務展示達成。</p>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="toc" aria-label="頁面目錄">
+    <p class="toc-title">目錄 / Contents</p>
+    <nav>
+      <a href="#sec1"><span class="n">01</span><span>目的、範圍與用語</span></a>
+      <a href="#sec2"><span class="n">02</span><span>V&amp;V 策略與階層</span></a>
+      <a href="#sec3"><span class="n">03</span><span>驗證方法與問題分類</span></a>
+      <a href="#sec4"><span class="n">04</span><span>需求驗證矩陣</span></a>
+      <a href="#sec5"><span class="n">05</span><span>各層級進入與退出準則</span></a>
+      <a href="#sec6"><span class="n">06</span><span>實飛測試程序</span></a>
+      <a href="#sec7"><span class="n">07</span><span>確認計畫</span></a>
+      <a href="#sec8"><span class="n">08</span><span>問題報告與不符合處理</span></a>
+      <a href="#sec9"><span class="n">09</span><span>追溯與簽核</span></a>
+    </nav>
+    <p class="toc-note">本頁為正式規格書，全部 CSS 內嵌、無 JavaScript 與外部相依資源，可離線開啟。</p>
+  </aside>
+
+  <main id="main">
+
+    <!-- ================= Section 1 ================= -->
+    <section class="section" id="sec1">
+      <div class="section-heading">
+        <span class="section-num">01</span>
+        <h2>目的、範圍與用語</h2>
+      </div>
+
+      <p>本節界定驗證與確認的分工、本規格書涵蓋的系統邊界，以及後續章節共用的判讀基礎。兩個用語在後續章節中固定使用本節定義，不再另行解釋。</p>
+
+      <h3>Verification（驗證）</h3>
+      <p>定義：判斷系統是否符合規格文件所載需求，即確認團隊「做對的事」。於本專案中對應各階段測試，包含 V1 SITL 的需求項測試、V3 台架驗收、V4 繫留飛行與 V5 室內自由實飛；輸出為測試案例的通過或失敗紀錄，並回填第 4 節矩陣。</p>
+
+      <h3>Validation（確認）</h3>
+      <p>定義：判斷系統是否滿足原始任務意圖，即確認團隊「做出對的系統」。任務意圖由避障、路徑規劃、測距融合、VIO 與 AprilTag 降落所構成的自主任務所定義，於本專案中對應 M5 完整任務展示與利害關係人驗收。</p>
+
+      <h3>範圍</h3>
+      <p>下表界定本規格書的適用邊界。範圍外項目不由本規格書的測試案例涵蓋，亦不作為 M5 確認的判定依據。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">範圍內</th>
+              <th scope="col">範圍外</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>PX4 飛控行為、ROS 2 自主堆疊、通訊橋接、動力性能、failsafe、實飛程序</td>
+              <td>供應商內部製程、馬達與電池的破壞性測試、法規適航認證</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note info">
+        <p class="note-title">邊界原則</p>
+        <p>飛控行為以 PX4 出廠參數集與介面凍結版本為基準驗證；供應商製程能力以出廠測試報告與台架數據為證據，不由本團隊重複執行破壞性試驗。法規適航認證屬範圍外事項，其缺項不阻擋 M5 的技術確認，但須於確認紀錄中註明。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 2 ================= -->
+    <section class="section" id="sec2">
+      <div class="section-heading">
+        <span class="section-num">02</span>
+        <h2>V&amp;V 策略與階層</h2>
+      </div>
+
+      <p>驗證活動依風險遞增分為六層，每層的失敗成本遠低於下一層；全部需求在越低層完成驗證越佳。同一需求若能在 V1 收斂，即不在 V5 重複取證，僅保留實機環境特有的項目於高層執行。</p>
+
+      <div class="diagram">
+        <div class="diagram-head">
+          <p class="diagram-title">驗證階層與成本梯度</p>
+          <span class="diagram-badge">V0 → V6</span>
+        </div>
+<pre>V0  紙上分析與介面檢核        （設計文件、推力計算、參數審查）
+V1  SITL 軟體迴路             （PX4 SITL + Gazebo，CI 可自動化）
+V2  HITL 硬體迴路             （真實飛控接回模擬世界）
+V3  台架驗收                   （vendor spec 第 5 節 checklist A–G）
+V4  繫留飛行                   （安全繩束縛下驗證融合與動力）
+V5  室內自由實飛               （定點、航點、低速避障、降落）
+V6  完整任務確認               （起飛 → 避障穿越 → AprilTag 降落 = M5）
+風險與成本遞增 ↓；發現問題的期望成本遞減 ↑</pre>
+        <p class="scroll-hint">← 可水平捲動 →</p>
+      </div>
+
+      <p>階層與里程碑的對照如下。V0 與 V2 不獨立對應里程碑，分別作為設計審查與硬體迴路的過渡層；V3 於 dev kit 到位後執行，V5 安排於 W15–18。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">層級</th>
+              <th scope="col">對應里程碑</th>
+              <th scope="col">主要驗證內容</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="level">V1</span></td>
+              <td>M1</td>
+              <td>offboard 控制、VIO 餵入 EKF2、GPS-denied 懸停</td>
+            </tr>
+            <tr>
+              <td><span class="level">V1</span></td>
+              <td>M2、M3</td>
+              <td>避障穿越、AprilTag 模擬降落</td>
+            </tr>
+            <tr>
+              <td><span class="level">V3</span></td>
+              <td>—（dev kit 台架）</td>
+              <td>測距儀融合、failsafe 演練、動力序</td>
+            </tr>
+            <tr>
+              <td><span class="level">V4</span></td>
+              <td>M4</td>
+              <td>繫留定點、EKF 無發散、振動</td>
+            </tr>
+            <tr>
+              <td><span class="level">V5</span></td>
+              <td>—（W15–18）</td>
+              <td>自由飛行定點、低速避障、實機降落</td>
+            </tr>
+            <tr>
+              <td><span class="level">V6</span></td>
+              <td>M5</td>
+              <td>完整任務流程</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <p class="note-title">階層選擇原則</p>
+        <p>涉及安全邏輯的需求（SAF、COM 組）不得僅於模擬層結案，至少須於 V1 驗證行為、於 V4 或 V5 驗證實機環境下的時間特性。涉及環境物理的需求（振動、氣流、感測器曝光）不得以 SITL 結果替代實飛證據。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 3 ================= -->
+    <section class="section" id="sec3">
+      <div class="section-heading">
+        <span class="section-num">03</span>
+        <h2>驗證方法、測試案例與問題分類</h2>
+      </div>
+
+      <p>每條需求指定一種主要驗證方法，方法代碼沿用 INCOSE 慣例並於本節固定定義。方法欄出現兩個代碼時，以斜線分隔的方法互為佐證，兩者皆須完成。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">代碼</th>
+              <th scope="col">方法</th>
+              <th scope="col">說明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="method">T</span></td>
+              <td>Test</td>
+              <td>執行量測並記錄數據（頻率、誤差、溫度）</td>
+            </tr>
+            <tr>
+              <td><span class="method">A</span></td>
+              <td>Analysis</td>
+              <td>以計算或既有數據佐證（推力表、續航算式）</td>
+            </tr>
+            <tr>
+              <td><span class="method">I</span></td>
+              <td>Inspection</td>
+              <td>目視或文件核對（參數集 diff、線序圖）</td>
+            </tr>
+            <tr>
+              <td><span class="method">D</span></td>
+              <td>Demonstration</td>
+              <td>操作演示不量測（QGC 連線、模式切換）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>測試案例命名</h3>
+      <p>測試案例以 <code>TC-&lt;需求ID&gt;-&lt;兩位序號&gt;</code> 命名，例如 <code>TC-SAF-001-01</code> 為 SAF-001 的第一個測試案例。同一需求於不同層級執行時，序號連續編派並於紀錄中標明層級，避免不同環境的結果互相覆蓋。</p>
+
+      <h3>問題嚴重度</h3>
+      <p>測試失敗或現場異常一律開立問題單並分級。分級決定處理時限與回歸範圍，不得由執行者自行降級；降級須經 task leader 書面同意。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">等級</th>
+              <th scope="col">定義</th>
+              <th scope="col">處理時限</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="req">S1</span></td>
+              <td>危及安全或阻斷任務（飛行中失聯、EKF 發散、失控）</td>
+              <td>立即中止活動，修復並全量回歸後重驗</td>
+            </tr>
+            <tr>
+              <td><span class="req">S2</span></td>
+              <td>功能失效但不危及安全（避障未觸發、降落誤差超標）</td>
+              <td>3 個工作日內修復</td>
+            </tr>
+            <tr>
+              <td><span class="opt">S3</span></td>
+              <td>性能偏差（頻率略低、延遲偏高但未超標）</td>
+              <td>下一整合日前修復</td>
+            </tr>
+            <tr>
+              <td><span class="opt">S4</span></td>
+              <td>文件或顯示問題</td>
+              <td>下一版次修正</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>回歸規則</h3>
+      <ol>
+        <li><strong>S1 修復後：</strong>執行全量回歸，範圍為 V1 CI 全項加上受影響層級的全部測試案例；重驗通過前該層級不得恢復活動。</li>
+        <li><strong>S2 修復後：</strong>執行受影響需求項與其上游依賴項；依賴關係以第 4 節矩陣與第 9 節追溯表判定。</li>
+        <li><strong>整合日：</strong>每次整合日（週三）執行 V1 CI 全量回歸，結果作為當週 S3 問題的結案依據。</li>
+      </ol>
+    </section>
+
+    <!-- ================= Section 4 ================= -->
+    <section class="section" id="sec4">
+      <div class="section-heading">
+        <span class="section-num">04</span>
+        <h2>需求驗證矩陣</h2>
+      </div>
+
+      <p>矩陣逐條列出需求、來源、驗證方法、執行層級與通過準則；需求編號沿用本規格書定義，來源欄指向既有文件章節。矩陣為測試案例編派、回歸範圍判定與簽核的共同依據，任何需求新增或準則修訂皆須同步更新本節。</p>
+
+      <p>矩陣分七組呈現。同一需求於不同層級可有不同準則時，以多列呈現並於該組末尾說明；層級欄的範圍表示該需求須於範圍內每一層級取得證據。</p>
+
+      <h3>SYS 系統與通訊</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">需求 ID</th>
+              <th scope="col">需求描述</th>
+              <th scope="col">來源</th>
+              <th scope="col">方法</th>
+              <th scope="col">層級</th>
+              <th scope="col">通過準則</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="req-id">SYS-001</span></td>
+              <td>uXRCE-DDS 橋接穩定運行</td>
+              <td>藍圖 §02</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1–V5</span></td>
+              <td class="criteria">Agent 無斷線重連；/fmu/out 全話題達頻率</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">SYS-002</span></td>
+              <td>Offboard 心跳與 setpoint 鏈</td>
+              <td>藍圖 §10</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1–V5</span></td>
+              <td class="criteria">OffboardControlMode &gt; 2 Hz；進入前串流 ≥ 1 秒；飛控正確追蹤 setpoint</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">SYS-003</span></td>
+              <td><code>/fmu/out/vehicle_odometry</code> 頻率</td>
+              <td>供應商規格 §03</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1–V5</span></td>
+              <td class="criteria">≥ 50 Hz</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">SYS-004</span></td>
+              <td><code>/fmu/out/distance_sensor</code> 頻率</td>
+              <td>供應商規格 §03</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V3–V5</span></td>
+              <td class="criteria">≥ 30 Hz</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">SYS-005</span></td>
+              <td>QGC 連線（UDP 14550 與 serial）</td>
+              <td>供應商規格 §03</td>
+              <td><span class="method">D</span></td>
+              <td><span class="level">V3</span></td>
+              <td class="criteria">兩種 transport 均可連線，延遲低於 500 ms</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>NAV 導航與定位</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">需求 ID</th>
+              <th scope="col">需求描述</th>
+              <th scope="col">來源</th>
+              <th scope="col">方法</th>
+              <th scope="col">層級</th>
+              <th scope="col">通過準則</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="req-id">NAV-001</span></td>
+              <td>VIO 里程計輸出品質</td>
+              <td>藍圖事實查核摘要</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1–V5</span></td>
+              <td class="criteria">約 30–50 Hz 穩定輸出；covariance 合理；無 timestamp 倒退</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">NAV-002</span></td>
+              <td>EKF2 外部視覺融合</td>
+              <td>藍圖 §10</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1–V5</span></td>
+              <td class="criteria">EKF 狀態綠；創新量收斂；無 yaw 發散</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">NAV-003</span></td>
+              <td>測距儀高度融合</td>
+              <td>藍圖 §10</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V3–V5</span></td>
+              <td class="criteria">EKF2_RNG_CTRL 開啟後高度追蹤正確</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">NAV-004</span></td>
+              <td>全域路徑規劃</td>
+              <td>藍圖 §05</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1、V5</span></td>
+              <td class="criteria">課題場給定起終點，路徑不穿越已知障礙</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">NAV-005</span></td>
+              <td>局部避障</td>
+              <td>藍圖 §05</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1、V5</span></td>
+              <td class="criteria">動態障礙侵入時路徑即時閃避且無碰撞</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">NAV-006</span></td>
+              <td>導航分層職責</td>
+              <td>藍圖 §06</td>
+              <td><span class="method">A</span></td>
+              <td><span class="level">V0</span></td>
+              <td class="criteria">規劃輸出僅經 offboard setpoint 下發；PX4 控制鏈不經 ROS 2</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>PER 感知與降落</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">需求 ID</th>
+              <th scope="col">需求描述</th>
+              <th scope="col">來源</th>
+              <th scope="col">方法</th>
+              <th scope="col">層級</th>
+              <th scope="col">通過準則</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="req-id">PER-001</span></td>
+              <td>AprilTag 偵測與 TF 發布</td>
+              <td>藍圖 §05</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1–V5</span></td>
+              <td class="criteria">標定距離內偵測率 ≥ 99%；TF 連續無跳變</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">PER-002</span></td>
+              <td>精準降落（方案 B，ROS 2 閉環）</td>
+              <td>藍圖事實查核摘要</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1</span></td>
+              <td class="criteria">模擬降落誤差 &lt; 30 cm</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">PER-002</span></td>
+              <td>同上</td>
+              <td>同上</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V5</span></td>
+              <td class="criteria">實機降落誤差 &lt; 50 cm</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-note">PER-002 以兩列呈現：V1 的模擬準則與 V5 的實機準則各自獨立判定，兩列皆通過方視為該需求完成驗證。</p>
+
+      <h3>PWR 動力性能（對應供應商規格動力性能規格表）</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">需求 ID</th>
+              <th scope="col">需求描述</th>
+              <th scope="col">來源</th>
+              <th scope="col">方法</th>
+              <th scope="col">層級</th>
+              <th scope="col">通過準則</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="req-id">PWR-001</span></td>
+              <td>AUW</td>
+              <td>供應商規格 §02</td>
+              <td><span class="method">I</span></td>
+              <td><span class="level">V3</span></td>
+              <td class="criteria">實機秤重 ≤ 2.8 kg（含全部酬載）</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">PWR-002</span></td>
+              <td>推重比</td>
+              <td>供應商規格 §02</td>
+              <td><span class="method">T/A</span></td>
+              <td><span class="level">V3</span></td>
+              <td class="criteria">≥ 2.0（單軸最大推力 × 4 ÷ AUW）</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">PWR-003</span></td>
+              <td>單軸最大推力</td>
+              <td>供應商規格 §02</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V3</span></td>
+              <td class="criteria">≥ 1.4 kg（台架滿油門）</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">PWR-004</span></td>
+              <td>懸停油門</td>
+              <td>供應商規格 §02</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V3</span></td>
+              <td class="criteria">≤ 55%</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">PWR-005</span></td>
+              <td>懸停效率</td>
+              <td>供應商規格 §02</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V3</span></td>
+              <td class="criteria">≥ 9 g/W</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">PWR-006</span></td>
+              <td>峰值總電流</td>
+              <td>供應商規格 §02</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V3</span></td>
+              <td class="criteria">≤ 80 A（6S 基準，1.2 係數）</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">PWR-007</span></td>
+              <td>續航</td>
+              <td>供應商規格 §02</td>
+              <td><span class="method">T/A</span></td>
+              <td><span class="level">V3–V5</span></td>
+              <td class="criteria">≥ 15 分鐘（懸停、80% 容量）</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">PWR-008</span></td>
+              <td>溫升</td>
+              <td>供應商規格 §02</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V3</span></td>
+              <td class="criteria">馬達 &lt; 80°C、ESC &lt; 100°C（10 分鐘等效負載）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>SAF 安全與失效</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">需求 ID</th>
+              <th scope="col">需求描述</th>
+              <th scope="col">來源</th>
+              <th scope="col">方法</th>
+              <th scope="col">層級</th>
+              <th scope="col">通過準則</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="req-id">SAF-001</span></td>
+              <td>RC 失聯 failsafe</td>
+              <td>供應商規格 §05</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V3</span></td>
+              <td class="criteria">模擬失聯觸發設定之 RTL 或 Hold</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">SAF-002</span></td>
+              <td>電池低壓 failsafe</td>
+              <td>供應商規格 §05</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V3</span></td>
+              <td class="criteria">低壓模擬觸發設定動作</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">SAF-003</span></td>
+              <td>VIO 逾時失效處理</td>
+              <td>藍圖實機前必要驗收</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1、V5</span></td>
+              <td class="criteria">停發 VIO 後依參數觸發 Hold 或 Land，且無失控</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">SAF-004</span></td>
+              <td>DDS 鏈路失效</td>
+              <td>藍圖實機前必要驗收</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1、V5</span></td>
+              <td class="criteria">斷開 Agent 後 COM_OF_LOSS_T 到期觸發 COM_OBL_RC_ACT 設定行為</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">SAF-005</span></td>
+              <td>伴飛電腦重啟</td>
+              <td>藍圖實機前必要驗收</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V4</span></td>
+              <td class="criteria">重啟期間飛控維持設定模式；重啟後可恢復或安全降落</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">SAF-006</span></td>
+              <td>RC 手動接管</td>
+              <td>團隊規劃 §06</td>
+              <td><span class="method">D</span></td>
+              <td><span class="level">V4、V5</span></td>
+              <td class="criteria">任意階段切回手動並取得控制權</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">SAF-007</span></td>
+              <td>Collision Prevention 邊界</td>
+              <td>藍圖事實查核摘要</td>
+              <td><span class="method">A</span></td>
+              <td><span class="level">V0</span></td>
+              <td class="criteria">CP_DIST 僅視為 Position mode 輔助；offboard 安全邏輯由 ROS 2 實作並驗證</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>COM 座標與時間</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">需求 ID</th>
+              <th scope="col">需求描述</th>
+              <th scope="col">來源</th>
+              <th scope="col">方法</th>
+              <th scope="col">層級</th>
+              <th scope="col">通過準則</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="req-id">COM-001</span></td>
+              <td>座標系一致性</td>
+              <td>藍圖實機前必要驗收</td>
+              <td><span class="method">I/T</span></td>
+              <td><span class="level">V0–V4</span></td>
+              <td class="criteria">ROS ENU/FLU、PX4 NED/FRD、camera optical frame 與外參轉換經 TF tree 檢核</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">COM-002</span></td>
+              <td>時間同步</td>
+              <td>藍圖實機前必要驗收</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1、V4</span></td>
+              <td class="criteria">camera/IMU timestamp 偏差量測；EKF2 delay 依量測設定</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">COM-003</span></td>
+              <td>端到端延遲</td>
+              <td>藍圖實機前必要驗收</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1、V4</span></td>
+              <td class="criteria">VIO 輸出端到端延遲量測並記錄，作為安全邏輯輸入</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>SIM 模擬有效性</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">需求 ID</th>
+              <th scope="col">需求描述</th>
+              <th scope="col">來源</th>
+              <th scope="col">方法</th>
+              <th scope="col">層級</th>
+              <th scope="col">通過準則</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="req-id">SIM-001</span></td>
+              <td>SITL 回歸自動化</td>
+              <td>團隊規劃 §05</td>
+              <td><span class="method">T</span></td>
+              <td><span class="level">V1</span></td>
+              <td class="criteria">headless CI 於共用課題世界全項通過</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">SIM-002</span></td>
+              <td>模擬與實機共核心</td>
+              <td>藍圖事實查核摘要</td>
+              <td><span class="method">A</span></td>
+              <td><span class="level">V0–V1</span></td>
+              <td class="criteria">核心演算法 node 共用；driver、標定、TF、QoS、launch 分離管理</td>
+            </tr>
+            <tr>
+              <td><span class="req-id">SIM-003</span></td>
+              <td>模擬限制認知</td>
+              <td>藍圖實機前必要驗收</td>
+              <td><span class="method">A</span></td>
+              <td><span class="level">V0</span></td>
+              <td class="criteria">曝光、動態模糊、USB 丟包與振動不以 SITL 取代實飛驗證</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note info">
+        <p class="note-title">矩陣統計</p>
+        <p>本節共 35 列需求：SYS 5、NAV 6、PER 3（2 條需求，PER-002 分兩層）、PWR 8、SAF 7、COM 3、SIM 3。矩陣列數即測試案例集的最小涵蓋範圍，未列於矩陣的測試不得作為需求結案證據。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 5 ================= -->
+    <section class="section" id="sec5">
+      <div class="section-heading">
+        <span class="section-num">05</span>
+        <h2>各層級進入與退出準則</h2>
+      </div>
+
+      <p>層級推進採進入與退出雙閘門：進入準則確保環境與設備就緒，退出準則確保該層應取得的需求證據完整。任一準則未滿足即不得進入下一層，亦不得以「後續層級補驗」作為例外。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">層級</th>
+              <th scope="col">進入準則</th>
+              <th scope="col">退出準則</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="level">V1</span></td>
+              <td>環境建置完成；課題世界與自訂車型就緒</td>
+              <td>SYS-001~005、NAV-001~006、PER-001~002、SAF-003~004、COM-001~003 全數通過</td>
+            </tr>
+            <tr>
+              <td><span class="level">V2</span></td>
+              <td>V1 退出 + dev kit 到位</td>
+              <td>同一份 ROS 堆疊不改碼於 HITL 運行通過</td>
+            </tr>
+            <tr>
+              <td><span class="level">V3</span></td>
+              <td>供應商整機到位 + 台架就緒</td>
+              <td>vendor spec 第 5 節 A–G 全項 + PWR-001~008 通過</td>
+            </tr>
+            <tr>
+              <td><span class="level">V4</span></td>
+              <td>V3 退出 + 繫留設備與安全官指派</td>
+              <td>NAV-002~003、PWR-007、SAF-005~006 於繫留下通過</td>
+            </tr>
+            <tr>
+              <td><span class="level">V5</span></td>
+              <td>V4 退出 + 飛行區核准</td>
+              <td>定點、航點、低速避障、降落實測通過</td>
+            </tr>
+            <tr>
+              <td><span class="level">V6</span></td>
+              <td>V5 退出 + 全部 S1/S2 問題結案</td>
+              <td>M5 完整任務連續兩次成功</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <p class="note-title">V2 的定位</p>
+        <p>V2 的目的在驗證真實飛控與同一份 ROS 堆疊的介面行為，不以取得新需求證據為目標。HITL 通過後，V1 既有結果仍然有效；若 HITL 暴露韌體或時序差異，受影響需求回到 V1 重驗後再推進。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 6 ================= -->
+    <section class="section" id="sec6">
+      <div class="section-heading">
+        <span class="section-num">06</span>
+        <h2>實飛測試程序</h2>
+      </div>
+
+      <p>本節適用於 V4 以上的每一次飛行。程序分飛行前準備與中止條件兩部分，兩者於每次飛行前朗讀確認，並由安全官在場監督。</p>
+
+      <h3>飛行前程序</h3>
+      <ol class="steps">
+        <li>
+          <h3>任務簡報</h3>
+          <p>由 task leader 主持，說明當日測試案例、飛行區域、人員站位、中止條件與通訊方式；簡報完成後方可進行設備通電。</p>
+        </li>
+        <li>
+          <h3>飛行區與人群管制</h3>
+          <p>確認飛行區淨空、護欄與警示標示就位、非必要人員退出作業半徑；繫留階段另須確認繩索固定點與張力。</p>
+        </li>
+        <li>
+          <h3>checklist 朗讀執行</h3>
+          <p>逐項朗讀並由第二人複核：起飛前 PX4 預檢、EKF 狀態、電池電壓、RC 接管測試。任一項未通過即停止當次飛行。</p>
+        </li>
+        <li>
+          <h3>紀錄設備開機</h3>
+          <p>啟動 rosbag、PX4 ulog 與影像紀錄，確認寫入正常且時間同步；紀錄未啟動不得起飛。</p>
+        </li>
+      </ol>
+
+      <h3>中止條件</h3>
+      <p>下列任一條件成立時立即中止並執行對應動作，動作完成後由安全官宣告現場狀態，其他人員不得自行恢復飛行。</p>
+      <ol class="steps">
+        <li>
+          <h3>RC 接管失敗</h3>
+          <p>執行斷電保護動作；同批設備在原因釐清前停止使用。</p>
+        </li>
+        <li>
+          <h3>EKF 創新量發散或狀態非綠</h3>
+          <p>切手動並降落，降落後保存 ulog 供分析。</p>
+        </li>
+        <li>
+          <h3>VIO 中斷超過設定 timeout</h3>
+          <p>依 SAF-003 的參數行為處置，並記錄中斷時刻與感測器狀態。</p>
+        </li>
+        <li>
+          <h3>電池低於 failsafe 值</h3>
+          <p>立即降落，不再執行剩餘測試案例。</p>
+        </li>
+        <li>
+          <h3>任何 S1 現象</h3>
+          <p>中止當日全部飛行，開立問題單並進入第 8 節流程。</p>
+        </li>
+      </ol>
+
+      <h3>記錄要求</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">紀錄</th>
+              <th scope="col">內容</th>
+              <th scope="col">處理方式</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>rosbag</td>
+              <td>感測器、VIO、規劃與 offboard setpoint 全話題</td>
+              <td>以當次飛行編號命名並歸檔</td>
+            </tr>
+            <tr>
+              <td>PX4 ulog</td>
+              <td>飛控日誌</td>
+              <td>上傳 Flight Review 並保留連結</td>
+            </tr>
+            <tr>
+              <td>飛行紀錄表</td>
+              <td>測試案例、結果、中止事件與處置</td>
+              <td>由 TL 簽核</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-note">三項紀錄保存於 git repo 的 <code>flights/</code> 目錄；大型 bag 以外部儲存連結與校驗碼登錄，目錄中保留索引與簽核紀錄。</p>
+    </section>
+
+    <!-- ================= Section 7 ================= -->
+    <section class="section" id="sec7">
+      <div class="section-heading">
+        <span class="section-num">07</span>
+        <h2>確認（Validation）計畫</h2>
+      </div>
+
+      <p>確認以 M5 完整任務展示執行，由 task leader 與利害關係人在場驗收。展示於課題場進行，使用與 V5 相同的軟體版本與參數集，不為展示另開分支或臨時調參。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">步驟</th>
+              <th scope="col">內容</th>
+              <th scope="col">判定</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>起飛至任務高度</td>
+              <td>穩定、無人為介入</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>依規劃路徑穿越課題場障礙</td>
+              <td>無碰撞、無接管</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>於 AprilTag 區域上方接近</td>
+              <td>偵測連續、TF 穩定</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>方案 B 閉環降落</td>
+              <td>誤差 &lt; 50 cm</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>判定準則</h3>
+      <p>連續兩次全劇本無人為介入完成即確認通過；任何一次觸發中止條件則回饋至第 3 節問題流程。兩次展示之間允許更換電池與執行飛行前程序，不允許修改軟體、參數集或任務檔案。</p>
+
+      <div class="note">
+        <p class="note-title">確認紀錄</p>
+        <p>確認通過後，由 task leader 彙整兩次展示的 rosbag、ulog、飛行紀錄表與簽認頁，標註軟體版本與參數集雜湊值，歸檔於 <code>flights/</code>。紀錄中的版本資訊為後續任何修訂的比較基準。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 8 ================= -->
+    <section class="section" id="sec8">
+      <div class="section-heading">
+        <span class="section-num">08</span>
+        <h2>問題報告與不符合處理</h2>
+      </div>
+
+      <p>問題從發現到結案採單一流程，所有狀態變更皆留下紀錄。流程圖中的分級與回歸範圍以第 3 節定義為準。</p>
+
+      <div class="diagram">
+        <div class="diagram-head">
+          <p class="diagram-title">問題處理流程</p>
+          <span class="diagram-badge">S1–S4</span>
+        </div>
+<pre>發現問題 → 分級（S1–S4）→ 開立 TC 失敗記錄（含 rosbag/ulog 附件）
+  → S1：中止活動、修復、全量回歸、TL 簽核重驗
+  → S2：3 工作日內修復、部分回歸、TL 簽核
+  → S3/S4：排入下一整合日
+→ 結案：需求項重驗通過 + 記錄歸檔 flights/</pre>
+        <p class="scroll-hint">← 可水平捲動 →</p>
+      </div>
+
+      <h3>不符合處理規則</h3>
+      <ol>
+        <li><strong>供應商交付相關：</strong>與供應商交付相關的不符合（PWR、A–G 項）依供應商規格第 6 節變更管理處理，重驗以同一份台架清單執行。</li>
+        <li><strong>介面凍結項：</strong>修復不得改動介面凍結項，確需變更時以文件版本更新並同步本規格書矩陣，並重新執行受影響層級的測試案例。</li>
+      </ol>
+
+      <div class="note info">
+        <p class="note-title">紀錄完整性</p>
+        <p>問題單須附可重現的證據：測試案例編號、層級、rosbag 或 ulog 檔名、發生時刻與處置動作。缺乏證據的問題單不進入修復排程，僅登記為觀察項。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 9 ================= -->
+    <section class="section" id="sec9">
+      <div class="section-heading">
+        <span class="section-num">09</span>
+        <h2>追溯與簽核</h2>
+      </div>
+
+      <p>本節建立本規格書與既有三份文件的雙向追溯，並定義各層級與最終確認的簽核責任。追溯表為需求變更影響分析的入口。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">需求組</th>
+              <th scope="col">來源文件與章節</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>SYS、NAV</td>
+              <td>藍圖 §02、§05、§10；供應商規格 §03</td>
+            </tr>
+            <tr>
+              <td>PER</td>
+              <td>藍圖 §05、事實查核摘要</td>
+            </tr>
+            <tr>
+              <td>PWR</td>
+              <td>供應商規格 §02 動力性能規格表</td>
+            </tr>
+            <tr>
+              <td>SAF</td>
+              <td>藍圖實機前必要驗收；供應商規格 §05</td>
+            </tr>
+            <tr>
+              <td>COM</td>
+              <td>藍圖實機前必要驗收</td>
+            </tr>
+            <tr>
+              <td>SIM</td>
+              <td>藍圖 §09；團隊規劃 §05</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>簽核規則</h3>
+      <ol>
+        <li>每層級退出由 task leader 簽核。</li>
+        <li>V4 以上每次飛行紀錄由 TL 與安全官（或 TL 兼任）雙簽。</li>
+        <li>M5 確認由利害關係人簽認。</li>
+        <li>本文件修訂以 repo commit 為準。</li>
+      </ol>
+
+      <p class="spec-footer-note">本文件與<a href="ros2_px4_drone_architecture.html">架構藍圖</a>、<a href="ros2_px4_drone_team_plan.html">團隊執行規劃</a>、<a href="ros2_px4_drone_vendor_spec.html">供應商規格</a>共同構成專案文件集；需求編號與章節引用以本文件現行版本為準。</p>
+    </section>
+
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <span>相關文件：<a href="ros2_px4_drone_architecture.html">架構藍圖</a> · <a href="ros2_px4_drone_team_plan.html">團隊執行規劃</a> · <a href="ros2_px4_drone_vendor_spec.html">供應商規格</a> · 本文件（驗證與確認規格）</span>
+    <span>本文件以 repo 中的最新版本為準。</span>
+  </div>
+</footer>
+
+<a class="to-top" href="#top" aria-label="回到頁面頂部" title="回到頂部">↑</a>
+</body>
+</html>
