@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="zh-Tw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="ROS 2 無人機系統團隊執行規劃：4–6 人分工、20 週階段規劃、供應商協作、每週節奏、風險與里程碑驗收。">
+<title>ROS 2 無人機系統 — 團隊執行規劃</title>
+<style>
+  :root {
+    --bg: #f3f6fb;
+    --surface: #ffffff;
+    --surface-soft: #f8fafc;
+    --ink: #182230;
+    --ink-soft: #334155;
+    --muted: #5f6f83;
+    --line: #e2e8f0;
+    --line-strong: #cbd5e1;
+    --accent: #0e7490;
+    --accent-deep: #155e75;
+    --accent-soft: #ecfeff;
+    --blue-soft: #eff6ff;
+    --amber: #b45309;
+    --amber-soft: #fffbeb;
+    --amber-line: #fcd34d;
+    --code-bg: #eef2f7;
+    --code-ink: #0f4c5c;
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 18px 40px -28px rgba(15, 23, 42, .35);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Helvetica Neue", sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    color: var(--ink);
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(900px 420px at 8% -8%, rgba(14, 116, 144, .10), transparent 60%),
+      radial-gradient(760px 360px at 100% 0%, rgba(37, 99, 235, .08), transparent 55%);
+    background-repeat: no-repeat;
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.72;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection { background: #bae6fd; color: #0c4a6e; }
+
+  a { color: var(--accent); }
+  a:hover { color: var(--accent-deep); }
+
+  .skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -4rem;
+    z-index: 100;
+    padding: .6rem 1rem;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: top .15s ease;
+  }
+  .skip-link:focus { top: 1rem; color: #fff; }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    border-bottom: 1px solid rgba(203, 213, 225, .8);
+    background:
+      linear-gradient(135deg, rgba(236, 254, 255, .92) 0%, rgba(239, 246, 255, .92) 48%, rgba(255, 251, 235, .9) 100%);
+    scroll-margin-top: 0;
+  }
+
+  .hero-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 3.25rem 1.5rem 2.75rem;
+  }
+
+  .hero-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem 1rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .eyebrow {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    color: var(--accent);
+  }
+
+  .hero-version {
+    margin: 0;
+    padding: .25rem .7rem;
+    border: 1px solid rgba(14, 116, 144, .25);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .65);
+    color: var(--accent-deep);
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .02em;
+  }
+
+  h1 {
+    margin: 0;
+    max-width: 60rem;
+    font-size: clamp(1.8rem, 4.1vw, 3rem);
+    line-height: 1.25;
+    letter-spacing: -.025em;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  h1 .h1-accent {
+    display: block;
+    margin-top: .2rem;
+    font-size: .58em;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    color: var(--accent-deep);
+  }
+
+  .subtitle {
+    margin: 1rem 0 0;
+    color: #3f5266;
+    font-size: clamp(.98rem, 2vw, 1.12rem);
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin: 1.4rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .chips li {
+    padding: .34rem .8rem;
+    border: 1px solid rgba(148, 163, 184, .45);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .72);
+    color: #334155;
+    font-family: var(--mono);
+    font-size: .74rem;
+    line-height: 1.5;
+  }
+
+  /* ---------- Layout ---------- */
+  .layout {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 3.5rem;
+    display: grid;
+    grid-template-columns: 252px minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
+  }
+
+  /* ---------- TOC ---------- */
+  .toc {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    max-height: calc(100vh - 3rem);
+    overflow: auto;
+    padding: 1rem;
+    background: rgba(255, 255, 255, .88);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+  }
+
+  .toc-title {
+    margin: 0 0 .55rem;
+    padding: 0 .5rem .55rem;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+
+  .toc nav {
+    display: grid;
+    gap: .15rem;
+  }
+
+  .toc nav a {
+    display: flex;
+    align-items: baseline;
+    gap: .55rem;
+    padding: .48rem .55rem;
+    border-radius: 8px;
+    color: #46586d;
+    font-size: .86rem;
+    line-height: 1.4;
+    text-decoration: none;
+    transition: background .15s ease, color .15s ease;
+  }
+
+  .toc nav a .n {
+    flex: 0 0 auto;
+    width: 1.25rem;
+    color: #94a3b8;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .toc nav a:hover,
+  .toc nav a:focus-visible {
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    outline: none;
+  }
+
+  .toc-note {
+    margin: .9rem .3rem 0;
+    padding-top: .8rem;
+    border-top: 1px dashed var(--line-strong);
+    color: #64748b;
+    font-size: .74rem;
+    line-height: 1.6;
+  }
+
+  /* ---------- Sections ---------- */
+  main { min-width: 0; }
+
+  .section {
+    margin-bottom: 1.75rem;
+    padding: clamp(1.25rem, 2.8vw, 2.1rem);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    scroll-margin-top: 1.5rem;
+  }
+
+  .section:last-of-type { margin-bottom: 0; }
+
+  .section-heading {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin: 0 0 1.1rem;
+    padding-bottom: .85rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .section-num {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #0e7490, #155e75);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: .88rem;
+    font-weight: 700;
+    box-shadow: 0 6px 14px -8px rgba(14, 116, 144, .8);
+  }
+
+  h2 {
+    margin: 0;
+    font-size: clamp(1.18rem, 2.2vw, 1.45rem);
+    line-height: 1.35;
+    letter-spacing: -.01em;
+    color: #16202e;
+  }
+
+  h3 {
+    position: relative;
+    margin: 1.8rem 0 .7rem;
+    padding-left: .8rem;
+    font-size: 1.02rem;
+    line-height: 1.4;
+    color: #24364a;
+  }
+
+  h3::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: .18em;
+    bottom: .18em;
+    width: 3px;
+    border-radius: 3px;
+    background: #22d3ee;
+  }
+
+  h3:first-of-type { margin-top: .25rem; }
+
+  .lede {
+    margin: 1rem 0 0;
+    color: #4a5b6e;
+    font-size: .94rem;
+  }
+
+  p { margin: .75rem 0; }
+  .section > p:first-of-type { margin-top: 0; }
+
+  strong { color: #1e293b; }
+
+  /* ---------- Code chips ---------- */
+  code {
+    padding: .08em .38em;
+    border: 1px solid #dbe3ec;
+    border-radius: .4em;
+    background: var(--code-bg);
+    color: var(--code-ink);
+    font-family: var(--mono);
+    font-size: .855em;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- Tables ---------- */
+  .table-wrap {
+    margin: .8rem 0 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    background: var(--surface);
+  }
+
+  table {
+    width: 100%;
+    min-width: 560px;
+    border-collapse: collapse;
+    font-size: .905rem;
+    line-height: 1.62;
+  }
+
+  thead th {
+    padding: .7rem .85rem;
+    border-bottom: 1px solid var(--line-strong);
+    background: #f1f5f9;
+    color: #334155;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  tbody th,
+  tbody td {
+    padding: .72rem .85rem;
+    border-bottom: 1px solid #edf2f7;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  tbody th {
+    color: #334155;
+    font-weight: 700;
+  }
+
+  tbody td:first-child {
+    color: #334155;
+    font-weight: 600;
+  }
+
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody tr:last-child th,
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody tr:hover { background: #f1f9fb; }
+
+  .table-note {
+    margin: .55rem 0 0;
+    color: #6b7c90;
+    font-size: .78rem;
+  }
+
+  /* ---------- Callouts ---------- */
+  .note {
+    position: relative;
+    margin: 1.35rem 0 0;
+    padding: 1rem 1.15rem 1rem 1.2rem;
+    border: 1px solid var(--amber-line);
+    border-left: 4px solid #f59e0b;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, #fffdf6, var(--amber-soft));
+    color: #4b3b20;
+  }
+
+  .note p { margin: .25rem 0 0; font-size: .92rem; }
+
+  .note-title {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin: 0;
+    color: var(--amber);
+    font-size: .8rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+  }
+
+  .note-title::before { content: "◆"; font-size: .68rem; }
+
+  .note.info {
+    border-color: #a5f3fc;
+    border-left-color: var(--accent);
+    background: linear-gradient(135deg, #f7feff, var(--accent-soft));
+    color: #134e5e;
+  }
+
+  .note.info .note-title { color: var(--accent-deep); }
+
+  /* ---------- Diagrams ---------- */
+  .diagram {
+    margin: 1rem 0 0;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background:
+      linear-gradient(#fbfdff, #fbfdff) padding-box,
+      repeating-linear-gradient(45deg, #f8fafc 0 8px, #f1f5f9 8px 16px) border-box;
+    overflow-x: auto;
+  }
+
+  .diagram-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .4rem .8rem;
+    margin-bottom: .6rem;
+    padding-bottom: .55rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .diagram-title {
+    margin: 0;
+    color: #334155;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+  }
+
+  .diagram-badge {
+    padding: .18rem .55rem;
+    border: 1px solid #bae6fd;
+    border-radius: 999px;
+    background: #f0f9ff;
+    color: #0369a1;
+    font-family: var(--mono);
+    font-size: .68rem;
+  }
+
+  .scroll-hint {
+    display: none;
+    margin: .35rem 0 0;
+    color: #7b8a9c;
+    font-family: var(--mono);
+    font-size: .7rem;
+    text-align: center;
+  }
+
+  details {
+    margin-top: .85rem;
+    padding: .6rem .85rem .7rem;
+    border: 1px dashed var(--line-strong);
+    border-radius: 10px;
+    background: #f8fafc;
+  }
+
+  details summary {
+    cursor: pointer;
+    color: #475569;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .01em;
+  }
+
+  details summary:hover { color: var(--accent-deep); }
+
+  details[open] summary { margin-bottom: .6rem; }
+
+  details pre {
+    margin: 0;
+    padding: .9rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1e293b;
+    font-family: var(--mono);
+    font-size: .74rem;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  /* ---------- Steps ---------- */
+  .steps {
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+    display: grid;
+    gap: .8rem;
+  }
+
+  .steps > li {
+    position: relative;
+    counter-increment: step;
+    padding: .95rem 1.05rem .95rem 3.4rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface-soft);
+  }
+
+  .steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    display: grid;
+    place-items: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: .78rem;
+    font-weight: 700;
+    box-shadow: 0 5px 12px -7px rgba(14, 116, 144, .9);
+  }
+
+  .steps h3 {
+    margin: 0 0 .15rem;
+    padding-left: 0;
+    font-size: .98rem;
+  }
+
+  .steps h3::before { display: none; }
+
+  .steps p {
+    margin: 0;
+    color: #5b6b7f;
+    font-size: .9rem;
+    line-height: 1.65;
+  }
+
+  /* ---------- References ---------- */
+  .refs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+    gap: .65rem;
+    margin: .9rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .refs li { min-width: 0; }
+
+  .refs a {
+    display: flex;
+    flex-direction: column;
+    gap: .12rem;
+    height: 100%;
+    padding: .75rem .85rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    text-decoration: none;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+  }
+
+  .refs a:hover,
+  .refs a:focus-visible {
+    border-color: #67e8f9;
+    box-shadow: 0 8px 20px -16px rgba(8, 145, 178, .8);
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  .refs .ref-name {
+    color: var(--accent-deep);
+    font-size: .88rem;
+    font-weight: 700;
+  }
+
+  .refs .ref-url {
+    color: #7b8a9c;
+    font-family: var(--mono);
+    font-size: .7rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .refs .ref-tag {
+    color: #94a3b8;
+    font-size: .72rem;
+  }
+
+  /* ---------- Footer ---------- */
+  .site-footer {
+    border-top: 1px solid var(--line);
+    background: rgba(255, 255, 255, .6);
+  }
+
+  .footer-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: .5rem 1rem;
+    color: #6b7c90;
+    font-size: .78rem;
+  }
+
+  .footer-inner code { font-size: .72rem; }
+
+  /* ---------- Back to top ---------- */
+  .to-top {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    width: 2.65rem;
+    height: 2.65rem;
+    border-radius: 50%;
+    background: #0f172a;
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 10px 24px -10px rgba(15, 23, 42, .7);
+    opacity: .92;
+    transition: background .15s ease, transform .15s ease, opacity .15s ease;
+  }
+
+  .to-top:hover,
+  .to-top:focus-visible {
+    background: var(--accent);
+    color: #fff;
+    opacity: 1;
+    transform: translateY(-2px);
+    outline: none;
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 920px) {
+    .layout {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+      padding: 1.25rem 1rem 2.5rem;
+    }
+
+    .toc {
+      position: static;
+      max-height: none;
+      overflow: visible;
+      padding: .85rem;
+    }
+
+    .toc nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+    }
+
+    .toc nav a {
+      flex: 0 0 auto;
+      padding: .38rem .6rem;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      font-size: .8rem;
+    }
+
+    .toc nav a .n { width: auto; }
+    .toc-note { display: none; }
+
+    .hero-inner { padding: 2.4rem 1rem 2.1rem; }
+    .section { scroll-margin-top: .75rem; }
+
+    .scroll-hint { display: block; }
+  }
+
+  @media (max-width: 560px) {
+    body { font-size: 15px; }
+    h1 { font-size: 1.75rem; }
+    h1 .h1-accent { font-size: .62em; }
+    .section { padding: 1.1rem; border-radius: 14px; }
+    .section-heading { align-items: flex-start; }
+    .section-num { width: 1.9rem; height: 1.9rem; }
+    .table-wrap { margin-left: -.15rem; margin-right: -.15rem; }
+    table { font-size: .84rem; }
+    thead th, tbody th, tbody td { padding: .6rem .65rem; }
+    .steps > li { padding-left: 3.1rem; }
+    .to-top { right: .9rem; bottom: .9rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .toc, .to-top, .skip-link { display: none !important; }
+    .layout { display: block; max-width: none; padding: 0; }
+    .hero { background: #fff; }
+    .section { box-shadow: none; break-inside: avoid; }
+    details { display: block; }
+    details[open] summary { margin-bottom: .4rem; }
+  }
+
+  /* ---------- Team plan additions ---------- */
+  .hero-version a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(14, 116, 144, .45);
+  }
+  .hero-version a:hover,
+  .hero-version a:focus-visible { color: var(--accent); outline: none; }
+
+  .phase-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .4rem .65rem;
+    margin: .2rem 0 .7rem;
+  }
+
+  .phase-tag {
+    padding: .18rem .62rem;
+    border: 1px solid rgba(14, 116, 144, .28);
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    white-space: nowrap;
+  }
+
+  .phase-owner {
+    color: var(--muted);
+    font-size: .8rem;
+    line-height: 1.5;
+  }
+
+  .plan-footer-note {
+    margin: 1.1rem 0 0;
+    padding-top: .9rem;
+    border-top: 1px dashed var(--line-strong);
+    color: #64748b;
+    font-size: .82rem;
+  }
+</style>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">跳至主要內容</a>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-top">
+      <p class="eyebrow">TEAM EXECUTION PLAN / 2026</p>
+      <p class="hero-version"><a href="ros2_px4_drone_architecture.html">返回架構藍圖</a></p>
+    </div>
+    <h1>ROS 2 無人機系統 <span class="h1-accent">— 團隊執行規劃</span></h1>
+    <p class="subtitle">4–6 人小組 · 模擬優先 · 由 SITL 邁向實機</p>
+    <ul class="chips" aria-label="規劃關鍵字">
+      <li>20 週 · 含 20% buffer</li>
+      <li>5 個 Phase</li>
+      <li>M1–M5 里程碑</li>
+      <li>4–6 人編制</li>
+      <li>SITL → HITL → 實機</li>
+    </ul>
+    <p class="lede">本文為架構藍圖（<a href="ros2_px4_drone_architecture.html">ros2_px4_drone_architecture.html</a>）的執行計畫文件，將藍圖中的技術模組轉換為人力配置、階段排程、供應商協作方式與驗收節點。</p>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="toc" aria-label="頁面目錄">
+    <p class="toc-title">目錄 / Contents</p>
+    <nav>
+      <a href="#sec1"><span class="n">01</span><span>前提與資源配置</span></a>
+      <a href="#sec2"><span class="n">02</span><span>團隊角色分工</span></a>
+      <a href="#sec3"><span class="n">03</span><span>階段規劃（20 週）</span></a>
+      <a href="#sec4"><span class="n">04</span><span>與供應商的協作管理</span></a>
+      <a href="#sec5"><span class="n">05</span><span>每週節奏</span></a>
+      <a href="#sec6"><span class="n">06</span><span>風險清單</span></a>
+      <a href="#sec7"><span class="n">07</span><span>里程碑驗收總表</span></a>
+    </nav>
+    <p class="toc-note">本頁以表格與 ASCII 圖為主，無外部相依資源，可離線開啟。</p>
+  </aside>
+
+  <main id="main">
+
+    <!-- ================= Section 1 ================= -->
+    <section class="section" id="sec1">
+      <div class="section-heading">
+        <span class="section-num">01</span>
+        <h2>前提與資源配置</h2>
+      </div>
+
+      <p>本規劃以小組 4–6 人為前提，其中 1 人為 task leader（TL）。每人約 50% 工時投入 coding，另外 50% 投入整合、測試、供應商對接與安全演練。PX4 機體（飛控與相關軟硬體）由外部公司提供，團隊仍需熟悉其使用方式並完成串接；介面掌握權由本團隊持有，包含訊息版本、topic 清單、韌體版本與參數集的定義。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">項目</th>
+              <th scope="col">配置</th>
+              <th scope="col">說明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>團隊規模</td>
+              <td>4–6 人</td>
+              <td>含 1 位 task leader，其餘為模組開發者與測試角色</td>
+            </tr>
+            <tr>
+              <td>工時分配</td>
+              <td>每人約 50% coding / 50% 整合與測試</td>
+              <td>整合、除錯、供應商對接、文件與安全演練均計入後半段工時</td>
+            </tr>
+            <tr>
+              <td>硬體來源</td>
+              <td>PX4 機體由外部公司提供</td>
+              <td>飛控與相關軟硬體由供應商交付，團隊負責熟悉、串接與驗收</td>
+            </tr>
+            <tr>
+              <td>介面主導</td>
+              <td>本團隊持有介面掌握權</td>
+              <td><code>px4_msgs</code> 版本、topic 清單、韌體版本與參數集由團隊凍結並交付供應商</td>
+            </tr>
+            <tr>
+              <td>排程基準</td>
+              <td>20 週（含 20% buffer）</td>
+              <td>約 4 週保留給校正反覆迭代、交付延遲與整合風險</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <p class="note-title">工時比例的理由</p>
+        <p>本藍圖的關鍵難關——VIO 校正、EKF2 融合調參、failsafe 演練——皆非單純編碼可解決，全部屬於整合與測試時間。若把工時全數押在 coding，這些工作會在實機階段才浮現，且無法排入可控的時程。將驗證責任綁回各模組開發者，是此配置的核心原則：撰寫模組的人同時負責在共用模擬場景中證明它可用，整合風險因此提前暴露。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 2 ================= -->
+    <section class="section" id="sec2">
+      <div class="section-heading">
+        <span class="section-num">02</span>
+        <h2>團隊角色分工</h2>
+      </div>
+
+      <p>角色以藍圖的模組邊界切分，每個角色對應明確的藍圖章節與驗收範圍，避免同一模組多人改動或無人負責。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">角色</th>
+              <th scope="col">建議人數</th>
+              <th scope="col">職責</th>
+              <th scope="col">對應藍圖章節</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Task Leader</td>
+              <td>1</td>
+              <td>時程與里程碑管理、對供應商的唯一窗口、飛行安全最終決策、每週 demo 主持</td>
+              <td>全部</td>
+            </tr>
+            <tr>
+              <td>平台/整合工程師</td>
+              <td>1</td>
+              <td>micro-XRCE-DDS 橋接、offboard 控制、EKF2 參數調校、Gazebo 課題場景維護、CI</td>
+              <td>§1、§2、§6</td>
+            </tr>
+            <tr>
+              <td>感知工程師 A</td>
+              <td>1</td>
+              <td>VIO（OpenVINS）校正與調參、相機/IMU 時間同步</td>
+              <td>§3、§5</td>
+            </tr>
+            <tr>
+              <td>感知工程師 B</td>
+              <td>1</td>
+              <td>AprilTag 偵測與精準降落邏輯、與 VIO 的 TF 整合</td>
+              <td>§4</td>
+            </tr>
+            <tr>
+              <td>導航工程師</td>
+              <td>1</td>
+              <td>建圖、3D 全域規劃、局部避障（EGO-Planner）</td>
+              <td>§5</td>
+            </tr>
+            <tr>
+              <td>測試/安全工程師</td>
+              <td>0–1</td>
+              <td>failsafe 驗證、台架測試、實飛操作（可由 TL 兼任）</td>
+              <td>§9、§10</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-note">「對應藍圖章節」指 ros2_px4_drone_architecture.html 的節次編號。</p>
+
+      <h3>編制組合與兼職原則</h3>
+      <ul>
+        <li><strong>4 人編制：</strong>TL 兼測試/安全，感知工程師 A 兼 AprilTag；平台、導航各 1 人。負載最重，Phase 2 之後需嚴格控制同時進行的任務數。</li>
+        <li><strong>5 人編制：</strong>去掉測試專職，由 TL 兼任；感知 A 與感知 B 分工完整。為本規劃的基準編制。</li>
+        <li><strong>6 人編制：</strong>滿編，測試/安全專職，可同時推進台架與 SITL 兩條線，buffer 消耗速度最慢。</li>
+      </ul>
+
+      <div class="note info">
+        <p class="note-title">分工原則</p>
+        <p>每個模組只有一位擁有者（owner），模組的驗收證據也由該擁有者提出。跨模組介面（VIO 與 EKF2、AprilTag 與 TF、規劃器與 offboard）由平台/整合工程師擔任仲裁者，介面變更一律進 git 並在週三整合日同步。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 3 ================= -->
+    <section class="section" id="sec3">
+      <div class="section-heading">
+        <span class="section-num">03</span>
+        <h2>階段規劃（20 週，含 20% buffer）</h2>
+      </div>
+
+      <p>規劃以 20 週為基準，路線為 SITL 模擬 → 硬體在環（HITL）與台架 → 繫留與室內實機 → 完整任務，對應藍圖第 10 節的開發路徑細化。20 週中約 4 週為 buffer，主要分配給 Phase 3 的 VIO 實機校正與供應商交付延遲。</p>
+
+      <h3>Phase 0｜準備期（W1–W2）</h3>
+      <p class="phase-line"><span class="phase-tag">W1–W2</span><span class="phase-owner">主導：TL（介面凍結）· 全員（環境建置）</span></p>
+      <ul>
+        <li>全員環境建置：PX4 SITL、ROS 2 Jazzy、Gazebo Harmonic、QGC；每位成員皆須能以 <code>make px4_sitl gz_x500</code> 完成起飛降落。</li>
+        <li>與供應商完成需求與介面凍結（TL 主導）：硬體規格單（飛控型號與韌體版本、<code>px4_msgs</code> 版本、uXRCE-DDS 支援、感測器清單與驅動、交付日期）。</li>
+        <li>要求供應商於 W2 前提供一套開發用飛控（dev kit），供台架驗證提前展開。</li>
+        <li>建立 git monorepo（perception / navigation / platform 三個 package）與 headless SITL 的 CI 回歸測試。</li>
+        <li>建立共用 Gazebo 障礙課題世界（含 AprilTag 海報），作為後續所有 demo 的驗收場景。</li>
+      </ul>
+
+      <h3>Phase 1｜SITL 自主基礎（W3–W6）</h3>
+      <p class="phase-line"><span class="phase-tag">W3–W6</span><span class="phase-owner">平台組：offboard 狀態機 · 導航組：建圖 · 感知組：VIO 與 AprilTag</span></p>
+      <ul>
+        <li>平台組：offboard 起飛/降落/航點狀態機（全隊地基）。</li>
+        <li>導航組：3D 建圖 pipeline（模擬 LiDAR → voxel）。</li>
+        <li>感知組：OpenVINS 於模擬雙目影像跑通；AprilTag 偵測上線。</li>
+      </ul>
+      <div class="note info">
+        <p class="note-title">里程碑 M1 · W6</p>
+        <p>模擬 GPS-denied 環境中，VIO 里程計餵入 EKF2（<code>EKF2_EV_CTRL</code>），無 GPS 懸停穩定。</p>
+      </div>
+
+      <h3>Phase 2｜感知與導航閉環（W7–W10）</h3>
+      <p class="phase-line"><span class="phase-tag">W7–W10</span><span class="phase-owner">導航組：規劃與避障 · 感知組：降落序列 · 測試/平台組：台架（W8 起）</span></p>
+      <ul>
+        <li>全域規劃與局部避障接入 offboard；AprilTag 降落序列完成。</li>
+        <li>同期（W8 起）測試與平台組：dev kit 台架——rangefinder 接線、<code>EKF2_RNG_CTRL</code> 融合、failsafe 逐項演練（遙控失聯、電池、EKF 發散）。</li>
+      </ul>
+      <div class="note info">
+        <p class="note-title">里程碑 M2 · W8</p>
+        <p>模擬課題場成功穿越障礙並避障。</p>
+      </div>
+      <div class="note info">
+        <p class="note-title">里程碑 M3 · W10</p>
+        <p>AprilTag 精準降落，模擬誤差小於 30 cm。</p>
+      </div>
+
+      <h3>Phase 3｜硬體在環與實機前置（W11–W14）</h3>
+      <p class="phase-line"><span class="phase-tag">W11–W14</span><span class="phase-owner">平台組：介面驗收與 HITL · 感知 A：實機 VIO 校正 · 測試：台架複驗</span></p>
+      <ul>
+        <li>供應商完整機體到位，執行介面驗收：實體感測器讀值對照規格、uXRCE-DDS 頻寬實測、馬達怠速檢查。</li>
+        <li>HITL：真實飛控接回 Gazebo，驗證同一份 ROS 堆疊不改碼運行。</li>
+        <li>VIO 實機校正（相機內參、IMU-camera 外參），預留兩週反覆迭代。</li>
+      </ul>
+      <div class="note info">
+        <p class="note-title">里程碑 M4 · W14</p>
+        <p>繫留飛行中 VIO 與測距儀定點，EKF 無發散。</p>
+      </div>
+
+      <h3>Phase 4｜實機飛行與任務整合（W15–W20）</h3>
+      <p class="phase-line"><span class="phase-tag">W15–W20</span><span class="phase-owner">全員 · TL 主持每次實飛前 checklist 認可</span></p>
+      <ul>
+        <li>W15–16：室內自由飛行，先定點、再小航點，開啟 <code>CP_DIST</code> 作為低階保險。</li>
+        <li>W17–18：低速避障飛行與 AprilTag 實機降落。</li>
+        <li>W19–20：完整任務流程多次彩排與展示。</li>
+      </ul>
+      <div class="note info">
+        <p class="note-title">里程碑 M5 · W20</p>
+        <p>完整任務（起飛 → 避障穿越 → AprilTag 精準降落）全流程 demo。</p>
+      </div>
+
+      <h3>週程總表</h3>
+      <div class="diagram">
+        <div class="diagram-head">
+          <p class="diagram-title">20 週甘特圖（P0–P4、台架並行、里程碑）</p>
+          <span class="diagram-badge">ASCII</span>
+        </div>
+<pre>
+Week    1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20
+P0      ## ##
+P1            ## ## ## ##
+P2                        ## ## ## ##
+Bench      -- -- -- -- -- -- -- -- -- -- -- -- --
+P3                                    ## ## ## ##
+P4                                                ## ## ## ## ## ##
+Mile                   M1    M2    M3          M4                M5
+</pre>
+      </div>
+      <p class="table-note">P0–P4 為 Phase 0–4；Bench 為台架與 dev kit 驗證，自 W2 起與模擬階段並行；Mile 為里程碑時點（M1 W6、M2 W8、M3 W10、M4 W14、M5 W20）。</p>
+    </section>
+
+    <!-- ================= Section 4 ================= -->
+    <section class="section" id="sec4">
+      <div class="section-heading">
+        <span class="section-num">04</span>
+        <h2>與供應商的協作管理</h2>
+      </div>
+
+      <p>供應商提供機體，團隊持有介面主導權。協作方式以文件凍結、分批交付與自建驗收清單為核心，避免規格在口頭溝通中漂移。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">措施</th>
+              <th scope="col">內容</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>單一窗口</td>
+              <td>所有規格與時程問題由 TL 統一進出，避免多頭溝通</td>
+            </tr>
+            <tr>
+              <td>介面契約</td>
+              <td>以文件凍結：<code>px4_msgs</code> 版本、topic 清單（沿用藍圖 §9 速查表交付供應商）、韌體版本、參數集</td>
+            </tr>
+            <tr>
+              <td>分批交付</td>
+              <td>W2 前交付 dev kit；W11 交付整機並附出廠測試報告</td>
+            </tr>
+            <tr>
+              <td>驗收清單</td>
+              <td>團隊自寫 bench checklist（EKF 狀態、<code>uorb top</code> 頻率、failsafe 觸發），不僅依賴供應商出廠測試</td>
+            </tr>
+            <tr>
+              <td>降級方案</td>
+              <td>供應商延遲不阻塞排程：Phase 1–2 全在 SITL，硬體晚到僅影響 Phase 3 起點</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <p class="note-title">合約與技術的分界</p>
+        <p>供應商負責硬體規格與交付，團隊負責介面行為與飛行安全。出廠測試報告視為入場文件，不視為驗收結論；每項功能仍須在團隊自建的台架清單與共用 Gazebo 場景中重現，才計入里程碑。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 5 ================= -->
+    <section class="section" id="sec5">
+      <div class="section-heading">
+        <span class="section-num">05</span>
+        <h2>每週節奏</h2>
+      </div>
+
+      <p>每週節奏固定為同步、整合、展示三段，讓跨模組問題在週內被發現，而不是累積到里程碑前才處理。</p>
+
+      <div class="diagram">
+        <div class="diagram-head">
+          <p class="diagram-title">每週工時與節奏</p>
+          <span class="diagram-badge">weekly</span>
+        </div>
+<pre>
+每人每週:  約 20h coding/開發 + 約 20h 整合測試/除錯/供應商對接/文件
+週節奏:    週一同步站會(30min) → 週三整合日(全隊拼 SITL demo) → 週五 demo + 下週目標
+持續實踐:  所有功能以「能在共用 Gazebo 課題世界重現」為收案標準，CI 跑 headless 回歸
+</pre>
+      </div>
+
+      <p>所有功能問題必須在 SITL 階段暴露，不允許帶到實機飛行。週三整合日的產出是可直接在共用課題世界重播的 SITL demo，週五 demo 僅驗收已在 CI 回歸中通過的項目。</p>
+    </section>
+
+    <!-- ================= Section 6 ================= -->
+    <section class="section" id="sec6">
+      <div class="section-heading">
+        <span class="section-num">06</span>
+        <h2>風險清單</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">風險</th>
+              <th scope="col">緩解措施</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>供應商延遲交付</td>
+              <td>dev kit 提前到位；SITL 排程不依賴硬體</td>
+            </tr>
+            <tr>
+              <td>VIO 於實機發散（模擬正常、實機漂移）</td>
+              <td>優先檢查相機-IMU 時間同步；以動捕或 AprilTag 作 ground truth 交叉驗證；採分段融合（先位置、後姿態）</td>
+            </tr>
+            <tr>
+              <td>實機感測與模擬差異（曝光、畸變、馬達振動）</td>
+              <td>Phase 3 預留校正 buffer；加振動隔離 mount</td>
+            </tr>
+            <tr>
+              <td>安全事故</td>
+              <td>繫留先行、保護框、RC 接管演練制度化；每次實飛前由 TL 認可 checklist</td>
+            </tr>
+            <tr>
+              <td>整合失敗（模組各自正常、串接故障）</td>
+              <td>每週三整合日＋共用課題場景＋CI 回歸；問題在 SITL 爆發而非實機</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="table-note">風險排序依「發生機率 × 對里程碑的影響」排列，前三項對應 Phase 2–3 的 buffer 消耗。</p>
+    </section>
+
+    <!-- ================= Section 7 ================= -->
+    <section class="section" id="sec7">
+      <div class="section-heading">
+        <span class="section-num">07</span>
+        <h2>里程碑驗收總表</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">里程碑</th>
+              <th scope="col">時點</th>
+              <th scope="col">驗收標準</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>M1</td>
+              <td>W6</td>
+              <td>模擬 GPS-denied 環境，VIO 餵入 EKF2，無 GPS 懸停穩定</td>
+            </tr>
+            <tr>
+              <td>M2</td>
+              <td>W8</td>
+              <td>模擬課題場成功穿越障礙並完成避障</td>
+            </tr>
+            <tr>
+              <td>M3</td>
+              <td>W10</td>
+              <td>AprilTag 精準降落，模擬誤差小於 30 cm</td>
+            </tr>
+            <tr>
+              <td>M4</td>
+              <td>W14</td>
+              <td>繫留飛行 VIO 與測距儀定點，EKF 無發散</td>
+            </tr>
+            <tr>
+              <td>M5</td>
+              <td>W20</td>
+              <td>完整任務流程 demo：起飛、避障穿越、AprilTag 降落</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="plan-footer-note">本文為執行計畫，技術內容依據架構藍圖（<a href="ros2_px4_drone_architecture.html">ros2_px4_drone_architecture.html</a>）。</p>
+    </section>
+
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <span>ROS 2 無人機系統 — 團隊執行規劃</span>
+    <span>單一 HTML 文件 · 無外部相依 · 20 週 · M1–M5</span>
+  </div>
+</footer>
+
+<a class="to-top" href="#top" aria-label="回到頁面頂部" title="回到頂部">↑</a>
+</body>
+</html>
