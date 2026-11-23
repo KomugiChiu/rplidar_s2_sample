@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="ROS 2 無人機系統驗證與確認規格：七層 V&amp;V 階層、需求驗證矩陣、S1–S4 問題分級、實飛測試程序與 M5 完整任務確認。">
-<title>ROS 2 無人機系統 — 驗證與確認規格（V&amp;V Specification）（修訂版）</title>
+<title>ROS 2 無人機系統 — 驗證與確認規格（V&amp;V Specification）</title>
 <style>
   :root {
     --bg: #f3f6fb;
@@ -829,8 +829,6 @@
 </style>
 </head>
 <body id="top">
-<div style="margin:12px auto;max-width:1180px;padding:14px 18px;border:2px solid #2563eb;border-radius:10px;background:#eff6ff;color:#172554;font-family:system-ui,sans-serif"><strong>事實查核修訂版</strong><br>本檔依技術查核結果修訂；正式凍結前仍須完成版本、參數與量化驗收門檻簽核。</div>
-
 <a class="skip-link" href="#main">跳至主要內容</a>
 
 <header class="hero">
@@ -1166,7 +1164,7 @@ V6  完整任務確認               （起飛 → 避障穿越 → AprilTag 降
             <tr>
               <td><span class="req-id">NAV-001</span></td>
               <td>VIO 里程計輸出品質</td>
-              <td>藍圖事實查核摘要</td>
+              <td>藍圖 §11 實機前必要驗收</td>
               <td><span class="method">T</span></td>
               <td><span class="level">V1–V5</span></td>
               <td class="criteria">約 30–50 Hz 穩定輸出；covariance 合理；無 timestamp 倒退</td>
@@ -1240,7 +1238,7 @@ V6  完整任務確認               （起飛 → 避障穿越 → AprilTag 降
             <tr>
               <td><span class="req-id">PER-002</span></td>
               <td>精準降落（方案 B，ROS 2 閉環）</td>
-              <td>藍圖事實查核摘要</td>
+              <td>藍圖 §06 混合範例</td>
               <td><span class="method">T</span></td>
               <td><span class="level">V1</span></td>
               <td class="criteria">模擬降落誤差 &lt; 30 cm</td>
@@ -1405,7 +1403,7 @@ V6  完整任務確認               （起飛 → 避障穿越 → AprilTag 降
             <tr>
               <td><span class="req-id">SAF-007</span></td>
               <td>Collision Prevention 邊界</td>
-              <td>藍圖事實查核摘要</td>
+              <td>藍圖 §05 軟體模組</td>
               <td><span class="method">A</span></td>
               <td><span class="level">V0</span></td>
               <td class="criteria">CP_DIST 僅視為 Position mode 輔助；offboard 安全邏輯由 ROS 2 實作並驗證</td>
@@ -1481,7 +1479,7 @@ V6  完整任務確認               （起飛 → 避障穿越 → AprilTag 降
             <tr>
               <td><span class="req-id">SIM-002</span></td>
               <td>模擬與實機共核心</td>
-              <td>藍圖事實查核摘要</td>
+              <td>藍圖 §09 Gazebo 的角色</td>
               <td><span class="method">A</span></td>
               <td><span class="level">V0–V1</span></td>
               <td class="criteria">核心演算法 node 共用；driver、標定、TF、QoS、launch 分離管理</td>
@@ -1759,7 +1757,7 @@ V6  完整任務確認               （起飛 → 避障穿越 → AprilTag 降
             </tr>
             <tr>
               <td>PER</td>
-              <td>藍圖 §05、事實查核摘要</td>
+              <td>藍圖 §05、§06</td>
             </tr>
             <tr>
               <td>PWR</td>

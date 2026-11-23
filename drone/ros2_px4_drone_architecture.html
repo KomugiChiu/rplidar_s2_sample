@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="ROS 2 無人機自主飛行系統技術藍圖：PX4 + Gazebo、VIO、Rangefinder、AprilTag、避障與路徑規劃。">
-<title>ROS 2 無人機自主飛行系統 — PX4 + Gazebo 完整藍圖（事實查核修訂版）</title>
+<title>ROS 2 無人機自主飛行系統 — PX4 + Gazebo 完整藍圖</title>
 <style>
   :root {
     --bg: #f3f6fb;
@@ -764,7 +764,6 @@
   <aside class="toc" aria-label="頁面目錄">
     <p class="toc-title">目錄 / Contents</p>
     <nav>
-      <a href="#revision-note"><span class="n">R</span><span>事實查核修訂摘要</span></a>
       <a href="#sec1"><span class="n">01</span><span>核心概念 — 雙腦架構</span></a>
       <a href="#sec2"><span class="n">02</span><span>PX4 的內部架構與對外通訊</span></a>
       <a href="#sec3"><span class="n">03</span><span>硬體元件清單（實機）</span></a>
@@ -781,13 +780,6 @@
   </aside>
 
   <main id="main">
-      <section class="section" id="revision-note">
-        <div class="section-heading"><span class="section-num">R</span><h2>事實查核修訂摘要</h2></div>
-        <p>本版已依 PX4 官方文件重新整理容易誤解的敘述。重點修正包括：X500 感測器型號、RGB-D／Depth Camera、Precision Landing 與 Offboard 的邊界、<code>CP_DIST</code> 的適用範圍、SITL 與實機差異、版本固定方式，以及動力數據的驗證要求。</p>
-        <div class="note info"><p class="note-title">模擬機型重點</p><p><code>gz_x500_depth</code> 確實具有前視 Depth Camera，模型參考 OAK-D，可視為 RGB-D 類型的模擬相機。但基本 <code>gz_x500</code> 並未同時內建 RGB-D、rangefinder 與各式 LiDAR。若要 D455 類輸入、下視測距儀與 3D LiDAR 同機，需建立及驗證自訂 SDF。</p></div>
-        <div class="note"><p class="note-title">工程使用限制</p><p>本文件是架構與驗證藍圖，不是可直接採購或起飛的定案規格。馬達、槳、電池、ESC、電源模組與線材必須綁定確切型號，並以原廠推力表和台架量測驗證。</p></div>
-      </section>
-
     <!-- ================= Section 1 ================= -->
     <section class="section" id="sec1">
       <div class="section-heading">
@@ -1345,6 +1337,11 @@ flowchart TB
         <p class="note-title">評估順序</p>
         <p>動力評估的順序為：先算重量、再算推力、查表選配、計算電氣與續航、最後以台架量測驗證。核心是懸停油門落在 50% 左右且每個電氣環節皆有餘裕；供應商交付驗收時，本節準則即為動力部分的檢查標準（對應供應商規格文件第 2 節動力性能規格）。</p>
       </div>
+
+      <div class="note">
+        <p class="note-title">工程使用限制</p>
+        <p>本文件是架構與驗證藍圖，不是可直接採購或起飛的定案規格。馬達、槳、電池、ESC、電源模組與線材必須綁定確切型號，並以原廠推力表和台架量測驗證。</p>
+      </div>
     </section>
 
     <!-- ================= Section 5 ================= -->
@@ -1793,6 +1790,8 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
         <li>擬真度的限制：模擬物理與感測資料屬於近似值（簡化旋翼模型、渲染影像不含鏡頭畸變與曝光變化），因此最終仍需 HITL（真實 Pixhawk 連接模擬世界）與實機測試補齊差距。</li>
       </ol>
 
+      <div class="note info"><p class="note-title">模擬機型的感測器配置</p><p><code>gz_x500_depth</code> 確實具有前視 Depth Camera，模型參考 OAK-D，可視為 RGB-D 類型的模擬相機。但基本 <code>gz_x500</code> 並未同時內建 RGB-D、rangefinder 與各式 LiDAR。若要 D455 類輸入、下視測距儀與 3D LiDAR 同機，需建立及驗證自訂 SDF。</p></div>
+
       <h3>自訂 SITL 車型的建立流程</h3>
       <p>當任務需要多種感測器同機（例如雙目、下視測距儀與 3D LiDAR）時，以自訂 SDF 模型實現，並自行驗證感測器行為與發布頻率。</p>
       <ol>
@@ -1964,7 +1963,7 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
 <footer class="site-footer">
   <div class="footer-inner">
     <span>ROS 2 無人機自主飛行系統 — PX4 + Gazebo 完整藍圖</span>
-    <span>事實查核修訂版 · 架構圖：Mermaid + ASCII 離線備援</span>
+    <span>單一 HTML 文件 · 架構圖：Mermaid + ASCII 離線備援</span>
   </div>
 </footer>
 
