@@ -1786,6 +1786,97 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
         <li>擬真度的限制：模擬物理與感測資料屬於近似值（簡化旋翼模型、渲染影像不含鏡頭畸變與曝光變化），因此最終仍需 HITL（真實 Pixhawk 連接模擬世界）與實機測試補齊差距。</li>
       </ol>
 
+      <h3>SITL 車型的感測器同構原則</h3>
+      <p>PX4 提供 gz_x500、gz_x500_lidar_2d、gz_x500_depth 等多種 SITL 車型變體；這些變體是官方預先打包的感測器組合，並非互斥的功能選項。本藍圖採自訂車型將全部感測器搭載於單一模型，以單一模擬實例同時供養 VIO、避障、測距與 AprilTag。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">模型變體</th>
+              <th scope="col">預裝感測器</th>
+              <th scope="col">官方用途</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>gz_x500</td>
+              <td>IMU、GPS（基礎版）</td>
+              <td>一般 offboard 與任務測試</td>
+            </tr>
+            <tr>
+              <td>gz_x500_lidar_2d</td>
+              <td>基礎版 + 2D LiDAR</td>
+              <td>平面避障與導航演示</td>
+            </tr>
+            <tr>
+              <td>gz_x500_depth</td>
+              <td>基礎版 + 深度相機</td>
+              <td>視覺避障與點雲演示</td>
+            </tr>
+            <tr>
+              <td>其他變體</td>
+              <td>依 PX4 版本而異，以 Tools/simulation/gz/models 目錄為準</td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>SDF 模型為純文字描述，單一模型同時搭載 2D LiDAR、深度相機、測距儀、雙目與 3D LiDAR 沒有任何架構限制；官方拆分多個變體的目的在於讓各項演示保持輕量，而非表達感測器互斥。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">實機感測器</th>
+              <th scope="col">模擬端對應</th>
+              <th scope="col">餵入的模組</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>RealSense D455（雙目+IMU）</td>
+              <td>gz 相機 ×2 + IMU 組成雙目</td>
+              <td>OpenVINS</td>
+            </tr>
+            <tr>
+              <td>TFmini Plus 測距儀</td>
+              <td>gz range sensor</td>
+              <td>EKF2 高度融合</td>
+            </tr>
+            <tr>
+              <td>Livox Mid-360 3D LiDAR</td>
+              <td>gz gpu_lidar（3D）</td>
+              <td>voxel 建圖與避障</td>
+            </tr>
+            <tr>
+              <td>GPS / IMU</td>
+              <td>標配</td>
+              <td>EKF2</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>模擬機為實機的鏡像，感測器清單以供應商規格文件第 2 節硬體規格表為對照來源。</p>
+
+      <h3>自訂車型做法</h3>
+      <ol>
+        <li>複製既有模型目錄建立自訂車型（如 <code>cp -r Tools/simulation/gz/models/x500_depth Tools/simulation/gz/models/x500_autonomy</code>）。</li>
+        <li>編輯自訂模型的 model.sdf，將 x500_lidar_2d 等變體的 sensor 區塊剪貼進來，並補上 range sensor 與第二顆相機以組成雙目。</li>
+        <li>依 PX4 文件的新模型流程註冊 airframe 與參數集，之後以 <code>make px4_sitl gz_x500_autonomy</code> 啟動。</li>
+        <li>各感測器經 ros_gz_bridge 獨立成為 ROS 2 topic，各模組各取所需。</li>
+      </ol>
+
+      <h3>留意事項</h3>
+      <ol>
+        <li>代價是算力而非可能性：每個渲染型感測器（相機、深度相機）各佔用一個 GPU render pass，gpu_lidar 另佔深度圖產出；全開時 real-time factor 下降，開發單一模組時可暫時註解未用感測器，整合日再全開。</li>
+        <li>深度相機不等於雙目：gz_x500_depth 的感測器屬 RGBD 概念，OpenVINS 需要 two-camera 加 IMU 的 stereo 組態；VIO 驗證使用自訂雙目，而非直接沿用 depth 變體。</li>
+        <li>多車可行：Gazebo 單一世界可同時運行多架不同變體（multi-vehicle SITL），供 swarm 開發使用；與本藍圖單機配置互不衝突。</li>
+      </ol>
+
+      <p>本項工作對應團隊執行規劃中 Phase 0 平台組「建立共用 Gazebo 課題世界」的任務範圍：世界（障礙物與 AprilTag 海報）與自訂車型一併完成，之後全部成員於同一場景驗收。</p>
+
       <div class="note">
         <p class="note-title">更高擬真度的選項</p>
         <p>若任務需要更高擬真度的影像（光照、材質），可評估 Isaac Sim 或 AirSim 等以 GPU 光線追蹤為主的模擬器；對避障、路徑規劃與降落邏輯的開發而言，Harmonic 的擬真度已足夠，且與 PX4／ROS 2 的整合最為成熟。</p>
