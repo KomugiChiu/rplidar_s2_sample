@@ -1,0 +1,1526 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="ROS 2 無人機自主飛行系統技術藍圖：PX4 + Gazebo、VIO、Rangefinder、AprilTag、避障與路徑規劃。">
+<title>ROS 2 無人機自主飛行系統 — PX4 + Gazebo 完整藍圖</title>
+<style>
+  :root {
+    --bg: #f3f6fb;
+    --surface: #ffffff;
+    --surface-soft: #f8fafc;
+    --ink: #182230;
+    --ink-soft: #334155;
+    --muted: #5f6f83;
+    --line: #e2e8f0;
+    --line-strong: #cbd5e1;
+    --accent: #0e7490;
+    --accent-deep: #155e75;
+    --accent-soft: #ecfeff;
+    --blue-soft: #eff6ff;
+    --amber: #b45309;
+    --amber-soft: #fffbeb;
+    --amber-line: #fcd34d;
+    --code-bg: #eef2f7;
+    --code-ink: #0f4c5c;
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 18px 40px -28px rgba(15, 23, 42, .35);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Helvetica Neue", sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    color: var(--ink);
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(900px 420px at 8% -8%, rgba(14, 116, 144, .10), transparent 60%),
+      radial-gradient(760px 360px at 100% 0%, rgba(37, 99, 235, .08), transparent 55%);
+    background-repeat: no-repeat;
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.72;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection { background: #bae6fd; color: #0c4a6e; }
+
+  a { color: var(--accent); }
+  a:hover { color: var(--accent-deep); }
+
+  .skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -4rem;
+    z-index: 100;
+    padding: .6rem 1rem;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: top .15s ease;
+  }
+  .skip-link:focus { top: 1rem; color: #fff; }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    border-bottom: 1px solid rgba(203, 213, 225, .8);
+    background:
+      linear-gradient(135deg, rgba(236, 254, 255, .92) 0%, rgba(239, 246, 255, .92) 48%, rgba(255, 251, 235, .9) 100%);
+    scroll-margin-top: 0;
+  }
+
+  .hero-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 3.25rem 1.5rem 2.75rem;
+  }
+
+  .hero-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem 1rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .eyebrow {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    color: var(--accent);
+  }
+
+  .hero-version {
+    margin: 0;
+    padding: .25rem .7rem;
+    border: 1px solid rgba(14, 116, 144, .25);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .65);
+    color: var(--accent-deep);
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .02em;
+  }
+
+  h1 {
+    margin: 0;
+    max-width: 60rem;
+    font-size: clamp(1.8rem, 4.1vw, 3rem);
+    line-height: 1.25;
+    letter-spacing: -.025em;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  h1 .h1-accent {
+    display: block;
+    margin-top: .2rem;
+    font-size: .58em;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    color: var(--accent-deep);
+  }
+
+  .subtitle {
+    margin: 1rem 0 0;
+    color: #3f5266;
+    font-size: clamp(.98rem, 2vw, 1.12rem);
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin: 1.4rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .chips li {
+    padding: .34rem .8rem;
+    border: 1px solid rgba(148, 163, 184, .45);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .72);
+    color: #334155;
+    font-family: var(--mono);
+    font-size: .74rem;
+    line-height: 1.5;
+  }
+
+  /* ---------- Layout ---------- */
+  .layout {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 3.5rem;
+    display: grid;
+    grid-template-columns: 252px minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
+  }
+
+  /* ---------- TOC ---------- */
+  .toc {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    max-height: calc(100vh - 3rem);
+    overflow: auto;
+    padding: 1rem;
+    background: rgba(255, 255, 255, .88);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+  }
+
+  .toc-title {
+    margin: 0 0 .55rem;
+    padding: 0 .5rem .55rem;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+
+  .toc nav {
+    display: grid;
+    gap: .15rem;
+  }
+
+  .toc nav a {
+    display: flex;
+    align-items: baseline;
+    gap: .55rem;
+    padding: .48rem .55rem;
+    border-radius: 8px;
+    color: #46586d;
+    font-size: .86rem;
+    line-height: 1.4;
+    text-decoration: none;
+    transition: background .15s ease, color .15s ease;
+  }
+
+  .toc nav a .n {
+    flex: 0 0 auto;
+    width: 1.25rem;
+    color: #94a3b8;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .toc nav a:hover,
+  .toc nav a:focus-visible {
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    outline: none;
+  }
+
+  .toc-note {
+    margin: .9rem .3rem 0;
+    padding-top: .8rem;
+    border-top: 1px dashed var(--line-strong);
+    color: #64748b;
+    font-size: .74rem;
+    line-height: 1.6;
+  }
+
+  /* ---------- Sections ---------- */
+  main { min-width: 0; }
+
+  .section {
+    margin-bottom: 1.75rem;
+    padding: clamp(1.25rem, 2.8vw, 2.1rem);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    scroll-margin-top: 1.5rem;
+  }
+
+  .section:last-of-type { margin-bottom: 0; }
+
+  .section-heading {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin: 0 0 1.1rem;
+    padding-bottom: .85rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .section-num {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #0e7490, #155e75);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: .88rem;
+    font-weight: 700;
+    box-shadow: 0 6px 14px -8px rgba(14, 116, 144, .8);
+  }
+
+  h2 {
+    margin: 0;
+    font-size: clamp(1.18rem, 2.2vw, 1.45rem);
+    line-height: 1.35;
+    letter-spacing: -.01em;
+    color: #16202e;
+  }
+
+  h3 {
+    position: relative;
+    margin: 1.8rem 0 .7rem;
+    padding-left: .8rem;
+    font-size: 1.02rem;
+    line-height: 1.4;
+    color: #24364a;
+  }
+
+  h3::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: .18em;
+    bottom: .18em;
+    width: 3px;
+    border-radius: 3px;
+    background: #22d3ee;
+  }
+
+  h3:first-of-type { margin-top: .25rem; }
+
+  .lede {
+    margin: 1rem 0 0;
+    color: #4a5b6e;
+    font-size: .94rem;
+  }
+
+  p { margin: .75rem 0; }
+  .section > p:first-of-type { margin-top: 0; }
+
+  strong { color: #1e293b; }
+
+  /* ---------- Code chips ---------- */
+  code {
+    padding: .08em .38em;
+    border: 1px solid #dbe3ec;
+    border-radius: .4em;
+    background: var(--code-bg);
+    color: var(--code-ink);
+    font-family: var(--mono);
+    font-size: .855em;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- Tables ---------- */
+  .table-wrap {
+    margin: .8rem 0 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    background: var(--surface);
+  }
+
+  table {
+    width: 100%;
+    min-width: 560px;
+    border-collapse: collapse;
+    font-size: .905rem;
+    line-height: 1.62;
+  }
+
+  thead th {
+    padding: .7rem .85rem;
+    border-bottom: 1px solid var(--line-strong);
+    background: #f1f5f9;
+    color: #334155;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  tbody th,
+  tbody td {
+    padding: .72rem .85rem;
+    border-bottom: 1px solid #edf2f7;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  tbody th {
+    color: #334155;
+    font-weight: 700;
+  }
+
+  tbody td:first-child {
+    color: #334155;
+    font-weight: 600;
+  }
+
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody tr:last-child th,
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody tr:hover { background: #f1f9fb; }
+
+  .table-note {
+    margin: .55rem 0 0;
+    color: #6b7c90;
+    font-size: .78rem;
+  }
+
+  /* ---------- Callouts ---------- */
+  .note {
+    position: relative;
+    margin: 1.35rem 0 0;
+    padding: 1rem 1.15rem 1rem 1.2rem;
+    border: 1px solid var(--amber-line);
+    border-left: 4px solid #f59e0b;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, #fffdf6, var(--amber-soft));
+    color: #4b3b20;
+  }
+
+  .note p { margin: .25rem 0 0; font-size: .92rem; }
+
+  .note-title {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin: 0;
+    color: var(--amber);
+    font-size: .8rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+  }
+
+  .note-title::before { content: "◆"; font-size: .68rem; }
+
+  .note.info {
+    border-color: #a5f3fc;
+    border-left-color: var(--accent);
+    background: linear-gradient(135deg, #f7feff, var(--accent-soft));
+    color: #134e5e;
+  }
+
+  .note.info .note-title { color: var(--accent-deep); }
+
+  /* ---------- Diagrams ---------- */
+  .diagram {
+    margin: 1rem 0 0;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background:
+      linear-gradient(#fbfdff, #fbfdff) padding-box,
+      repeating-linear-gradient(45deg, #f8fafc 0 8px, #f1f5f9 8px 16px) border-box;
+    overflow-x: auto;
+  }
+
+  .diagram-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .4rem .8rem;
+    margin-bottom: .6rem;
+    padding-bottom: .55rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .diagram-title {
+    margin: 0;
+    color: #334155;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+  }
+
+  .diagram-badge {
+    padding: .18rem .55rem;
+    border: 1px solid #bae6fd;
+    border-radius: 999px;
+    background: #f0f9ff;
+    color: #0369a1;
+    font-family: var(--mono);
+    font-size: .68rem;
+  }
+
+  .scroll-hint {
+    display: none;
+    margin: .35rem 0 0;
+    color: #7b8a9c;
+    font-family: var(--mono);
+    font-size: .7rem;
+    text-align: center;
+  }
+
+  details {
+    margin-top: .85rem;
+    padding: .6rem .85rem .7rem;
+    border: 1px dashed var(--line-strong);
+    border-radius: 10px;
+    background: #f8fafc;
+  }
+
+  details summary {
+    cursor: pointer;
+    color: #475569;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .01em;
+  }
+
+  details summary:hover { color: var(--accent-deep); }
+
+  details[open] summary { margin-bottom: .6rem; }
+
+  details pre {
+    margin: 0;
+    padding: .9rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1e293b;
+    font-family: var(--mono);
+    font-size: .74rem;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  /* ---------- Steps ---------- */
+  .steps {
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+    display: grid;
+    gap: .8rem;
+  }
+
+  .steps > li {
+    position: relative;
+    counter-increment: step;
+    padding: .95rem 1.05rem .95rem 3.4rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface-soft);
+  }
+
+  .steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    display: grid;
+    place-items: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: .78rem;
+    font-weight: 700;
+    box-shadow: 0 5px 12px -7px rgba(14, 116, 144, .9);
+  }
+
+  .steps h3 {
+    margin: 0 0 .15rem;
+    padding-left: 0;
+    font-size: .98rem;
+  }
+
+  .steps h3::before { display: none; }
+
+  .steps p {
+    margin: 0;
+    color: #5b6b7f;
+    font-size: .9rem;
+    line-height: 1.65;
+  }
+
+  /* ---------- References ---------- */
+  .refs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+    gap: .65rem;
+    margin: .9rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .refs li { min-width: 0; }
+
+  .refs a {
+    display: flex;
+    flex-direction: column;
+    gap: .12rem;
+    height: 100%;
+    padding: .75rem .85rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    text-decoration: none;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+  }
+
+  .refs a:hover,
+  .refs a:focus-visible {
+    border-color: #67e8f9;
+    box-shadow: 0 8px 20px -16px rgba(8, 145, 178, .8);
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  .refs .ref-name {
+    color: var(--accent-deep);
+    font-size: .88rem;
+    font-weight: 700;
+  }
+
+  .refs .ref-url {
+    color: #7b8a9c;
+    font-family: var(--mono);
+    font-size: .7rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .refs .ref-tag {
+    color: #94a3b8;
+    font-size: .72rem;
+  }
+
+  /* ---------- Footer ---------- */
+  .site-footer {
+    border-top: 1px solid var(--line);
+    background: rgba(255, 255, 255, .6);
+  }
+
+  .footer-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: .5rem 1rem;
+    color: #6b7c90;
+    font-size: .78rem;
+  }
+
+  .footer-inner code { font-size: .72rem; }
+
+  /* ---------- Back to top ---------- */
+  .to-top {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    width: 2.65rem;
+    height: 2.65rem;
+    border-radius: 50%;
+    background: #0f172a;
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 10px 24px -10px rgba(15, 23, 42, .7);
+    opacity: .92;
+    transition: background .15s ease, transform .15s ease, opacity .15s ease;
+  }
+
+  .to-top:hover,
+  .to-top:focus-visible {
+    background: var(--accent);
+    color: #fff;
+    opacity: 1;
+    transform: translateY(-2px);
+    outline: none;
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 920px) {
+    .layout {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+      padding: 1.25rem 1rem 2.5rem;
+    }
+
+    .toc {
+      position: static;
+      max-height: none;
+      overflow: visible;
+      padding: .85rem;
+    }
+
+    .toc nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+    }
+
+    .toc nav a {
+      flex: 0 0 auto;
+      padding: .38rem .6rem;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      font-size: .8rem;
+    }
+
+    .toc nav a .n { width: auto; }
+    .toc-note { display: none; }
+
+    .hero-inner { padding: 2.4rem 1rem 2.1rem; }
+    .section { scroll-margin-top: .75rem; }
+
+    .scroll-hint { display: block; }
+  }
+
+  @media (max-width: 560px) {
+    body { font-size: 15px; }
+    h1 { font-size: 1.75rem; }
+    h1 .h1-accent { font-size: .62em; }
+    .section { padding: 1.1rem; border-radius: 14px; }
+    .section-heading { align-items: flex-start; }
+    .section-num { width: 1.9rem; height: 1.9rem; }
+    .table-wrap { margin-left: -.15rem; margin-right: -.15rem; }
+    table { font-size: .84rem; }
+    thead th, tbody th, tbody td { padding: .6rem .65rem; }
+    .steps > li { padding-left: 3.1rem; }
+    .to-top { right: .9rem; bottom: .9rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .toc, .to-top, .skip-link { display: none !important; }
+    .layout { display: block; max-width: none; padding: 0; }
+    .hero { background: #fff; }
+    .section { box-shadow: none; break-inside: avoid; }
+    details { display: block; }
+    details[open] summary { margin-bottom: .4rem; }
+  }
+</style>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">跳至主要內容</a>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-top">
+      <p class="eyebrow">SYSTEM BLUEPRINT / 2026</p>
+      <p class="hero-version">PX4 v1.15–1.16 · ROS 2 Jazzy · Gazebo Harmonic</p>
+    </div>
+    <h1>ROS 2 無人機自主飛行系統 <span class="h1-accent">— PX4 + Gazebo 完整藍圖</span></h1>
+    <p class="subtitle">避障 · 路徑規劃 · Rangefinder · VIO · AprilTag</p>
+    <ul class="chips" aria-label="技術關鍵字">
+      <li>Pixhawk 6C / 6X</li>
+      <li>Jetson Orin NX</li>
+      <li>micro-XRCE-DDS</li>
+      <li>OpenVINS</li>
+      <li>EGO-Planner</li>
+      <li>D* Lite 3D</li>
+    </ul>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="toc" aria-label="頁面目錄">
+    <p class="toc-title">目錄 / Contents</p>
+    <nav>
+      <a href="#sec1"><span class="n">01</span><span>核心概念 — 雙腦架構</span></a>
+      <a href="#sec2"><span class="n">02</span><span>硬體元件清單（實機）</span></a>
+      <a href="#sec3"><span class="n">03</span><span>軟體模組清單</span></a>
+      <a href="#sec4"><span class="n">04</span><span>導航的分層架構：PX4 與伴飛電腦的職責劃分</span></a>
+      <a href="#sec5"><span class="n">05</span><span>實機架構圖</span></a>
+      <a href="#sec6"><span class="n">06</span><span>模擬架構圖（Gazebo SITL）</span></a>
+      <a href="#sec7"><span class="n">07</span><span>Gazebo Harmonic 的角色：模擬與真實的分界</span></a>
+      <a href="#sec8"><span class="n">08</span><span>關鍵資料流速查</span></a>
+      <a href="#sec9"><span class="n">09</span><span>建議開發路徑</span></a>
+    </nav>
+    <p class="toc-note">架構圖由 Mermaid CDN 渲染；離線開啟時可展開各圖下方的 ASCII 版本備援。</p>
+  </aside>
+
+  <main id="main">
+
+    <!-- ================= Section 1 ================= -->
+    <section class="section" id="sec1">
+      <div class="section-heading">
+        <span class="section-num">01</span>
+        <h2>核心概念 — 雙腦架構</h2>
+      </div>
+
+      <p>系統採「飛控 + 伴飛電腦」雙腦分工：PX4 專注硬即時控制與安全，ROS 2 負責高階感知、規劃與任務邏輯，兩者以 DDS 交換 <code>px4_msgs</code> topics。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col"></th>
+              <th scope="col">飛控 FC（Pixhawk）</th>
+              <th scope="col">伴飛電腦 Companion Computer</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">執行</th>
+              <td>PX4 韌體（即時、硬即時）</td>
+              <td>ROS 2 + Linux（非即時）</td>
+            </tr>
+            <tr>
+              <th scope="row">負責</th>
+              <td>EKF2 狀態估計、姿態/位置控制、故障保護、馬達混控</td>
+              <td>VIO、AprilTag、避障、路徑規劃、任務邏輯</td>
+            </tr>
+            <tr>
+              <th scope="row">連接</th>
+              <td colspan="2">←→ 透過 <code>micro-XRCE-DDS</code>（UDP 8888）以 <code>px4_msgs</code> topics 溝通</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="lede">目前（2026）官方推薦組合為 PX4 v1.15/1.16 + ROS 2 Jazzy (Ubuntu 24.04) + Gazebo Harmonic + micro-XRCE-DDS（PX4 也開始支援 Zenoh，但 DDS 仍是主流建議）。</p>
+    </section>
+
+    <!-- ================= Section 2 ================= -->
+    <section class="section" id="sec2">
+      <div class="section-heading">
+        <span class="section-num">02</span>
+        <h2>硬體元件清單（實機）</h2>
+      </div>
+
+      <h3>飛行平台</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">元件</th>
+              <th scope="col">建議型號</th>
+              <th scope="col">說明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>飛控</td>
+              <td>Pixhawk 6C / 6X 或 Cube Orange+</td>
+              <td>跑 PX4，需有充足 UART/I2C 介面</td>
+            </tr>
+            <tr>
+              <td>機架/動力</td>
+              <td>F450 或自組 5–8 吋四軸 + 電調(ESC) + 馬達</td>
+              <td>DShot600 建議</td>
+            </tr>
+            <tr>
+              <td>電源</td>
+              <td>PM02/PM06 電源模組 + 4S 鋰電</td>
+              <td>同時幫伴飛電腦供電（注意 5V/5A 以上）</td>
+            </tr>
+            <tr>
+              <td>遙控</td>
+              <td>RadioMaster/Futaba + ELRS/PX4 相容接收機</td>
+              <td>手動接管是安全底線</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>感測器與運算</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">元件</th>
+              <th scope="col">建議型號</th>
+              <th scope="col">介面</th>
+              <th scope="col">用途</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>雙目相機+IMU（VIO）</td>
+              <td>Intel RealSense D455 或 OV9281 雙目模組</td>
+              <td>USB3 → 伴飛電腦</td>
+              <td>VIO 視覺慣性里程計</td>
+            </tr>
+            <tr>
+              <td>雷射測距儀</td>
+              <td>TFmini Plus / Benewake TF02 / LightWare SF30</td>
+              <td>UART/I2C → 飛控</td>
+              <td>高度計（EKF2 融合 + 落地偵測）</td>
+            </tr>
+            <tr>
+              <td>3D LiDAR（避障用，選配）</td>
+              <td>Livox Mid-360</td>
+              <td>乙太網路 → 伴飛電腦</td>
+              <td>3D 避障點雲、地圖建構</td>
+            </tr>
+            <tr>
+              <td>GPS/Mag</td>
+              <td>M9N/M10 模組</td>
+              <td>UART → 飛控</td>
+              <td>室外定位；室內靠 VIO</td>
+            </tr>
+            <tr>
+              <td>伴飛電腦</td>
+              <td>Jetson Orin NX（需要 GPU 做 VIO/避障）或 Pi 5（勉強）</td>
+              <td>—</td>
+              <td>跑整套 ROS 2</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <p class="note-title">關鍵設計</p>
+        <p>rangefinder 直接送飛控（EKF2 原生融合，安全等級高）；相機送伴飛電腦；LiDAR 送伴飛電腦。這樣 VIO/規劃掛掉時，飛控仍有高度與 fail-safe。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 3 ================= -->
+    <section class="section" id="sec3">
+      <div class="section-heading">
+        <span class="section-num">03</span>
+        <h2>軟體模組清單</h2>
+      </div>
+
+      <h3>飛控端（PX4）</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">模組</th>
+              <th scope="col">說明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>EKF2</td>
+              <td>融合 IMU + rangefinder（<code>EKF2_RNG_CTRL</code>）+ 外部視覺里程計（<code>EKF2_EV_CTRL</code>）+ GPS</td>
+            </tr>
+            <tr>
+              <td>Offboard mode</td>
+              <td>接受 ROS 2 下發的 <code>trajectory_setpoint</code></td>
+            </tr>
+            <tr>
+              <td>Collision Prevention（CP_DIST）</td>
+              <td>低階保險：用距離感測資料直接剎停</td>
+            </tr>
+            <tr>
+              <td>Failsafe / RTL / Land</td>
+              <td>遙控失聯、電池、EKF 發散保護</td>
+            </tr>
+            <tr>
+              <td>uXRCE-DDS client</td>
+              <td>PX4 內建，把 uORB 橋接成 DDS topics</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>伴飛電腦端（ROS 2）</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">模組</th>
+              <th scope="col">套件/Repo</th>
+              <th scope="col">功能</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>DDS 橋接</td>
+              <td>micro-XRCE-DDS Agent + px4_msgs</td>
+              <td><code>/fmu/out/*</code>、<code>/fmu/in/*</code></td>
+            </tr>
+            <tr>
+              <td>VIO</td>
+              <td>OpenVINS（ROS2 版，推薦）或 ORB-SLAM3 ROS2 wrapper</td>
+              <td>發布里程計 → <code>/fmu/in/vehicle_visual_odometry</code></td>
+            </tr>
+            <tr>
+              <td>AprilTag</td>
+              <td>apriltag_ros2</td>
+              <td>偵測 tag → TF pose，用於精準降落/相對導航</td>
+            </tr>
+            <tr>
+              <td>建圖/避障</td>
+              <td>OctoMap / voxel costmap + 點雲驅動（ros2_livox 或 depth image → pointcloud）</td>
+              <td>3D 佔用柵格</td>
+            </tr>
+            <tr>
+              <td>全域路徑規劃</td>
+              <td>3D A*/D* Lite（參考 px4-ros2-drone-nav）或 OMPL/RRT*</td>
+              <td>起點到終點的 3D 路徑</td>
+            </tr>
+            <tr>
+              <td>局部規劃/避障</td>
+              <td>EGO-Planner（ROS2 port）或 GPU MPPI、Nav2（2D 簡化版）</td>
+              <td>動態閃避障礙、平滑軌跡</td>
+            </tr>
+            <tr>
+              <td>任務/降落邏輯</td>
+              <td>自寫 node（Offboard 狀態機 + AprilTag 降落序列）</td>
+              <td>整合上述模組</td>
+            </tr>
+            <tr>
+              <td>視覺化</td>
+              <td>RViz2、PlotJuggler、Foxglove</td>
+              <td>除錯</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>模擬端（開發階段）</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">模組</th>
+              <th scope="col">說明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>PX4 SITL</td>
+              <td><code>make px4_sitl gz_x500</code>，與實機跑同一份韌體</td>
+            </tr>
+            <tr>
+              <td>Gazebo Harmonic (gz-sim)</td>
+              <td>x500 模型內建：雙目相機、rangefinder、LiDAR、IMU、GPS 的 gz sensor plugins</td>
+            </tr>
+            <tr>
+              <td>ros_gz_bridge</td>
+              <td>把 gz 的 <code>/clock</code>、影像、點雲橋進 ROS 2</td>
+            </tr>
+            <tr>
+              <td>micro-XRCE-DDS Agent</td>
+              <td>在本機跑，與實機完全相同</td>
+            </tr>
+            <tr>
+              <td>QGroundControl</td>
+              <td>UDP 連 SITL，驗證參數/飛行模式</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= Section 4 ================= -->
+    <section class="section" id="sec4">
+      <div class="section-heading">
+        <span class="section-num">04</span>
+        <h2>導航的分層架構：PX4 與伴飛電腦的職責劃分</h2>
+      </div>
+
+      <p>在這套雙腦架構中，導航功能是分層實作的：伴飛電腦負責高階導航決策，PX4 飛控負責中階航點執行與低階即時控制。PX4 內部雖然有一個名為 navigator 的模組，但其職責是執行航點任務（Mission、RTL、Loiter、geofence），並不包含避障或三維路徑規劃。三層之間以明確介面銜接：高階規劃結果透過 offboard setpoint 下發，中階 navigator 在 Mission、RTL、Loiter 等模式下執行航點任務，低階控制則持續以硬即時迴路追蹤 setpoint 並執行 failsafe。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">層級</th>
+              <th scope="col">跑在哪</th>
+              <th scope="col">具體工作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>高階導航（本藍圖的開發重點）</td>
+              <td>伴飛電腦 ROS 2</td>
+              <td>3D 建圖、全域路徑規劃（D* Lite / A*）、局部避障規劃（EGO-Planner / MPPI）、AprilTag 任務邏輯與任務狀態機</td>
+            </tr>
+            <tr>
+              <td>中階導航</td>
+              <td>PX4 飛控</td>
+              <td>內建 navigator 模組，負責 Mission 航點跟隨、RTL、Loiter 與 geofence；此模組僅沿直線飛往下一個航點，不具備避障能力</td>
+            </tr>
+            <tr>
+              <td>低階控制</td>
+              <td>PX4 飛控</td>
+              <td>EKF2 狀態估計、位置/速度/姿態控制迴路（硬即時，250Hz–1kHz）、offboard setpoint 追蹤與 failsafe</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>路徑規劃不納入 PX4 的三個原因</h3>
+      <ol>
+        <li>算力限制：3D 規劃、voxel 建圖與 VIO 需要大量 CPU/GPU 資源，Pixhawk 的 STM32 無法承擔。</li>
+        <li>即時性分工：飛控必須維持硬即時確定性；規劃演算法的執行時間不確定，若納入飛控將危害飛行安全。</li>
+        <li>失敗隔離：規劃 node 失效時，飛控仍可透過定高、懸停、RTL 等 fail-safe 接管；這也是 rangefinder 直接連接飛控的原因。</li>
+      </ol>
+
+      <h3>PX4 內建導航能力的適用範圍</h3>
+      <div class="note info">
+        <p class="note-title">適用範圍</p>
+        <p>在戶外 GPS 環境、直線航點且不需避障的簡單任務中，可單獨使用 PX4 Mission mode（由 QGC 上傳任務）而無需伴飛電腦。本藍圖所需的避障、VIO 與 AprilTag 均超出 PX4 內建能力，因此必須由伴飛電腦承擔。</p>
+      </div>
+
+      <h3>混合範例——AprilTag 精準降落</h3>
+      <p>AprilTag 精準降落展示兩端的分工方式：伴飛電腦負責視覺偵測與位姿解算，PX4 負責最後階段的即時下降與落地控制。</p>
+      <ul>
+        <li><strong>伴飛端：</strong><code>apriltag_ros2</code> 偵測 tag 並算出相對位姿；此視覺運算超出 PX4 的能力範圍。</li>
+        <li><strong>傳遞：</strong>tag 位姿換算為 <code>LANDING_TARGET</code> 訊息，或直接以 offboard 下發 setpoint。</li>
+        <li><strong>PX4 端：</strong>內建 Precision Land 控制器接收降落目標，執行最後的下降與落地控制；此階段需要即時閉環，交由 ROS 處理並不可靠。</li>
+      </ul>
+
+      <h3>資料流總結</h3>
+      <div class="diagram">
+        <div class="diagram-head">
+          <p class="diagram-title">規劃與控制的頻率分工</p>
+          <span class="diagram-badge">ROS 2 → PX4 → 馬達</span>
+        </div>
+<pre>
+伴飛 ROS 2（規劃，10–30Hz）
+   │  /fmu/in/offboard_control_mode + trajectory_setpoint
+   ▼
+PX4（追蹤 setpoint，控制迴路 250Hz+）
+   ▼
+馬達
+</pre>
+      </div>
+
+      <div class="note">
+        <p class="note-title">分層原則總結</p>
+        <p>高階導航（往哪裡飛）由伴飛電腦決定，低階穩定飛行（怎麼飛得穩）由 PX4 完成；PX4 的 navigator 僅是中階航點執行者，避障、路徑規劃、VIO、AprilTag 整條感知與決策鏈皆運行於伴飛電腦，並透過 offboard setpoint 交付 PX4 執行。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 5 ================= -->
+    <section class="section" id="sec5">
+      <div class="section-heading">
+        <span class="section-num">05</span>
+        <h2>實機架構圖</h2>
+      </div>
+
+      <div class="diagram">
+        <div class="diagram-head">
+          <p class="diagram-title">圖 1：實機系統架構（感測器 / PX4 / ROS 2）</p>
+          <span class="diagram-badge">Mermaid</span>
+        </div>
+<pre class="mermaid">
+flowchart TB
+    subgraph SENS["機上感測器"]
+        CAM["RealSense D455 雙目+IMU"]
+        RNG["TFmini Plus 測距儀"]
+        LID["Livox Mid-360 3D LiDAR（避障）"]
+        GPS["GPS/Mag"]
+        RC["RC 接收機"]
+    end
+    subgraph FC["Pixhawk 6C — PX4 韌體"]
+        EKF["EKF2 IMU+RNG+GPS+外部視覺融合"]
+        OFFB["Offboard 模式 Collision Prevention Failsafe"]
+        UXCE_C["uXRCE-DDS client"]
+    end
+    subgraph CC["Jetson Orin NX — ROS 2 Jazzy"]
+        AGENT["micro-XRCE-DDS Agent"]
+        subgraph STACK["ROS 2 自主堆疊"]
+            VIO["OpenVINS 視覺慣性里程計"]
+            APR["apriltag_ros2 Tag 偵測"]
+            MAP["Voxel/OctoMap 3D 建圖"]
+            GP["全域規劃 D* Lite 3D / A*"]
+            LP["局部規劃+避障 EGO-Planner / MPPI"]
+            MISSION["任務狀態機 Offboard 控制"]
+        end
+    end
+    GCS["QGroundControl WiFi / MAVLink"]
+    ESC["ESC → 4 馬達"]
+    CAM -- "USB3 影像+IMU" --> VIO
+    LID -- "乙太網路點雲" --> MAP
+    RNG -- "UART/I2C" --> EKF
+    GPS -- "UART" --> EKF
+    RC -- "SBUS/ELRS" --> OFFB
+    VIO -- "visual odometry /fmu/in/vehicle_visual_odometry" --> EKF
+    APR -- "tag pose（降落用）" --> MISSION
+    MAP --> GP
+    GP --> LP
+    LP --> MISSION
+    MISSION -- "trajectory_setpoint /fmu/in/*" --> OFFB
+    UXCE_C &lt;== "micro XRCE-DDS UDP 8888 / px4_msgs" ==> AGENT
+    OFFB --> ESC
+    GCS -. "MAVLink" .-> FC
+</pre>
+        <details>
+          <summary>ASCII 版本（離線備用）</summary>
+<pre>
+[相機D455]──USB──┐                      ┌──UART/I2C──[測距儀]
+                 ▼                      │
+          ┌──────────────┐   uXRCE-DDS  │      ┌─────────────┐
+[LiDAR]─網路─▶│  Jetson/ROS2  │◀══px4_msgs═══▶│  Pixhawk/PX4 │──▶ ESC/馬達
+   │          │ VIO│AprilTag│  │  (UDP 8888)   │  EKF2+Offboard│
+   ▼          │ 規劃│避障│   │               └──────┬────────┘
+ voxel地圖     └──────────────┘               UART │  RC
+                                                ▼
+                                        [GPS] [遙控] [QGC]
+</pre>
+        </details>
+      </div>
+    </section>
+
+    <!-- ================= Section 6 ================= -->
+    <section class="section" id="sec6">
+      <div class="section-heading">
+        <span class="section-num">06</span>
+        <h2>模擬架構圖（Gazebo SITL）</h2>
+      </div>
+
+      <div class="diagram">
+        <div class="diagram-head">
+          <p class="diagram-title">圖 2：Gazebo Harmonic 模擬架構（SITL）</p>
+          <span class="diagram-badge">Mermaid</span>
+        </div>
+<pre class="mermaid">
+flowchart TB
+    subgraph GZ["Gazebo Harmonic (gz-sim)"]
+        WORLD["障礙物世界 + AprilTag 海報"]
+        X500["x500 模型／gz sensors：雙目相機、rangefinder、LiDAR、IMU、GPS"]
+    end
+    SITL["PX4 SITL（與實機同一份韌體）／EKF2、Offboard、uXRCE-DDS client"]
+    AGENT["micro-XRCE-DDS Agent"]
+    BRIDGE["ros_gz_bridge 影像/點雲/時鐘"]
+    subgraph STACK2["ROS 2 自主堆疊（與實機 100% 相同）"]
+        VIO2["OpenVINS（吃模擬雙目）"]
+        APR2["apriltag_ros2（看虛擬海報）"]
+        PLAN2["D-star Lite 3D + EGO-Planner"]
+        MIS2["任務狀態機 → /fmu/in/trajectory_setpoint"]
+    end
+    QGC["QGroundControl (UDP 14550)"]
+    RVIZ["RViz2 / Foxglove"]
+    X500 &lt;== "gz IPC 橋（感測/馬達）" ==> SITL
+    X500 -- "topics：image/pointcloud/clock" --> BRIDGE
+    BRIDGE --> STACK2
+    SITL &lt;== "px4_msgs：/fmu/out/* 與 /fmu/in/*" ==> AGENT
+    AGENT &lt;== "DDS topics" ==> STACK2
+    QGC -. "UDP" .-> SITL
+    RVIZ -. "topics" .-> STACK2
+</pre>
+        <details>
+          <summary>ASCII 版本（離線備用）</summary>
+<pre>
+┌──────────────── Gazebo Harmonic (gz-sim) ────────────────┐
+│   [障礙物世界 + AprilTag 海報]                            │
+│   [x500：雙目相機 / rangefinder / LiDAR / IMU / GPS]      │
+└──────────────────────────┬──────────────────────────────┘
+                           │ gz IPC（感測 / 馬達）
+                           ▼
+             ┌───────────────────────────┐   px4_msgs   ┌──────────────────────┐
+             │ PX4 SITL（與實機同韌體）  │◀════════════▶│ micro-XRCE-DDS Agent │
+             │ EKF2 / Offboard / uXRCE   │ /fmu/out, in │      UDP 8888        │
+             └───────────────────────────┘              └──────────┬───────────┘
+                                                                  │ DDS topics
+   ┌──────────────────────────┐   ros_gz_bridge                    ▼
+   │ Gazebo 感測 topics       │──────────────▶ ┌────────────────────────────────┐
+   │ image/pointcloud/clock   │                │ ROS 2 自主堆疊（與實機相同）   │
+   └──────────────────────────┘                │ OpenVINS / AprilTag            │
+                                               │ D-star Lite 3D + EGO-Planner   │
+   [QGroundControl]◀─ UDP 14550 ─ PX4 SITL     │ 任務狀態機 → setpoint          │
+   [RViz2 / Foxglove]◀─ topics ─ ROS 2 堆疊    └────────────────────────────────┘
+</pre>
+        </details>
+      </div>
+
+      <div class="note info">
+        <p class="note-title">重點</p>
+        <p>「自主堆疊」那個框在模擬與實機是同一套程式碼——只是感測器來源從 gz sensor plugins 換成實體 USB/UART，PX4 從 SITL 換成實體 Pixhawk。這就是為什麼要先用模擬開發。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 7 ================= -->
+    <section class="section" id="sec7">
+      <div class="section-heading">
+        <span class="section-num">07</span>
+        <h2>Gazebo Harmonic 的角色：模擬與真實的分界</h2>
+      </div>
+
+      <p>Gazebo Harmonic 是新版 Gazebo（gz-sim）的長期支援（LTS）版本，與 ROS 2 Humble／Jazzy 搭配為官方推薦組合。Gazebo Harmonic 本身是純粹的模擬器：它只負責模擬機體物理與感測器、渲染 3D 世界；在本藍圖的模擬管線中，無人機的兩個大腦——PX4 韌體與 ROS 2 自主堆疊——運行的都是真實軟體，模擬的只有「機體與感測」這一層。</p>
+
+      <h3>Gazebo Harmonic 的版本定位</h3>
+      <div class="diagram">
+        <div class="diagram-head">
+          <p class="diagram-title">Gazebo 版本沿革</p>
+          <span class="diagram-badge">gz-sim</span>
+        </div>
+<pre>
+Gazebo Classic (gazebo11，已於 2025/1 終止支援)
+    └─▶ 新版 Gazebo (gz-sim)：Fortress → Garden → Harmonic (LTS) → Ionic → Jetty
+</pre>
+      </div>
+      <p>PX4 官方文件與本藍圖採用 Harmonic，配合 <code>ros_gz_bridge</code>（apt 套件名如 <code>ros-jazzy-ros-gzharmonic</code>）。</p>
+
+      <h3>Gazebo 負責的四件事</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">功能</th>
+              <th scope="col">實作方式</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>物理引擎</td>
+              <td>ODE / DART / Bullet，模擬多旋翼升力、慣量與碰撞</td>
+            </tr>
+            <tr>
+              <td>感測器模擬</td>
+              <td>gz sensor plugins：相機（GPU 渲染）、LiDAR、IMU（含雜訊模型）、rangefinder、GPS</td>
+            </tr>
+            <tr>
+              <td>3D 世界</td>
+              <td>以 SDF 描述環境、障礙物與 AprilTag 海報貼圖</td>
+            </tr>
+            <tr>
+              <td>渲染與 GUI</td>
+              <td>ogre2 引擎，即時顯示與視覺化</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>模擬與真實的精確分界</h3>
+      <p>SITL 系統的本質是「真實軟體 + 虛擬世界」的混合體，各元件的模擬狀態如下。</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">元件</th>
+              <th scope="col">狀態</th>
+              <th scope="col">說明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>機體動力學、環境、障礙物</td>
+              <td><strong>模擬</strong></td>
+              <td>由 Gazebo 物理引擎計算</td>
+            </tr>
+            <tr>
+              <td>相機影像、LiDAR 點雲、IMU、測距</td>
+              <td><strong>模擬</strong></td>
+              <td>由 gz sensor plugins 生成（含近似雜訊）</td>
+            </tr>
+            <tr>
+              <td>PX4 韌體</td>
+              <td><strong>真實</strong></td>
+              <td>SITL 編譯的即為日後燒錄進 Pixhawk 的同一份程式碼；EKF2、offboard、failsafe 照常運行，僅執行環境從 STM32 換為桌面 process</td>
+            </tr>
+            <tr>
+              <td>ROS 2 自主堆疊</td>
+              <td><strong>真實</strong></td>
+              <td>OpenVINS、AprilTag、規劃器皆為日後上實機的同一套 node，僅輸入來源為模擬感測資料</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>此設計的工程意義</h3>
+      <ol>
+        <li>程式碼可攜：由於 PX4 與 ROS 2 在模擬中皆為真實軟體，於模擬驗證通過的自主堆疊幾乎不需修改即可移轉至實機，僅需置換感測器來源；這是整個 SITL 開發流程的價值所在。</li>
+        <li>Gazebo 不做任何決策：Gazebo 不執行飛行控制、不規劃路徑、不處理 MAVLink、不運行 EKF，僅忠實再現無人機所處的物理世界與感測輸入。</li>
+        <li>擬真度的限制：模擬物理與感測資料屬於近似值（簡化旋翼模型、渲染影像不含鏡頭畸變與曝光變化），因此最終仍需 HITL（真實 Pixhawk 連接模擬世界）與實機測試補齊差距。</li>
+      </ol>
+
+      <div class="note">
+        <p class="note-title">更高擬真度的選項</p>
+        <p>若任務需要更高擬真度的影像（光照、材質），可評估 Isaac Sim 或 AirSim 等以 GPU 光線追蹤為主的模擬器；對避障、路徑規劃與降落邏輯的開發而言，Harmonic 的擬真度已足夠，且與 PX4／ROS 2 的整合最為成熟。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 8 ================= -->
+    <section class="section" id="sec8">
+      <div class="section-heading">
+        <span class="section-num">08</span>
+        <h2>關鍵資料流（topics / 參數速查）</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">資料流</th>
+              <th scope="col">Topic / 參數</th>
+              <th scope="col">說明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>VIO → EKF2</td>
+              <td><code>/fmu/in/vehicle_visual_odometry</code> + 開 <code>EKF2_EV_CTRL</code></td>
+              <td>視覺里程計融合</td>
+            </tr>
+            <tr>
+              <td>測距儀 → EKF2</td>
+              <td>飛控驅動 + <code>EKF2_RNG_CTRL</code></td>
+              <td>相對高度</td>
+            </tr>
+            <tr>
+              <td>飛控 → ROS 2</td>
+              <td><code>/fmu/out/vehicle_odometry</code>、<code>vehicle_local_position</code>、<code>distance_sensor</code></td>
+              <td>狀態回傳</td>
+            </tr>
+            <tr>
+              <td>ROS 2 → 飛控</td>
+              <td><code>/fmu/in/offboard_control_mode</code> + <code>trajectory_setpoint</code></td>
+              <td>Offboard 控制（需 ≥2Hz 心跳）</td>
+            </tr>
+            <tr>
+              <td>AprilTag</td>
+              <td><code>/tf</code>（tag pose）→ 自寫降落 node → <code>trajectory_setpoint</code></td>
+              <td>精準降落</td>
+            </tr>
+            <tr>
+              <td>避障保險</td>
+              <td>PX4 <code>CP_DIST</code></td>
+              <td>低階剎停</td>
+            </tr>
+            <tr>
+              <td>啟動 DDS</td>
+              <td>Agent：<code>MicroXRCEAgent udp4 -p 8888</code>；實機參數 <code>UXRCE_DDS_PTCFG</code></td>
+              <td>橋接設定</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= Section 9 ================= -->
+    <section class="section" id="sec9">
+      <div class="section-heading">
+        <span class="section-num">09</span>
+        <h2>建議開發路徑</h2>
+      </div>
+
+      <ol class="steps">
+        <li>
+          <h3>SITL offboard</h3>
+          <p><code>make px4_sitl gz_x500</code> → ROS 2 起飛/降落/航點（官方 ROS 2 User Guide）</p>
+        </li>
+        <li>
+          <h3>模擬接 VIO + AprilTag</h3>
+          <p>在 Gazebo 世界貼 tag 海報，驗證 OpenVINS 與降落邏輯</p>
+        </li>
+        <li>
+          <h3>模擬接 3D 避障</h3>
+          <p>參考開源 px4-ros2-drone-nav（D* Lite 3D + MPPI + PX4 SITL + Harmonic）</p>
+        </li>
+        <li>
+          <h3>實機台架測試</h3>
+          <p>EKF2 融合檢查（QGC 的 EKF 狀態）、馬達怠速、測距儀讀值</p>
+        </li>
+        <li>
+          <h3>室內實飛</h3>
+          <p>先定點（VIO+測距儀，GPS 關閉），再開避障與任務</p>
+        </li>
+      </ol>
+
+      <h3>參考資源</h3>
+      <ul class="refs">
+        <li>
+          <a href="https://docs.px4.io/main/en/ros2/user_guide" target="_blank" rel="noopener noreferrer">
+            <span class="ref-name">PX4 ROS 2 User Guide</span>
+            <span class="ref-url">docs.px4.io/main/en/ros2/user_guide</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://github.com/PX4/px4_ros_com" target="_blank" rel="noopener noreferrer">
+            <span class="ref-name">px4_ros_com</span>
+            <span class="ref-url">github.com/PX4/px4_ros_com</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://github.com/rpng/open_vins" target="_blank" rel="noopener noreferrer">
+            <span class="ref-name">OpenVINS</span>
+            <span class="ref-url">github.com/rpng/open_vins</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://github.com/christianrauch/apriltag_ros2" target="_blank" rel="noopener noreferrer">
+            <span class="ref-name">apriltag_ros2</span>
+            <span class="ref-url">github.com/christianrauch/apriltag_ros2</span>
+            <span class="ref-tag">或以 apriltag_ros 搜尋</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://github.com/ZJU-FAST-Lab/EGO-Planner" target="_blank" rel="noopener noreferrer">
+            <span class="ref-name">EGO-Planner</span>
+            <span class="ref-url">github.com/ZJU-FAST-Lab/EGO-Planner</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://github.com/ros-navigation/navigation2" target="_blank" rel="noopener noreferrer">
+            <span class="ref-name">Nav2</span>
+            <span class="ref-url">github.com/ros-navigation/navigation2</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://github.com/gazebosim/ros_gz" target="_blank" rel="noopener noreferrer">
+            <span class="ref-name">ros_gz</span>
+            <span class="ref-url">github.com/gazebosim/ros_gz</span>
+          </a>
+        </li>
+        <li>
+          <a href="https://github.com/eProsima/Micro-XRCE-DDS" target="_blank" rel="noopener noreferrer">
+            <span class="ref-name">Micro XRCE-DDS</span>
+            <span class="ref-url">github.com/eProsima/Micro-XRCE-DDS</span>
+          </a>
+        </li>
+      </ul>
+    </section>
+
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <span>ROS 2 無人機自主飛行系統 — PX4 + Gazebo 完整藍圖</span>
+    <span>單一 HTML 文件 · 架構圖：Mermaid + ASCII 離線備援</span>
+  </div>
+</footer>
+
+<a class="to-top" href="#top" aria-label="回到頁面頂部" title="回到頂部">↑</a>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default' });
+</script>
+</body>
+</html>
