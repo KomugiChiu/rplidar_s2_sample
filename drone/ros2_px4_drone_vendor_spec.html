@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="zh-Tw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="PX4 無人機機體供應商介面規格與驗收清單：硬體規格需求、軟體介面凍結、分批交付計畫與台架驗收 A–G 清單。">
+<title>PX4 無人機機體 — 供應商介面規格與驗收清單</title>
+<style>
+  :root {
+    --bg: #f3f6fb;
+    --surface: #ffffff;
+    --surface-soft: #f8fafc;
+    --ink: #182230;
+    --ink-soft: #334155;
+    --muted: #5f6f83;
+    --line: #e2e8f0;
+    --line-strong: #cbd5e1;
+    --accent: #0e7490;
+    --accent-deep: #155e75;
+    --accent-soft: #ecfeff;
+    --blue-soft: #eff6ff;
+    --amber: #b45309;
+    --amber-soft: #fffbeb;
+    --amber-line: #fcd34d;
+    --code-bg: #eef2f7;
+    --code-ink: #0f4c5c;
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 18px 40px -28px rgba(15, 23, 42, .35);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Helvetica Neue", sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    color: var(--ink);
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(900px 420px at 8% -8%, rgba(14, 116, 144, .10), transparent 60%),
+      radial-gradient(760px 360px at 100% 0%, rgba(37, 99, 235, .08), transparent 55%);
+    background-repeat: no-repeat;
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.72;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection { background: #bae6fd; color: #0c4a6e; }
+
+  a { color: var(--accent); }
+  a:hover { color: var(--accent-deep); }
+
+  .skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -4rem;
+    z-index: 100;
+    padding: .6rem 1rem;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: top .15s ease;
+  }
+  .skip-link:focus { top: 1rem; color: #fff; }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    border-bottom: 1px solid rgba(203, 213, 225, .8);
+    background:
+      linear-gradient(135deg, rgba(236, 254, 255, .92) 0%, rgba(239, 246, 255, .92) 48%, rgba(255, 251, 235, .9) 100%);
+    scroll-margin-top: 0;
+  }
+
+  .hero-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 3.25rem 1.5rem 2.75rem;
+  }
+
+  .hero-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem 1rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .eyebrow {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    color: var(--accent);
+  }
+
+  .hero-version {
+    margin: 0;
+    padding: .25rem .7rem;
+    border: 1px solid rgba(14, 116, 144, .25);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .65);
+    color: var(--accent-deep);
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .02em;
+  }
+
+  h1 {
+    margin: 0;
+    max-width: 60rem;
+    font-size: clamp(1.8rem, 4.1vw, 3rem);
+    line-height: 1.25;
+    letter-spacing: -.025em;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  h1 .h1-accent {
+    display: block;
+    margin-top: .2rem;
+    font-size: .58em;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    color: var(--accent-deep);
+  }
+
+  .subtitle {
+    margin: 1rem 0 0;
+    color: #3f5266;
+    font-size: clamp(.98rem, 2vw, 1.12rem);
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin: 1.4rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .chips li {
+    padding: .34rem .8rem;
+    border: 1px solid rgba(148, 163, 184, .45);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .72);
+    color: #334155;
+    font-family: var(--mono);
+    font-size: .74rem;
+    line-height: 1.5;
+  }
+
+  /* ---------- Layout ---------- */
+  .layout {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 3.5rem;
+    display: grid;
+    grid-template-columns: 252px minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
+  }
+
+  /* ---------- TOC ---------- */
+  .toc {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    max-height: calc(100vh - 3rem);
+    overflow: auto;
+    padding: 1rem;
+    background: rgba(255, 255, 255, .88);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+  }
+
+  .toc-title {
+    margin: 0 0 .55rem;
+    padding: 0 .5rem .55rem;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+
+  .toc nav {
+    display: grid;
+    gap: .15rem;
+  }
+
+  .toc nav a {
+    display: flex;
+    align-items: baseline;
+    gap: .55rem;
+    padding: .48rem .55rem;
+    border-radius: 8px;
+    color: #46586d;
+    font-size: .86rem;
+    line-height: 1.4;
+    text-decoration: none;
+    transition: background .15s ease, color .15s ease;
+  }
+
+  .toc nav a .n {
+    flex: 0 0 auto;
+    width: 1.25rem;
+    color: #94a3b8;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .toc nav a:hover,
+  .toc nav a:focus-visible {
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    outline: none;
+  }
+
+  .toc-note {
+    margin: .9rem .3rem 0;
+    padding-top: .8rem;
+    border-top: 1px dashed var(--line-strong);
+    color: #64748b;
+    font-size: .74rem;
+    line-height: 1.6;
+  }
+
+  /* ---------- Sections ---------- */
+  main { min-width: 0; }
+
+  .section {
+    margin-bottom: 1.75rem;
+    padding: clamp(1.25rem, 2.8vw, 2.1rem);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    scroll-margin-top: 1.5rem;
+  }
+
+  .section:last-of-type { margin-bottom: 0; }
+
+  .section-heading {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin: 0 0 1.1rem;
+    padding-bottom: .85rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .section-num {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #0e7490, #155e75);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: .88rem;
+    font-weight: 700;
+    box-shadow: 0 6px 14px -8px rgba(14, 116, 144, .8);
+  }
+
+  h2 {
+    margin: 0;
+    font-size: clamp(1.18rem, 2.2vw, 1.45rem);
+    line-height: 1.35;
+    letter-spacing: -.01em;
+    color: #16202e;
+  }
+
+  h3 {
+    position: relative;
+    margin: 1.8rem 0 .7rem;
+    padding-left: .8rem;
+    font-size: 1.02rem;
+    line-height: 1.4;
+    color: #24364a;
+  }
+
+  h3::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: .18em;
+    bottom: .18em;
+    width: 3px;
+    border-radius: 3px;
+    background: #22d3ee;
+  }
+
+  h3:first-of-type { margin-top: .25rem; }
+
+  .lede {
+    margin: 1rem 0 0;
+    color: #4a5b6e;
+    font-size: .94rem;
+  }
+
+  p { margin: .75rem 0; }
+  .section > p:first-of-type { margin-top: 0; }
+
+  strong { color: #1e293b; }
+
+  /* ---------- Code chips ---------- */
+  code {
+    padding: .08em .38em;
+    border: 1px solid #dbe3ec;
+    border-radius: .4em;
+    background: var(--code-bg);
+    color: var(--code-ink);
+    font-family: var(--mono);
+    font-size: .855em;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- Tables ---------- */
+  .table-wrap {
+    margin: .8rem 0 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    background: var(--surface);
+  }
+
+  table {
+    width: 100%;
+    min-width: 560px;
+    border-collapse: collapse;
+    font-size: .905rem;
+    line-height: 1.62;
+  }
+
+  thead th {
+    padding: .7rem .85rem;
+    border-bottom: 1px solid var(--line-strong);
+    background: #f1f5f9;
+    color: #334155;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  tbody th,
+  tbody td {
+    padding: .72rem .85rem;
+    border-bottom: 1px solid #edf2f7;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  tbody th {
+    color: #334155;
+    font-weight: 700;
+  }
+
+  tbody td:first-child {
+    color: #334155;
+    font-weight: 600;
+  }
+
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody tr:last-child th,
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody tr:hover { background: #f1f9fb; }
+
+  .table-note {
+    margin: .55rem 0 0;
+    color: #6b7c90;
+    font-size: .78rem;
+  }
+
+  /* ---------- Callouts ---------- */
+  .note {
+    position: relative;
+    margin: 1.35rem 0 0;
+    padding: 1rem 1.15rem 1rem 1.2rem;
+    border: 1px solid var(--amber-line);
+    border-left: 4px solid #f59e0b;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, #fffdf6, var(--amber-soft));
+    color: #4b3b20;
+  }
+
+  .note p { margin: .25rem 0 0; font-size: .92rem; }
+
+  .note-title {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin: 0;
+    color: var(--amber);
+    font-size: .8rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+  }
+
+  .note-title::before { content: "◆"; font-size: .68rem; }
+
+  .note.info {
+    border-color: #a5f3fc;
+    border-left-color: var(--accent);
+    background: linear-gradient(135deg, #f7feff, var(--accent-soft));
+    color: #134e5e;
+  }
+
+  .note.info .note-title { color: var(--accent-deep); }
+
+  /* ---------- Diagrams ---------- */
+  .diagram {
+    margin: 1rem 0 0;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background:
+      linear-gradient(#fbfdff, #fbfdff) padding-box,
+      repeating-linear-gradient(45deg, #f8fafc 0 8px, #f1f5f9 8px 16px) border-box;
+    overflow-x: auto;
+  }
+
+  .diagram-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .4rem .8rem;
+    margin-bottom: .6rem;
+    padding-bottom: .55rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .diagram-title {
+    margin: 0;
+    color: #334155;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+  }
+
+  .diagram-badge {
+    padding: .18rem .55rem;
+    border: 1px solid #bae6fd;
+    border-radius: 999px;
+    background: #f0f9ff;
+    color: #0369a1;
+    font-family: var(--mono);
+    font-size: .68rem;
+  }
+
+  .scroll-hint {
+    display: none;
+    margin: .35rem 0 0;
+    color: #7b8a9c;
+    font-family: var(--mono);
+    font-size: .7rem;
+    text-align: center;
+  }
+
+  details {
+    margin-top: .85rem;
+    padding: .6rem .85rem .7rem;
+    border: 1px dashed var(--line-strong);
+    border-radius: 10px;
+    background: #f8fafc;
+  }
+
+  details summary {
+    cursor: pointer;
+    color: #475569;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .01em;
+  }
+
+  details summary:hover { color: var(--accent-deep); }
+
+  details[open] summary { margin-bottom: .6rem; }
+
+  details pre {
+    margin: 0;
+    padding: .9rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1e293b;
+    font-family: var(--mono);
+    font-size: .74rem;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  /* ---------- Steps ---------- */
+  .steps {
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+    display: grid;
+    gap: .8rem;
+  }
+
+  .steps > li {
+    position: relative;
+    counter-increment: step;
+    padding: .95rem 1.05rem .95rem 3.4rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface-soft);
+  }
+
+  .steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    display: grid;
+    place-items: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: .78rem;
+    font-weight: 700;
+    box-shadow: 0 5px 12px -7px rgba(14, 116, 144, .9);
+  }
+
+  .steps h3 {
+    margin: 0 0 .15rem;
+    padding-left: 0;
+    font-size: .98rem;
+  }
+
+  .steps h3::before { display: none; }
+
+  .steps p {
+    margin: 0;
+    color: #5b6b7f;
+    font-size: .9rem;
+    line-height: 1.65;
+  }
+
+  /* ---------- References ---------- */
+  .refs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+    gap: .65rem;
+    margin: .9rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .refs li { min-width: 0; }
+
+  .refs a {
+    display: flex;
+    flex-direction: column;
+    gap: .12rem;
+    height: 100%;
+    padding: .75rem .85rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    text-decoration: none;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+  }
+
+  .refs a:hover,
+  .refs a:focus-visible {
+    border-color: #67e8f9;
+    box-shadow: 0 8px 20px -16px rgba(8, 145, 178, .8);
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  .refs .ref-name {
+    color: var(--accent-deep);
+    font-size: .88rem;
+    font-weight: 700;
+  }
+
+  .refs .ref-url {
+    color: #7b8a9c;
+    font-family: var(--mono);
+    font-size: .7rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .refs .ref-tag {
+    color: #94a3b8;
+    font-size: .72rem;
+  }
+
+  /* ---------- Footer ---------- */
+  .site-footer {
+    border-top: 1px solid var(--line);
+    background: rgba(255, 255, 255, .6);
+  }
+
+  .footer-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: .5rem 1rem;
+    color: #6b7c90;
+    font-size: .78rem;
+  }
+
+  .footer-inner code { font-size: .72rem; }
+
+  /* ---------- Back to top ---------- */
+  .to-top {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    width: 2.65rem;
+    height: 2.65rem;
+    border-radius: 50%;
+    background: #0f172a;
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 10px 24px -10px rgba(15, 23, 42, .7);
+    opacity: .92;
+    transition: background .15s ease, transform .15s ease, opacity .15s ease;
+  }
+
+  .to-top:hover,
+  .to-top:focus-visible {
+    background: var(--accent);
+    color: #fff;
+    opacity: 1;
+    transform: translateY(-2px);
+    outline: none;
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 920px) {
+    .layout {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+      padding: 1.25rem 1rem 2.5rem;
+    }
+
+    .toc {
+      position: static;
+      max-height: none;
+      overflow: visible;
+      padding: .85rem;
+    }
+
+    .toc nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+    }
+
+    .toc nav a {
+      flex: 0 0 auto;
+      padding: .38rem .6rem;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      font-size: .8rem;
+    }
+
+    .toc nav a .n { width: auto; }
+    .toc-note { display: none; }
+
+    .hero-inner { padding: 2.4rem 1rem 2.1rem; }
+    .section { scroll-margin-top: .75rem; }
+
+    .scroll-hint { display: block; }
+  }
+
+  @media (max-width: 560px) {
+    body { font-size: 15px; }
+    h1 { font-size: 1.75rem; }
+    h1 .h1-accent { font-size: .62em; }
+    .section { padding: 1.1rem; border-radius: 14px; }
+    .section-heading { align-items: flex-start; }
+    .section-num { width: 1.9rem; height: 1.9rem; }
+    .table-wrap { margin-left: -.15rem; margin-right: -.15rem; }
+    table { font-size: .84rem; }
+    thead th, tbody th, tbody td { padding: .6rem .65rem; }
+    .steps > li { padding-left: 3.1rem; }
+    .to-top { right: .9rem; bottom: .9rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .toc, .to-top, .skip-link { display: none !important; }
+    .layout { display: block; max-width: none; padding: 0; }
+    .hero { background: #fff; }
+    .section { box-shadow: none; break-inside: avoid; }
+    details { display: block; }
+    details[open] summary { margin-bottom: .4rem; }
+  }
+
+  /* ---------- Vendor spec additions ---------- */
+  .hero-version a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(14, 116, 144, .45);
+  }
+  .hero-version a:hover,
+  .hero-version a:focus-visible { color: var(--accent); outline: none; }
+
+  .req,
+  .opt {
+    display: inline-block;
+    padding: .06rem .5rem;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 700;
+    line-height: 1.55;
+    white-space: nowrap;
+  }
+
+  .req {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+
+  .opt {
+    border: 1px solid #cbd5e1;
+    background: #f1f5f9;
+    color: #475569;
+  }
+
+  .check-id {
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--accent-deep);
+    white-space: nowrap;
+  }
+
+  .group-cell {
+    color: var(--accent-deep);
+    font-family: var(--mono);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .spec-footer-note {
+    margin: 1.1rem 0 0;
+    padding-top: .9rem;
+    border-top: 1px dashed var(--line-strong);
+    color: #64748b;
+    font-size: .82rem;
+  }
+</style>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">跳至主要內容</a>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-top">
+      <p class="eyebrow">VENDOR INTERFACE SPEC / 2026</p>
+      <p class="hero-version"><a href="ros2_px4_drone_architecture.html">架構藍圖</a> · <a href="ros2_px4_drone_team_plan.html">團隊執行規劃</a></p>
+    </div>
+    <h1>PX4 無人機機體 <span class="h1-accent">— 供應商介面規格與驗收清單</span></h1>
+    <p class="subtitle">介面契約 · 分批交付 · 台架驗收</p>
+    <ul class="chips" aria-label="文件關鍵字">
+      <li>硬體規格需求單</li>
+      <li>Topic 契約</li>
+      <li>W2 / W11 分批交付</li>
+      <li>Checklist A–G</li>
+      <li>變更管理</li>
+    </ul>
+    <p class="lede">本文件為採購方（本團隊）與機體供應商之間的介面契約與驗收依據，涵蓋硬體規格需求、軟體介面凍結、分批交付計畫與台架驗收清單；技術背景詳見<a href="ros2_px4_drone_architecture.html">架構藍圖</a>，時程與角色詳見<a href="ros2_px4_drone_team_plan.html">團隊執行規劃</a>。</p>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="toc" aria-label="頁面目錄">
+    <p class="toc-title">目錄 / Contents</p>
+    <nav>
+      <a href="#sec1"><span class="n">01</span><span>文件目的與使用方式</span></a>
+      <a href="#sec2"><span class="n">02</span><span>硬體規格需求單</span></a>
+      <a href="#sec3"><span class="n">03</span><span>軟體與韌體介面契約</span></a>
+      <a href="#sec4"><span class="n">04</span><span>分批交付計畫</span></a>
+      <a href="#sec5"><span class="n">05</span><span>台架驗收清單</span></a>
+      <a href="#sec6"><span class="n">06</span><span>變更與爭議管理</span></a>
+    </nav>
+    <p class="toc-note">本頁為正式契約文件，全部 CSS 內嵌、無 JavaScript 與外部相依資源，可離線開啟。</p>
+  </aside>
+
+  <main id="main">
+
+    <!-- ================= Section 1 ================= -->
+    <section class="section" id="sec1">
+      <div class="section-heading">
+        <span class="section-num">01</span>
+        <h2>文件目的與使用方式</h2>
+      </div>
+
+      <p>本文件在採購流程中同時扮演三種角色，並以同一份內容對外溝通，避免規格在郵件與會議紀錄之間產生分歧。</p>
+
+      <ol>
+        <li><strong>採購規格單：</strong>第 2 節的硬體規格需求單為報價與下單的規格基礎，供應商投標內容不得低於表列最低需求。</li>
+        <li><strong>介面凍結依據：</strong>第 3 節的韌體、訊息套件、Topic 與參數集為雙方共同凍結的介面，任何一方皆不得單方面變更。</li>
+        <li><strong>交付驗收的執行清單：</strong>第 5 節的台架驗收清單為交付後逐項執行的驗收程序，其結果決定該批次是否完成驗收。</li>
+      </ol>
+
+      <h3>角色邊界</h3>
+      <p>下表界定機體交付範圍內的責任歸屬。表中未列出的項目，默認由本團隊負責。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">範圍</th>
+              <th scope="col">供應商負責</th>
+              <th scope="col">本團隊負責</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>機體與動力</td>
+              <td>機架、馬達、ESC、電源模組組裝與出廠測試</td>
+              <td>驗收與試飛</td>
+            </tr>
+            <tr>
+              <td>飛控韌體</td>
+              <td>依指定版本燒錄、出廠參數集載入</td>
+              <td>參數集內容定義、後續調參</td>
+            </tr>
+            <tr>
+              <td>感測器</td>
+              <td>依清單安裝、接線、驅動啟用</td>
+              <td>讀值驗證、校正與融合</td>
+            </tr>
+            <tr>
+              <td>ROS 2 自主堆疊</td>
+              <td>不提供</td>
+              <td>全部（VIO、AprilTag、規劃、避障）</td>
+            </tr>
+            <tr>
+              <td>通訊</td>
+              <td>uXRCE-DDS client 啟用、MAVLink 遙測</td>
+              <td>Micro XRCE-DDS Agent、QGC</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note info">
+        <p class="note-title">責任分界原則</p>
+        <p>供應商對「硬體能開機、能通電、能依規格輸出訊號」負責；本團隊對「資料正確性、融合行為、飛行安全與自主邏輯」負責。出廠測試報告屬於入場文件，最終驗收結論以第 5 節的執行結果為準。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 2 ================= -->
+    <section class="section" id="sec2">
+      <div class="section-heading">
+        <span class="section-num">02</span>
+        <h2>硬體規格需求單</h2>
+      </div>
+
+      <p>下表為機體的最低規格。供應商可提出等效或更高等級的替代品，替代品須於投標時列明型號、介面與驅動相容性，並經本團隊書面確認。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">項目</th>
+              <th scope="col">最低需求</th>
+              <th scope="col">備註</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>飛控</td>
+              <td>Pixhawk 6C 等級（FMUv6C）以上</td>
+              <td>至少 2 組可用 UART、1 組 I2C；支援 PX4 v1.15 以上</td>
+            </tr>
+            <tr>
+              <td>韌體</td>
+              <td>PX4 v1.15 或 v1.16，版本與 <code>px4_msgs</code> 由雙方凍結</td>
+              <td>出廠前以指定 commit SHA 編譯</td>
+            </tr>
+            <tr>
+              <td>測距儀</td>
+              <td>Benewake TFmini Plus（UART 或 I2C）</td>
+              <td>直上飛控，由 EKF2 原生融合</td>
+            </tr>
+            <tr>
+              <td>雙目相機+IMU</td>
+              <td>Intel RealSense D455 等級</td>
+              <td>USB3 直接連伴飛電腦，含捲簾快門 IMU</td>
+            </tr>
+            <tr>
+              <td>3D LiDAR（選配）</td>
+              <td>Livox Mid-360</td>
+              <td>乙太網路連伴飛電腦</td>
+            </tr>
+            <tr>
+              <td>GPS/Mag</td>
+              <td>u-blox M9N 等級</td>
+              <td>UART 連飛控</td>
+            </tr>
+            <tr>
+              <td>伴飛電腦</td>
+              <td>NVIDIA Jetson Orin NX 16GB 等級</td>
+              <td>預載 Ubuntu 24.04 與 ROS 2 Jazzy；供應商僅需交付可開機環境</td>
+            </tr>
+            <tr>
+              <td>機架與動力</td>
+              <td>F450 級四軸、4S、DShot600 ESC</td>
+              <td>依飛控建議載重留 30% 以上推力餘裕</td>
+            </tr>
+            <tr>
+              <td>電源</td>
+              <td>PM02/PM06 等級電源模組</td>
+              <td>必須含伴飛電腦供電軌，5V 5A 以上</td>
+            </tr>
+            <tr>
+              <td>振動與機構</td>
+              <td>飛控與相機加振動隔離 mount</td>
+              <td>相機視野不得被槳葉與結構遮擋</td>
+            </tr>
+            <tr>
+              <td>遙控接收</td>
+              <td>PX4 相容（SBUS/ELRS）</td>
+              <td>手動接管為安全底線</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="table-note">「等級」指同等或更高規格；若替代品在介面、供電或驅動上與表列不同，須於第 3 節介面凍結前完成書面確認。</p>
+    </section>
+
+    <!-- ================= Section 3 ================= -->
+    <section class="section" id="sec3">
+      <div class="section-heading">
+        <span class="section-num">03</span>
+        <h2>軟體與韌體介面契約</h2>
+      </div>
+
+      <p>本節為雙方凍結的介面清單。凍結後任何變更皆進入第 6 節的變更管理程序。uXRCE-DDS Agent 由本團隊於伴飛電腦運行，供應商僅需確保飛控端 client 已啟用並可連線。</p>
+
+      <h3>介面凍結清單</h3>
+      <ol>
+        <li><strong>PX4 韌體 commit SHA：</strong>由雙方於第一批交付前確認並記錄於本文件附件。</li>
+        <li><strong><code>px4_msgs</code> 套件版本：</strong>與韌體 commit 對應，確保訊息定義一致。</li>
+        <li><strong>airframe 參數集檔案：</strong>供應商依本團隊提供的 <code>.params</code> 檔載入，不得自行調整內容。</li>
+        <li><strong><code>UXRCE_DDS_PTCFG</code> 連線設定：</strong>Agent 由本團隊於伴飛電腦運行，UDP 8888。</li>
+        <li><strong>MAVLink 遙測：</strong>QGC 以 UDP 14550 連線。</li>
+      </ol>
+
+      <h3>Topic 契約表</h3>
+      <p>本表沿用架構藍圖的 topic 速查表，為 DDS 橋接的驗收項目。頻率量測以 <code>ros2 topic hz</code> 為準。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">方向</th>
+              <th scope="col">Topic</th>
+              <th scope="col">用途</th>
+              <th scope="col">驗收要求</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>飛控 → ROS 2</td>
+              <td><code>/fmu/out/vehicle_odometry</code></td>
+              <td>狀態回傳</td>
+              <td>發布頻率不低於 50 Hz</td>
+            </tr>
+            <tr>
+              <td>飛控 → ROS 2</td>
+              <td><code>/fmu/out/vehicle_local_position</code></td>
+              <td>位置狀態</td>
+              <td>發布頻率不低於 50 Hz</td>
+            </tr>
+            <tr>
+              <td>飛控 → ROS 2</td>
+              <td><code>/fmu/out/distance_sensor</code></td>
+              <td>測距儀讀值</td>
+              <td>發布頻率不低於 30 Hz</td>
+            </tr>
+            <tr>
+              <td>ROS 2 → 飛控</td>
+              <td><code>/fmu/in/offboard_control_mode</code></td>
+              <td>offboard 心跳</td>
+              <td>供應商須確認 offboard 模式可正常進入</td>
+            </tr>
+            <tr>
+              <td>ROS 2 → 飛控</td>
+              <td><code>/fmu/in/trajectory_setpoint</code></td>
+              <td>軌跡設定</td>
+              <td>供應商須確認 setpoint 可驅動飛控</td>
+            </tr>
+            <tr>
+              <td>ROS 2 → 飛控</td>
+              <td><code>/fmu/in/vehicle_visual_odometry</code></td>
+              <td>視覺里程計</td>
+              <td>飛控 <code>EKF2_EV_CTRL</code> 融合路徑暢通</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>出廠參數集</h3>
+      <p>下列參數由供應商於出廠時燒入，內容由本團隊提供 <code>.params</code> 檔。參數值以檔案內容為準，表中僅列設定目的。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">參數</th>
+              <th scope="col">設定目的</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>EKF2_EV_CTRL</code></td>
+              <td>啟用外部視覺里程計融合</td>
+            </tr>
+            <tr>
+              <td><code>EKF2_RNG_CTRL</code></td>
+              <td>啟用測距儀高度融合</td>
+            </tr>
+            <tr>
+              <td><code>CP_DIST</code></td>
+              <td>低階避障剎停距離</td>
+            </tr>
+            <tr>
+              <td><code>UXRCE_DDS_PTCFG</code></td>
+              <td>uXRCE-DDS client 連線</td>
+            </tr>
+            <tr>
+              <td>failsafe 全組（RTL、電池、RC 失聯、geofence）</td>
+              <td>安全底線</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <p class="note-title">凍結的意義</p>
+        <p>介面凍結後，供應商不得以「最新版較穩定」為由更換韌體或訊息套件。任何版本替換皆視為介面變更，須完成第 6 節程序並重新執行第 5 節的 B 組與 D 組驗收。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 4 ================= -->
+    <section class="section" id="sec4">
+      <div class="section-heading">
+        <span class="section-num">04</span>
+        <h2>分批交付計畫</h2>
+      </div>
+
+      <p>交付分兩批進行。第一批為台架用的 dev kit，讓本團隊在整機到位前即可展開介面驗證與 EKF2 融合測試；第二批為完整可飛機體。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">批次</th>
+              <th scope="col">交付時點</th>
+              <th scope="col">內容</th>
+              <th scope="col">附件要求</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>第一批（dev kit）</td>
+              <td>W2 前</td>
+              <td>飛控本體＋測距儀＋GPS＋接收機＋電源模組（台架用）</td>
+              <td>韌體版本證明、參數集載入證明</td>
+            </tr>
+            <tr>
+              <td>第二批（整機）</td>
+              <td>W11 前</td>
+              <td>完整可飛機體：機架、動力、伴飛電腦、相機、LiDAR、全部接線與安裝</td>
+              <td>出廠測試報告（項目須涵蓋第 5 節 A–D 全部勾選項）、線序圖、電氣規格表</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>供應商延遲不影響本團隊 SITL 開發排程（詳見團隊執行規劃的降級方案），但第二批延遲將觸發第 6 節的變更管理程序。</p>
+    </section>
+
+    <!-- ================= Section 5 ================= -->
+    <section class="section" id="sec5">
+      <div class="section-heading">
+        <span class="section-num">05</span>
+        <h2>台架驗收清單（Checklist）</h2>
+      </div>
+
+      <p>以下清單由本團隊於交付後 3 個工作日內執行；分 A–G 七組，每項含驗收方法與合格標準。任一「必要」項不通過即驗收失敗，該批次退回並進入第 6 節的修復程序。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">組別</th>
+              <th scope="col">項目</th>
+              <th scope="col">驗收方法</th>
+              <th scope="col">合格標準</th>
+              <th scope="col">必要性</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th class="group-cell" rowspan="2" scope="rowgroup">A 開機與電氣</th>
+              <td><span class="check-id">A1</span> 通電次序與開機</td>
+              <td>依供應商電氣規格表通電</td>
+              <td>飛控與伴飛電腦皆正常開機</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+            <tr>
+              <td><span class="check-id">A2</span> 伴飛電腦供電軌</td>
+              <td>帶滿載（相機與 LiDAR 運轉）量測 5V 電壓軌</td>
+              <td>電壓不低於 4.9V、紋波符合規格</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+          </tbody>
+          <tbody>
+            <tr>
+              <th class="group-cell" rowspan="4" scope="rowgroup">B 飛控與韌體</th>
+              <td><span class="check-id">B1</span> 韌體版本核對</td>
+              <td>QGC 關於頁面比對凍結的 commit SHA</td>
+              <td>完全一致</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+            <tr>
+              <td><span class="check-id">B2</span> 參數集核對</td>
+              <td>QGC 匯出參數與 <code>.params</code> 契約檔 diff</td>
+              <td>僅允許低於 5 項差異且皆為校正類</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+            <tr>
+              <td><span class="check-id">B3</span> QGC 連線</td>
+              <td>UDP 14550 與 serial 遙測各連一次</td>
+              <td>均可連線且延遲低於 500ms</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+            <tr>
+              <td><span class="check-id">B4</span> RC 綁定與接管</td>
+              <td>模擬失聯</td>
+              <td>觸發設定之 failsafe（RTL 或 Hold）</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+          </tbody>
+          <tbody>
+            <tr>
+              <th class="group-cell" rowspan="3" scope="rowgroup">C 感測器</th>
+              <td><span class="check-id">C1</span> 測距儀</td>
+              <td><code>uorb top</code> 觀察 <code>distance_sensor</code></td>
+              <td>頻率不低於 30Hz、讀值隨高度變化正確</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+            <tr>
+              <td><span class="check-id">C2</span> 雙目相機</td>
+              <td>rosbag 錄 10 秒左右目影像與 IMU</td>
+              <td>影像 30fps 左右、無掉幀超過 1%、IMU 時間戳與影像同步</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+            <tr>
+              <td><span class="check-id">C3</span> LiDAR（選配）</td>
+              <td>點雲話題開啟</td>
+              <td>點雲完整、無大面積遮擋</td>
+              <td><span class="opt">選配</span></td>
+            </tr>
+          </tbody>
+          <tbody>
+            <tr>
+              <th class="group-cell" rowspan="3" scope="rowgroup">D DDS 橋接</th>
+              <td><span class="check-id">D1</span> Agent 連線</td>
+              <td>伴飛電腦運行 <code>MicroXRCEAgent udp4 -p 8888</code></td>
+              <td>client 連上、無斷線重連</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+            <tr>
+              <td><span class="check-id">D2</span> topic 頻率對表</td>
+              <td><code>ros2 topic hz</code> 逐項量測第 3 節 Topic 契約表</td>
+              <td>全部達標</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+            <tr>
+              <td><span class="check-id">D3</span> offboard 閉環</td>
+              <td>發送 offboard_control_mode + trajectory_setpoint</td>
+              <td>飛控進入 offboard 且姿態響應正確（繫留或台架）</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+          </tbody>
+          <tbody>
+            <tr>
+              <th class="group-cell" rowspan="2" scope="rowgroup">E EKF2 融合</th>
+              <td><span class="check-id">E1</span> 測距儀融合</td>
+              <td>開 <code>EKF2_RNG_CTRL</code> 懸停邏輯（台架）</td>
+              <td>EKF 狀態綠、無創新量發散</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+            <tr>
+              <td><span class="check-id">E2</span> 視覺融合</td>
+              <td>灌入 VIO 里程計（台架搖動機體）</td>
+              <td>EKF2_EV 融合追蹤、無 yaw 發散</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+          </tbody>
+          <tbody>
+            <tr>
+              <th class="group-cell" rowspan="2" scope="rowgroup">F 動力與安全</th>
+              <td><span class="check-id">F1</span> ESC 校正與馬達序</td>
+              <td>依 airframe 測試</td>
+              <td>四馬達順序與轉向正確</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+            <tr>
+              <td><span class="check-id">F2</span> 電池 failsafe</td>
+              <td>低電壓模擬</td>
+              <td>觸發設定之 failsafe</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+          </tbody>
+          <tbody>
+            <tr>
+              <th class="group-cell" rowspan="2" scope="rowgroup">G 機構</th>
+              <td><span class="check-id">G1</span> 振動</td>
+              <td>怠速與半油門（繫留）錄 IMU</td>
+              <td>振動頻譜在飛控容許範圍</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+            <tr>
+              <td><span class="check-id">G2</span> 視野</td>
+              <td>相機畫面確認</td>
+              <td>無槳葉入鏡、無結構遮擋 AprilTag 偵測視野</td>
+              <td><span class="req">必要</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-note">「必要」項任一不通過即整批驗收失敗；「選配」項依實際採購配置決定是否執行，未配置 LiDAR 時 C3 標記為不適用（N/A），不影響驗收結論。</p>
+
+      <div class="note">
+        <p class="note-title">驗收紀錄</p>
+        <p>每項驗收須留下可追蹤證據：終端機輸出、rosbag 檔名、QGC 截圖或量測數據。證據與清單編號一併歸檔，作為第 6 節爭議處理的依據。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 6 ================= -->
+    <section class="section" id="sec6">
+      <div class="section-heading">
+        <span class="section-num">06</span>
+        <h2>變更與爭議管理</h2>
+      </div>
+
+      <p>本節定義介面變更、驗收失敗與交付延遲的處理規則，雙方於簽署本文件時一併同意。</p>
+
+      <ol>
+        <li><strong>介面凍結項變更：</strong>第 3 節任一凍結項的變更須經雙方書面同意，並更新本文件版本號；未經同意即變更者視為交付不符。</li>
+        <li><strong>驗收失敗：</strong>驗收失敗項由供應商於 5 個工作日內修復並安排重驗；重驗仍以第 5 節同一清單執行。</li>
+        <li><strong>第二批延遲：</strong>第二批延遲每滿 1 週，交付驗收時程與里程碑（M4、M5）同步順延，並由雙方簽認順延紀錄。</li>
+        <li><strong>第一批獨立性：</strong>第一批（dev kit）不受第二批延遲影響，其交付與驗收時點維持不變。</li>
+      </ol>
+
+      <div class="note">
+        <p class="note-title">文件版本控制</p>
+        <p>本文件與 git repo 同步維護，任何修訂以 repo commit 為準。文件版本號於每次經雙方同意的修訂後遞增，並在 commit 訊息中標明變更章節。</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <span>相關文件：<a href="ros2_px4_drone_architecture.html">架構藍圖</a> · <a href="ros2_px4_drone_team_plan.html">團隊執行規劃</a> · 本文件（供應商介面規格與驗收清單）</span>
+    <span>本文件以 repo 中的最新版本為準。</span>
+  </div>
+</footer>
+
+<a class="to-top" href="#top" aria-label="回到頁面頂部" title="回到頂部">↑</a>
+</body>
+</html>
