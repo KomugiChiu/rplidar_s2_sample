@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="ROS 2 無人機系統驗證與確認規格：六層驗證階層、需求驗證矩陣、S1–S4 問題分級、實飛測試程序與 M5 完整任務確認。">
-<title>ROS 2 無人機系統 — 驗證與確認規格（V&amp;V Specification）</title>
+<meta name="description" content="ROS 2 無人機系統驗證與確認規格：七層 V&amp;V 階層、需求驗證矩陣、S1–S4 問題分級、實飛測試程序與 M5 完整任務確認。">
+<title>ROS 2 無人機系統 — 驗證與確認規格（V&amp;V Specification）（修訂版）</title>
 <style>
   :root {
     --bg: #f3f6fb;
@@ -829,6 +829,8 @@
 </style>
 </head>
 <body id="top">
+<div style="margin:12px auto;max-width:1180px;padding:14px 18px;border:2px solid #2563eb;border-radius:10px;background:#eff6ff;color:#172554;font-family:system-ui,sans-serif"><strong>事實查核修訂版</strong><br>本檔依技術查核結果修訂；正式凍結前仍須完成版本、參數與量化驗收門檻簽核。</div>
+
 <a class="skip-link" href="#main">跳至主要內容</a>
 
 <header class="hero">
@@ -840,7 +842,7 @@
     <h1>ROS 2 無人機系統 <span class="h1-accent">— 驗證與確認規格（V&amp;V Specification）</span></h1>
     <p class="subtitle">Verification &amp; Validation · 需求追溯 · SITL 至實飛全階段</p>
     <ul class="chips" aria-label="文件關鍵字">
-      <li>V0–V6 六層驗證</li>
+      <li>V0–V6 七層 V&amp;V</li>
       <li>需求驗證矩陣</li>
       <li>T / A / I / D 方法</li>
       <li>S1–S4 問題分級</li>
@@ -879,7 +881,7 @@
       <p>本節界定驗證與確認的分工、本規格書涵蓋的系統邊界，以及後續章節共用的判讀基礎。兩個用語在後續章節中固定使用本節定義，不再另行解釋。</p>
 
       <h3>Verification（驗證）</h3>
-      <p>定義：判斷系統是否符合規格文件所載需求，即確認團隊「做對的事」。於本專案中對應各階段測試，包含 V1 SITL 的需求項測試、V3 台架驗收、V4 繫留飛行與 V5 室內自由實飛；輸出為測試案例的通過或失敗紀錄，並回填第 4 節矩陣。</p>
+      <p>定義：判斷系統是否符合已核准的需求、介面與設計規格，即確認團隊是否「把系統做對」。於本專案中對應各階段測試，包含 V1 SITL 的需求項測試、V3 台架驗收、V4 繫留飛行與 V5 室內自由實飛；輸出為測試案例的通過或失敗紀錄，並回填第 4 節矩陣。</p>
 
       <h3>Validation（確認）</h3>
       <p>定義：判斷系統是否滿足原始任務意圖，即確認團隊「做出對的系統」。任務意圖由避障、路徑規劃、測距融合、VIO 與 AprilTag 降落所構成的自主任務所定義，於本專案中對應 M5 完整任務展示與利害關係人驗收。</p>
@@ -917,7 +919,7 @@
         <h2>V&amp;V 策略與階層</h2>
       </div>
 
-      <p>驗證活動依風險遞增分為六層，每層的失敗成本遠低於下一層；全部需求在越低層完成驗證越佳。同一需求若能在 V1 收斂，即不在 V5 重複取證，僅保留實機環境特有的項目於高層執行。</p>
+      <p>V&amp;V 活動由 V0 至 V6 共七層，每層的失敗成本遠低於下一層；全部需求在越低層完成驗證越佳。同一需求若能在 V1 收斂，即不在 V5 重複取證，僅保留實機環境特有的項目於高層執行。</p>
 
       <div class="diagram">
         <div class="diagram-head">
@@ -926,12 +928,12 @@
         </div>
 <pre>V0  紙上分析與介面檢核        （設計文件、推力計算、參數審查）
 V1  SITL 軟體迴路             （PX4 SITL + Gazebo，CI 可自動化）
-V2  HITL 硬體迴路             （真實飛控接回模擬世界）
+V2  選配 HITL／實體飛控介面驗證 （依 W2 可行性結果；非必要閘門）
 V3  台架驗收                   （vendor spec 第 5 節 checklist A–G）
 V4  繫留飛行                   （安全繩束縛下驗證融合與動力）
 V5  室內自由實飛               （定點、航點、低速避障、降落）
 V6  完整任務確認               （起飛 → 避障穿越 → AprilTag 降落 = M5）
-風險與成本遞增 ↓；發現問題的期望成本遞減 ↑</pre>
+向 V6 推進時，測試風險、執行成本與問題修復成本通常遞增 ↓</pre>
         <p class="scroll-hint">← 可水平捲動 →</p>
       </div>
 
@@ -1529,7 +1531,7 @@ V6  完整任務確認               （起飛 → 避障穿越 → AprilTag 降
             <tr>
               <td><span class="level">V2</span></td>
               <td>V1 退出 + dev kit 到位</td>
-              <td>同一份 ROS 堆疊不改碼於 HITL 運行通過</td>
+              <td>共用相同核心演算法與狀態機；driver、TF、calibration、QoS、transport、device path 與 launch 可依環境配置。HITL 未通過不阻擋 V3，除非 HITL 本身為核准需求</td>
             </tr>
             <tr>
               <td><span class="level">V3</span></td>
@@ -1557,7 +1559,7 @@ V6  完整任務確認               （起飛 → 避障穿越 → AprilTag 降
 
       <div class="note">
         <p class="note-title">V2 的定位</p>
-        <p>V2 的目的在驗證真實飛控與同一份 ROS 堆疊的介面行為，不以取得新需求證據為目標。HITL 通過後，V1 既有結果仍然有效；若 HITL 暴露韌體或時序差異，受影響需求回到 V1 重驗後再推進。</p>
+        <p>V2 為可行性依賴的選配層級，用於驗證真實飛控與共用核心演算法的介面行為，不以取得新需求證據為目標。HITL 通過後，V1 既有結果仍然有效；若 HITL 暴露韌體或時序差異，受影響需求回到 V1 重驗後再推進。</p>
       </div>
     </section>
 
@@ -1595,7 +1597,7 @@ V6  完整任務確認               （起飛 → 避障穿越 → AprilTag 降
       <ol class="steps">
         <li>
           <h3>RC 接管失敗</h3>
-          <p>執行斷電保護動作；同批設備在原因釐清前停止使用。</p>
+          <p>安全官依核准的緊急處置矩陣執行 Hold、Land、flight termination 或落地後斷電；不得將飛行中直接斷電設為所有情境的預設動作。同批設備在原因釐清前停止使用。</p>
         </li>
         <li>
           <h3>EKF 創新量發散或狀態非綠</h3>
@@ -1634,7 +1636,7 @@ V6  完整任務確認               （起飛 → 避障穿越 → AprilTag 降
             <tr>
               <td>PX4 ulog</td>
               <td>飛控日誌</td>
-              <td>上傳 Flight Review 並保留連結</td>
+              <td>ULog 儲存於核准的內部空間；僅於資料分類審查並移除敏感資訊後，才可上傳外部 Flight Review，否則使用本機或內部分析流程</td>
             </tr>
             <tr>
               <td>飛行紀錄表</td>
@@ -1729,7 +1731,7 @@ V6  完整任務確認               （起飛 → 避障穿越 → AprilTag 降
 
       <div class="note info">
         <p class="note-title">紀錄完整性</p>
-        <p>問題單須附可重現的證據：測試案例編號、層級、rosbag 或 ulog 檔名、發生時刻與處置動作。缺乏證據的問題單不進入修復排程，僅登記為觀察項。</p>
+        <p>問題單須附可重現的證據：測試案例編號、層級、rosbag 或 ulog 檔名、發生時刻與處置動作。缺少完整記錄時標記為 evidence-incomplete，仍須由 TL 與安全官進行初步風險評估；疑似 S1 或 S2 在排除前不得降為觀察項，也不得恢復受影響飛行活動。</p>
       </div>
     </section>
 

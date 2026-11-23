@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="PX4 無人機機體供應商介面規格與驗收清單：硬體規格需求、軟體介面凍結、分批交付計畫與台架驗收 A–G 清單。">
-<title>PX4 無人機機體 — 供應商介面規格與驗收清單</title>
+<title>PX4 無人機機體 — 供應商介面規格與驗收清單（修訂版）</title>
 <style>
   :root {
     --bg: #f3f6fb;
@@ -794,6 +794,8 @@
 </style>
 </head>
 <body id="top">
+<div style="margin:12px auto;max-width:1180px;padding:14px 18px;border:2px solid #2563eb;border-radius:10px;background:#eff6ff;color:#172554;font-family:system-ui,sans-serif"><strong>事實查核修訂版</strong><br>本檔依技術查核結果修訂；正式凍結前仍須完成版本、參數與量化驗收門檻簽核。</div>
+
 <a class="skip-link" href="#main">跳至主要內容</a>
 
 <header class="hero">
@@ -916,11 +918,11 @@
             <tr>
               <td>飛控</td>
               <td>Pixhawk 6C 等級（FMUv6C）以上</td>
-              <td>至少 2 組可用 UART、1 組 I2C；支援 PX4 v1.15 以上</td>
+              <td>至少 2 組可用 UART、1 組 I2C；支援本專案凍結的 PX4 v1.16.x 指定 commit；未經核准不得替換版本</td>
             </tr>
             <tr>
               <td>韌體</td>
-              <td>PX4 v1.15 或 v1.16，版本與 <code>px4_msgs</code> 由雙方凍結</td>
+              <td>PX4 v1.16.x 指定 commit；<code>px4_msgs</code>、Micro XRCE-DDS Agent、Ubuntu、ROS 2、JetPack/L4T 與感測器 driver 版本均須凍結並交付版本清單</td>
               <td>出廠前以指定 commit SHA 編譯</td>
             </tr>
             <tr>
@@ -931,7 +933,7 @@
             <tr>
               <td>雙目相機+IMU</td>
               <td>Intel RealSense D455 等級</td>
-              <td>USB3 直接連伴飛電腦，含捲簾快門 IMU</td>
+              <td>USB 3.x 直接連伴飛電腦；深度/stereo 感測器採 global shutter，RGB 感測器採 rolling shutter，內建 Bosch BMI055 IMU；須交付 hardware timestamp、camera-to-IMU 外參與 ROS 2 driver 版本</td>
             </tr>
             <tr>
               <td>3D LiDAR（選配）</td>
@@ -1051,7 +1053,7 @@
         <li><strong>PX4 韌體 commit SHA：</strong>由雙方於第一批交付前確認並記錄於本文件附件。</li>
         <li><strong><code>px4_msgs</code> 套件版本：</strong>與韌體 commit 對應，確保訊息定義一致。</li>
         <li><strong>airframe 參數集檔案：</strong>供應商依本團隊提供的 <code>.params</code> 檔載入，不得自行調整內容。</li>
-        <li><strong><code>UXRCE_DDS_PTCFG</code> 連線設定：</strong>Agent 由本團隊於伴飛電腦運行，UDP 8888。</li>
+        <li><strong>uXRCE-DDS transport：</strong>實機優先使用 UART 或專用 Ethernet；SITL 或核准的專用 UDP 網路可使用 Agent port 8888。<code>UXRCE_DDS_CFG</code>、<code>UXRCE_DDS_PTCFG</code> 等參數以凍結參數檔為準，不得將 <code>UXRCE_DDS_PTCFG</code> 等同 UDP port。</li>
         <li><strong>MAVLink 遙測：</strong>QGC 以 UDP 14550 連線。</li>
       </ol>
 
@@ -1130,8 +1132,8 @@
               <td>啟用測距儀高度融合</td>
             </tr>
             <tr>
-              <td><code>CP_DIST</code></td>
-              <td>低階避障剎停距離</td>
+              <td><code>CP_DIST</code>（僅適用於支援的 Position mode 控制鏈）</td>
+              <td>PX4 Collision Prevention 的最小接近距離；不得視為 ROS 2 Offboard 的通用避障或緊急停止功能</td>
             </tr>
             <tr>
               <td><code>UXRCE_DDS_PTCFG</code></td>
@@ -1236,7 +1238,7 @@
             <tr>
               <td><span class="check-id">B2</span> 參數集核對</td>
               <td>QGC 匯出參數與 <code>.params</code> 契約檔 diff</td>
-              <td>僅允許低於 5 項差異且皆為校正類</td>
+              <td>僅僅允許附件白名單所列 calibration／device ID 參數不同；飛行模式、failsafe、EKF、DDS、airframe、actuator 與 battery 參數必須一致且皆為校正類</td>
               <td><span class="req">必要</span></td>
             </tr>
             <tr>

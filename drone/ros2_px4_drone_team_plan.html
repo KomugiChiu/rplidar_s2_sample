@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="ROS 2 無人機系統團隊執行規劃：4–6 人分工、20 週階段規劃、供應商協作、每週節奏、風險與里程碑驗收。">
-<title>ROS 2 無人機系統 — 團隊執行規劃</title>
+<title>ROS 2 無人機系統 — 團隊執行規劃（修訂版）</title>
 <style>
   :root {
     --bg: #f3f6fb;
@@ -783,6 +783,8 @@
 </style>
 </head>
 <body id="top">
+<div style="margin:12px auto;max-width:1180px;padding:14px 18px;border:2px solid #2563eb;border-radius:10px;background:#eff6ff;color:#172554;font-family:system-ui,sans-serif"><strong>事實查核修訂版</strong><br>本檔依技術查核結果修訂；正式凍結前仍須完成版本、參數與量化驗收門檻簽核。</div>
+
 <a class="skip-link" href="#main">跳至主要內容</a>
 
 <header class="hero">
@@ -798,7 +800,7 @@
       <li>5 個 Phase</li>
       <li>M1–M5 里程碑</li>
       <li>4–6 人編制</li>
-      <li>SITL → HITL → 實機</li>
+      <li>SITL → 實體飛控無槳台架／replay → 繫留 → 實機；HITL 為可行性確認後的選配</li>
     </ul>
     <p class="lede">本文為架構藍圖（<a href="ros2_px4_drone_architecture.html">ros2_px4_drone_architecture.html</a>）的執行計畫文件，將藍圖中的技術模組轉換為人力配置、階段排程、供應商協作方式與驗收節點。</p>
   </div>
@@ -922,7 +924,7 @@
             <tr>
               <td>導航工程師</td>
               <td>1</td>
-              <td>建圖、3D 全域規劃、局部避障（EGO-Planner）</td>
+              <td>建圖、3D 全域規劃、3D local trajectory planner（候選含 EGO-Swarm ROS 2 branch；須先通過 Jazzy 相容性、授權、介面與 Jetson 效能 gate）</td>
               <td>§5</td>
             </tr>
             <tr>
@@ -956,7 +958,7 @@
         <h2>階段規劃（20 週，含 20% buffer）</h2>
       </div>
 
-      <p>規劃以 20 週為基準，路線為 SITL 模擬 → 硬體在環（HITL）與台架 → 繫留與室內實機 → 完整任務，對應藍圖第 10 節的開發路徑細化。20 週中約 4 週為 buffer，主要分配給 Phase 3 的 VIO 實機校正與供應商交付延遲。</p>
+      <p>規劃以 20 週為基準，路線為 SITL 模擬 → 實體飛控無槳台架與 log replay → 繫留與室內實機 → 完整任務；HITL 僅在 W2 可行性確認通過後加入，對應藍圖第 10 節的開發路徑細化。20 週中約 4 週為 buffer，主要分配給 Phase 3 的 VIO 實機校正與供應商交付延遲。</p>
 
       <h3>Phase 0｜準備期（W1–W2）</h3>
       <p class="phase-line"><span class="phase-tag">W1–W2</span><span class="phase-owner">主導：TL（介面凍結）· 全員（環境建置）</span></p>
@@ -973,7 +975,7 @@
       <ul>
         <li>平台組：offboard 起飛/降落/航點狀態機（全隊地基）。</li>
         <li>導航組：3D 建圖 pipeline（模擬 LiDAR → voxel）。</li>
-        <li>感知組：OpenVINS 於模擬雙目影像跑通；AprilTag 偵測上線。</li>
+        <li>感知組：VIO 候選方案完成 ROS 2 Jazzy 乾淨編譯、資料集 replay、stereo+IMU、D455 timestamp、Jetson 效能與 latency gate；通過後固定 commit，初始候選為 OpenVINS；AprilTag 偵測上線。</li>
       </ul>
       <div class="note info">
         <p class="note-title">里程碑 M1 · W6</p>
@@ -996,10 +998,10 @@
       </div>
 
       <h3>Phase 3｜硬體在環與實機前置（W11–W14）</h3>
-      <p class="phase-line"><span class="phase-tag">W11–W14</span><span class="phase-owner">平台組：介面驗收與 HITL · 感知 A：實機 VIO 校正 · 測試：台架複驗</span></p>
+      <p class="phase-line"><span class="phase-tag">W11–W14</span><span class="phase-owner">平台組：介面驗收、無槳台架與 replay；HITL 選配 · 感知 A：實機 VIO 校正 · 測試：台架複驗</span></p>
       <ul>
         <li>供應商完整機體到位，執行介面驗收：實體感測器讀值對照規格、uXRCE-DDS 頻寬實測、馬達怠速檢查。</li>
-        <li>HITL：真實飛控接回 Gazebo，驗證同一份 ROS 堆疊不改碼運行。</li>
+        <li>HITL 為選配：須於 W2 前證明指定 PX4／模擬器組合可穩定運作；否則以 SITL、log replay、無槳台架與繫留測試覆蓋。核心演算法與狀態機共用，但 driver、TF、calibration、QoS、transport 與 launch 可依環境分開。</li>
         <li>VIO 實機校正（相機內參、IMU-camera 外參），預留兩週反覆迭代。</li>
       </ul>
       <div class="note info">
@@ -1010,7 +1012,7 @@
       <h3>Phase 4｜實機飛行與任務整合（W15–W20）</h3>
       <p class="phase-line"><span class="phase-tag">W15–W20</span><span class="phase-owner">全員 · TL 主持每次實飛前 checklist 認可</span></p>
       <ul>
-        <li>W15–16：室內自由飛行，先定點、再小航點，開啟 <code>CP_DIST</code> 作為低階保險。</li>
+        <li>W15–16：室內自由飛行，先定點、再小航點，ROS 2 Offboard 控制鏈實作障礙物 timeout、planner timeout、setpoint freshness、停止距離限制與緊急模式切換；<code>CP_DIST</code> 僅作為支援的 Position mode 額外保護。</li>
         <li>W17–18：低速避障飛行與 AprilTag 實機降落。</li>
         <li>W19–20：完整任務流程多次彩排與展示。</li>
       </ul>
@@ -1108,7 +1110,7 @@ Mile                   M1    M2    M3          M4                M5
 </pre>
       </div>
 
-      <p>所有功能問題必須在 SITL 階段暴露，不允許帶到實機飛行。週三整合日的產出是可直接在共用課題世界重播的 SITL demo，週五 demo 僅驗收已在 CI 回歸中通過的項目。</p>
+      <p>所有可在 SITL 重現的邏輯、狀態機、topic 契約與故障處理，必須在進入實機前通過；硬體特有風險依無槳台架、繫留、低高度、低速度到完整任務逐級驗證，禁止跳級。週三整合日的產出是可直接在共用課題世界重播的 SITL demo，週五 demo 僅驗收已在 CI 回歸中通過的項目。</p>
     </section>
 
     <!-- ================= Section 6 ================= -->
