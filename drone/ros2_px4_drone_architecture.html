@@ -765,14 +765,15 @@
     <p class="toc-title">目錄 / Contents</p>
     <nav>
       <a href="#sec1"><span class="n">01</span><span>核心概念 — 雙腦架構</span></a>
-      <a href="#sec2"><span class="n">02</span><span>硬體元件清單（實機）</span></a>
-      <a href="#sec3"><span class="n">03</span><span>軟體模組清單</span></a>
-      <a href="#sec4"><span class="n">04</span><span>導航的分層架構：PX4 與伴飛電腦的職責劃分</span></a>
-      <a href="#sec5"><span class="n">05</span><span>實機架構圖</span></a>
-      <a href="#sec6"><span class="n">06</span><span>模擬架構圖（Gazebo SITL）</span></a>
-      <a href="#sec7"><span class="n">07</span><span>Gazebo Harmonic 的角色：模擬與真實的分界</span></a>
-      <a href="#sec8"><span class="n">08</span><span>關鍵資料流速查</span></a>
-      <a href="#sec9"><span class="n">09</span><span>建議開發路徑</span></a>
+      <a href="#sec2"><span class="n">02</span><span>PX4 的內部架構與對外通訊</span></a>
+      <a href="#sec3"><span class="n">03</span><span>硬體元件清單（實機）</span></a>
+      <a href="#sec4"><span class="n">04</span><span>軟體模組清單</span></a>
+      <a href="#sec5"><span class="n">05</span><span>導航的分層架構：PX4 與伴飛電腦的職責劃分</span></a>
+      <a href="#sec6"><span class="n">06</span><span>實機架構圖</span></a>
+      <a href="#sec7"><span class="n">07</span><span>模擬架構圖（Gazebo SITL）</span></a>
+      <a href="#sec8"><span class="n">08</span><span>Gazebo Harmonic 的角色：模擬與真實的分界</span></a>
+      <a href="#sec9"><span class="n">09</span><span>關鍵資料流速查</span></a>
+      <a href="#sec10"><span class="n">10</span><span>建議開發路徑</span></a>
     </nav>
     <p class="toc-note">架構圖由 Mermaid CDN 渲染；離線開啟時可展開各圖下方的 ASCII 版本備援。</p>
   </aside>
@@ -823,6 +824,202 @@
     <section class="section" id="sec2">
       <div class="section-heading">
         <span class="section-num">02</span>
+        <h2>PX4 的內部架構與對外通訊</h2>
+      </div>
+
+      <p>PX4 由多個 module 組成，可分為 flight stack（導航、狀態估計與控制演算法）與 middleware（device driver、參數、記錄、對外通訊與模組間的 uORB message bus）。模組之間不直接互相呼叫，而是透過 uORB 交換資料；資料要離開飛控時，再由 uXRCE-DDS client 或 mavlink module 翻譯成對外協定。本節說明 uORB 的運作機制、ROS 2 的兩條整合路徑，以及 QGroundControl 在系統中的角色。</p>
+
+      <h3>uORB——PX4 的內部訊息匯流排</h3>
+      <p>uORB（micro Object Request Broker）是 PX4 內部的非同步 publish()/subscribe() 訊息 API，負責同一飛控內各 thread 與各 module 之間的資料交換，是 PX4 middleware 的核心。</p>
+
+      <div class="note">
+        <p class="note-title">關鍵觀念</p>
+        <p>uORB 是內部訊息匯流排，不是網路通訊協定。它只存在於同一台飛控內部（或 SITL 的同一個 process 裡），publisher 與 subscriber 透過共享記憶體交換資料，效率與即時性極高。資料要送出飛控（到伴飛電腦或地面站）時，必須經由通訊模組翻譯：<code>uxrce_dds_client</code> 把選定的 uORB topic 轉成 DDS，<code>mavlink module</code> 把 uORB 轉成 MAVLink 訊息。在 PX4 內叫 <code>vehicle_odometry</code> 的資料，到了 ROS 2 端就是 <code>/fmu/out/vehicle_odometry</code>——同一份訊息定義，兩個世界。</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">機制</th>
+              <th scope="col">說明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>具名 topic</td>
+              <td>每種資料一個名稱，如 <code>sensor_combined</code>（IMU）、<code>vehicle_odometry</code>、<code>distance_sensor</code>、<code>actuator_outputs</code></td>
+            </tr>
+            <tr>
+              <td>訊息定義檔</td>
+              <td>每個 topic 對應 PX4 原始碼 <code>msg/</code> 目錄的一個 <code>.msg</code> 檔；ROS 2 端的 <code>px4_msgs</code> 套件即同一批定義的 ROS 版本</td>
+            </tr>
+            <tr>
+              <td>Publish/Subscribe 解耦</td>
+              <td>publisher 把最新資料發布到 topic，subscriber 訂閱並複製到自己的緩衝區；雙方不需認識彼此，模組可獨立開發與替換</td>
+            </tr>
+            <tr>
+              <td>queue 深度通常為 1</td>
+              <td>subscriber 永遠取得最新值而非積壓的舊資料，符合即時控制迴圈對「現在狀態」的需求</td>
+            </tr>
+            <tr>
+              <td>多實例（multi-instance）</td>
+              <td>同型號感測器多顆時，同一 topic 開多個 instance（如 <code>sensor_accel #0</code>、<code>#1</code>），訂閱時以 <code>orb_subscribe_multi</code> 指定；另有 Multi-Topic（同結構、不同名，如 <code>actuator_outputs_sim</code>）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>PX4 提供 <code>uorb top</code> 與 <code>listener</code> 兩個指令，用於觀察 topic 的即時狀態。</p>
+      <div class="diagram">
+        <div class="diagram-head">
+          <p class="diagram-title">uORB 觀察指令</p>
+          <span class="diagram-badge">px4 shell</span>
+        </div>
+<pre>
+uorb top                      # 即時列出所有 topic：instance、訂閱數、發布 Hz、遺失數、queue
+listener vehicle_odometry     # 印出指定 topic 最新一筆內容
+</pre>
+      </div>
+      <p><code>uorb top</code> 的 <code>TOPIC NAME</code> / <code>INST</code> / <code>#SUB</code> / <code>#MSG</code> / <code>#LOST</code> / <code>#QSIZE</code> 欄位分別代表 topic 名稱、多實例編號、訂閱數、發布頻率（Hz）、每秒遺失訊息數與佇列大小。除錯情境：接入 VIO 後，以 <code>uorb top</code> 確認 <code>vehicle_visual_odometry</code> 以預期頻率發布，並以 <code>ekf2_innovations</code> 收斂與否判斷 EKF2 融合是否正常。</p>
+
+      <h3>三條進出飛控的通道與兩條 ROS 2 整合路徑</h3>
+      <p>本藍圖的系統中，與 PX4 飛控溝通的通道共有三條，各司其職且並存不衝突：RC 遙控負責手動接管（安全底線）、QGroundControl 走 MAVLink 負責人機介面、ROS 2 走 uXRCE-DDS 負責自主堆疊。</p>
+
+      <div class="diagram">
+        <div class="diagram-head">
+          <p class="diagram-title">PX4 對外通訊的翻譯路徑</p>
+          <span class="diagram-badge">Mermaid</span>
+        </div>
+<pre class="mermaid">
+flowchart TB
+    UORB["uORB topics（PX4 內部匯流排）"]
+    CLIENT["uxrce_dds_client（uORB 轉 DDS）"]
+    MAVMOD["mavlink module（uORB 轉 MAVLink）"]
+    AGENT["Micro XRCE-DDS Agent"]
+    DDS["DDS data space"]
+    ROS2["ROS 2（px4_msgs）：/fmu/out/* 與 /fmu/in/*"]
+    QGC["QGroundControl"]
+    MAVROS["MAVROS（MAVLink 轉 ROS 2）"]
+    ROS2B["ROS 2（通用 MAVLink 訊息）"]
+    UORB --> CLIENT
+    UORB --> MAVMOD
+    CLIENT &lt;== "Micro XRCE-DDS" ==> AGENT
+    AGENT &lt;==> DDS
+    DDS &lt;==> ROS2
+    MAVMOD -- "MAVLink" --> QGC
+    MAVMOD -- "MAVLink" --> MAVROS
+    MAVROS &lt;==> ROS2B
+</pre>
+        <details>
+          <summary>ASCII 版本（離線備用）</summary>
+<pre>
+                 ┌─── PX4 內部（所有資料的唯一來源）───┐
+                 │            uORB topics            │
+                 └──────┬─────────────────┬──────────┘
+                        │                 │
+              uxrce_dds_client      mavlink module
+                        │                 │
+               （uORB→DDS）       （uORB→MAVLink）
+                        │                 │
+           Micro XRCE-DDS Agent       MAVLink 協定
+                        │                 │
+                  ROS 2 /fmu/*      QGroundControl / MAVROS
+</pre>
+        </details>
+      </div>
+
+      <p>uORB 與 MAVROS 並非同一層級、無法互相取代。uORB 位於兩條對外路徑的上游，是所有資料的共同來源；MAVROS 則是伴飛電腦上 MAVLink 與 ROS 2 之間的橋接器。真正可互相比較、依需求選擇的是兩條 ROS 2 整合路徑：路徑 A 為 uXRCE-DDS 搭配 <code>px4_msgs</code>，路徑 B 為 MAVLink 搭配 MAVROS。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col"></th>
+              <th scope="col">路徑 A：uXRCE-DDS + px4_msgs</th>
+              <th scope="col">路徑 B：MAVROS（經 MAVLink）</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">訊息型別</th>
+              <td>uORB 定義的原生映射（<code>px4_msgs</code>），欄位完整、時間戳與頻率忠實</td>
+              <td>轉成通用 MAVLink 訊息再轉 ROS topic，部分欄位被捨棄或重組，速率通常較低</td>
+            </tr>
+            <tr>
+              <th scope="row">Topic 命名</th>
+              <td><code>/fmu/out/*</code>、<code>/fmu/in/*</code></td>
+              <td><code>/mavros/*</code>（如 <code>mavros/setpoint_raw</code>、<code>mavros/local_position/odom</code>）</td>
+            </tr>
+            <tr>
+              <th scope="row">覆蓋範圍</th>
+              <td>PX4 專用，深度整合，新功能優先支援</td>
+              <td>通用（PX4、ArduPilot 皆可），與 MAVSDK、QGC 生態相通</td>
+            </tr>
+            <tr>
+              <th scope="row">官方立場</th>
+              <td>PX4 對 ROS 2 的建議路徑</td>
+              <td>傳統路徑，維護中，ROS 1 時代主力</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>兩條路徑可以並存，實務上常見 QGC 走 MAVLink 監控、ROS 2 同時走 uXRCE-DDS 控制。本藍圖採用路徑 A，因為避障、VIO 與 AprilTag 需要完整欄位與高頻狀態回傳。</p>
+
+      <h3>QGroundControl——官方地面站</h3>
+      <p>QGroundControl（QGC）是 PX4 官方的地面站軟體，免費開源、跨平台（Windows、macOS、Linux、Android、iOS），透過 MAVLink 與飛控溝通，在系統中扮演飛行員與飛控之間的總控制台。</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">階段</th>
+              <th scope="col">用途</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>裝機</td>
+              <td>燒錄 PX4 韌體、選擇機型（airframe）、感測器校正（羅盤、加速度計、遙控）、電池與電調設定</td>
+            </tr>
+            <tr>
+              <td>參數設定</td>
+              <td>直接修改 PX4 參數，如 <code>EKF2_EV_CTRL</code>、<code>EKF2_RNG_CTRL</code>、<code>CP_DIST</code>、<code>UXRCE_DDS_PTCFG</code></td>
+            </tr>
+            <tr>
+              <td>任務規劃</td>
+              <td>以地圖介面繪製航點與任務；簡單 GPS 任務可不上伴飛電腦</td>
+            </tr>
+            <tr>
+              <td>飛行監控</td>
+              <td>即時姿態、高度、電池與衛星狀態，地圖即時位置，飛行模式切換，緊急降落與 RTL 按鈕</td>
+            </tr>
+            <tr>
+              <td>安全底線</td>
+              <td>ROS 2 自主堆疊異常時，與 RC 遙控同為人工接管的手段</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>實務提醒</h3>
+      <ol>
+        <li>開發期建議安裝 QGC Daily Build 搭配 PX4 main 分支，功能與參數才互相對應。</li>
+        <li>Offboard 模式飛行時建議全程開啟 QGC：它是觀察 EKF2 健康狀態（<code>ekf2_innovations</code>、GPS/VIO 融合是否發散）最快的視窗，也是緊急 RTL 的操作介面。</li>
+        <li>連線方式：實機常用 WiFi 或遙測電台（UDP/serial）；模擬架構中 QGC 以 UDP 14550 連接本機 PX4 SITL，也是開發路徑第一步驗證 EKF 狀態的工具。</li>
+      </ol>
+
+      <div class="note">
+        <p class="note-title">重點</p>
+        <p>uORB 是 PX4 內部所有模組共用的資料匯流排，如同資料的源頭；uXRCE-DDS 與 MAVROS 是兩條不同的對外送水管。三條進出飛控的通道——RC 遙控、QGC（MAVLink）、ROS 2（uXRCE-DDS）——各司其職、並存不衝突，共同構成無人機的人工接管與自主控制雙通道。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 3 ================= -->
+    <section class="section" id="sec3">
+      <div class="section-heading">
+        <span class="section-num">03</span>
         <h2>硬體元件清單（實機）</h2>
       </div>
 
@@ -913,10 +1110,10 @@
       </div>
     </section>
 
-    <!-- ================= Section 3 ================= -->
-    <section class="section" id="sec3">
+    <!-- ================= Section 4 ================= -->
+    <section class="section" id="sec4">
       <div class="section-heading">
-        <span class="section-num">03</span>
+        <span class="section-num">04</span>
         <h2>軟體模組清單</h2>
       </div>
 
@@ -1044,10 +1241,10 @@
       </div>
     </section>
 
-    <!-- ================= Section 4 ================= -->
-    <section class="section" id="sec4">
+    <!-- ================= Section 5 ================= -->
+    <section class="section" id="sec5">
       <div class="section-heading">
-        <span class="section-num">04</span>
+        <span class="section-num">05</span>
         <h2>導航的分層架構：PX4 與伴飛電腦的職責劃分</h2>
       </div>
 
@@ -1125,10 +1322,10 @@ PX4（追蹤 setpoint，控制迴路 250Hz+）
       </div>
     </section>
 
-    <!-- ================= Section 5 ================= -->
-    <section class="section" id="sec5">
+    <!-- ================= Section 6 ================= -->
+    <section class="section" id="sec6">
       <div class="section-heading">
-        <span class="section-num">05</span>
+        <span class="section-num">06</span>
         <h2>實機架構圖</h2>
       </div>
 
@@ -1196,10 +1393,10 @@ flowchart TB
       </div>
     </section>
 
-    <!-- ================= Section 6 ================= -->
-    <section class="section" id="sec6">
+    <!-- ================= Section 7 ================= -->
+    <section class="section" id="sec7">
       <div class="section-heading">
-        <span class="section-num">06</span>
+        <span class="section-num">07</span>
         <h2>模擬架構圖（Gazebo SITL）</h2>
       </div>
 
@@ -1264,10 +1461,10 @@ flowchart TB
       </div>
     </section>
 
-    <!-- ================= Section 7 ================= -->
-    <section class="section" id="sec7">
+    <!-- ================= Section 8 ================= -->
+    <section class="section" id="sec8">
       <div class="section-heading">
-        <span class="section-num">07</span>
+        <span class="section-num">08</span>
         <h2>Gazebo Harmonic 的角色：模擬與真實的分界</h2>
       </div>
 
@@ -1365,10 +1562,10 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
       </div>
     </section>
 
-    <!-- ================= Section 8 ================= -->
-    <section class="section" id="sec8">
+    <!-- ================= Section 9 ================= -->
+    <section class="section" id="sec9">
       <div class="section-heading">
-        <span class="section-num">08</span>
+        <span class="section-num">09</span>
         <h2>關鍵資料流（topics / 參數速查）</h2>
       </div>
 
@@ -1422,10 +1619,10 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
       </div>
     </section>
 
-    <!-- ================= Section 9 ================= -->
-    <section class="section" id="sec9">
+    <!-- ================= Section 10 ================= -->
+    <section class="section" id="sec10">
       <div class="section-heading">
-        <span class="section-num">09</span>
+        <span class="section-num">10</span>
         <h2>建議開發路徑</h2>
       </div>
 
