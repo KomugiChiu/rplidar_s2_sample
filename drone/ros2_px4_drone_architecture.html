@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="ROS 2 無人機自主飛行系統技術藍圖：PX4 + Gazebo、VIO、Rangefinder、AprilTag、避障與路徑規劃。">
-<title>ROS 2 無人機自主飛行系統 — PX4 + Gazebo 完整藍圖</title>
+<title>ROS 2 無人機自主飛行系統 — PX4 + Gazebo 完整藍圖（事實查核修訂版）</title>
 <style>
   :root {
     --bg: #f3f6fb;
@@ -745,7 +745,7 @@
   <div class="hero-inner">
     <div class="hero-top">
       <p class="eyebrow">SYSTEM BLUEPRINT / 2026</p>
-      <p class="hero-version">PX4 v1.15–1.16 · ROS 2 Jazzy · Gazebo Harmonic</p>
+      <p class="hero-version">Baseline: PX4 v1.16.x · ROS 2 Jazzy · Ubuntu 24.04 · Gazebo Harmonic</p>
     </div>
     <h1>ROS 2 無人機自主飛行系統 <span class="h1-accent">— PX4 + Gazebo 完整藍圖</span></h1>
     <p class="subtitle">避障 · 路徑規劃 · Rangefinder · VIO · AprilTag</p>
@@ -764,6 +764,7 @@
   <aside class="toc" aria-label="頁面目錄">
     <p class="toc-title">目錄 / Contents</p>
     <nav>
+      <a href="#revision-note"><span class="n">R</span><span>事實查核修訂摘要</span></a>
       <a href="#sec1"><span class="n">01</span><span>核心概念 — 雙腦架構</span></a>
       <a href="#sec2"><span class="n">02</span><span>PX4 的內部架構與對外通訊</span></a>
       <a href="#sec3"><span class="n">03</span><span>硬體元件清單（實機）</span></a>
@@ -780,6 +781,12 @@
   </aside>
 
   <main id="main">
+      <section class="section" id="revision-note">
+        <div class="section-heading"><span class="section-num">R</span><h2>事實查核修訂摘要</h2></div>
+        <p>本版已依 PX4 官方文件重新整理容易誤解的敘述。重點修正包括：X500 感測器型號、RGB-D／Depth Camera、Precision Landing 與 Offboard 的邊界、<code>CP_DIST</code> 的適用範圍、SITL 與實機差異、版本固定方式，以及動力數據的驗證要求。</p>
+        <div class="note info"><p class="note-title">模擬機型重點</p><p><code>gz_x500_depth</code> 確實具有前視 Depth Camera，模型參考 OAK-D，可視為 RGB-D 類型的模擬相機。但基本 <code>gz_x500</code> 並未同時內建 RGB-D、rangefinder 與各式 LiDAR。若要 D455 類輸入、下視測距儀與 3D LiDAR 同機，需建立及驗證自訂 SDF。</p></div>
+        <div class="note"><p class="note-title">工程使用限制</p><p>本文件是架構與驗證藍圖，不是可直接採購或起飛的定案規格。馬達、槳、電池、ESC、電源模組與線材必須綁定確切型號，並以原廠推力表和台架量測驗證。</p></div>
+      </section>
 
     <!-- ================= Section 1 ================= -->
     <section class="section" id="sec1">
@@ -812,13 +819,13 @@
             </tr>
             <tr>
               <th scope="row">連接</th>
-              <td colspan="2">←→ 透過 <code>micro-XRCE-DDS</code>（UDP 8888）以 <code>px4_msgs</code> topics 溝通</td>
+              <td colspan="2">←→ 透過 <code>micro-XRCE-DDS</code> 以 <code>px4_msgs</code> topics 溝通。SITL 常用 UDP 8888；實機可使用 UART、UDP 或其他已驗證 transport</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <p class="lede">目前（2026）官方推薦組合為 PX4 v1.15/1.16 + ROS 2 Jazzy (Ubuntu 24.04) + Gazebo Harmonic + micro-XRCE-DDS（PX4 也開始支援 Zenoh，但 DDS 仍是主流建議）。</p>
+      <p class="lede">本文件固定驗證基準為 PX4 v1.16.x、ROS 2 Jazzy、Ubuntu 24.04 與 Gazebo Harmonic。uXRCE-DDS 是目前較成熟的 ROS 2 整合路徑；其他 PX4、px4_msgs、Agent 或 Gazebo 版本需另外做相容性驗證。</p>
     </section>
 
     <!-- ================= Section 2 ================= -->
@@ -835,7 +842,7 @@
 
       <div class="note">
         <p class="note-title">關鍵觀念</p>
-        <p>uORB 是內部訊息匯流排，不是網路通訊協定。它只存在於同一台飛控內部（或 SITL 的同一個 process 裡），publisher 與 subscriber 透過共享記憶體交換資料，效率與即時性極高。資料要送出飛控（到伴飛電腦或地面站）時，必須經由通訊模組翻譯：<code>uxrce_dds_client</code> 把選定的 uORB topic 轉成 DDS，<code>mavlink module</code> 把 uORB 轉成 MAVLink 訊息。在 PX4 內叫 <code>vehicle_odometry</code> 的資料，到了 ROS 2 端就是 <code>/fmu/out/vehicle_odometry</code>——同一份訊息定義，兩個世界。</p>
+        <p>uORB 是內部訊息匯流排，不是網路通訊協定。它只存在於同一台飛控內部（或 SITL 的同一個 process 裡），publisher 與 subscriber 透過 uORB 的非同步 publish/subscribe 機制交換資料；不應把所有實作一概描述成共享記憶體。資料要送出飛控（到伴飛電腦或地面站）時，必須經由通訊模組翻譯：<code>uxrce_dds_client</code> 把選定的 uORB topic 轉成 DDS，<code>mavlink module</code> 把 uORB 轉成 MAVLink 訊息。在 PX4 內叫 <code>vehicle_odometry</code> 的資料，到了 ROS 2 端就是 <code>/fmu/out/vehicle_odometry</code>——同一份訊息定義，兩個世界。</p>
       </div>
 
       <div class="table-wrap">
@@ -860,8 +867,8 @@
               <td>publisher 把最新資料發布到 topic，subscriber 訂閱並複製到自己的緩衝區；雙方不需認識彼此，模組可獨立開發與替換</td>
             </tr>
             <tr>
-              <td>queue 深度通常為 1</td>
-              <td>subscriber 永遠取得最新值而非積壓的舊資料，符合即時控制迴圈對「現在狀態」的需求</td>
+              <td>queue 深度可設定</td>
+              <td>許多狀態 topic 使用較小 queue，常見值為 1；需要保存事件序列的訊息可設定較深 queue，不是所有 topic 都固定為 1</td>
             </tr>
             <tr>
               <td>多實例（multi-instance）</td>
@@ -1042,13 +1049,13 @@ flowchart TB
             </tr>
             <tr>
               <td>機架/動力</td>
-              <td>F450 或自組 5–8 吋四軸 + 電調(ESC) + 馬達</td>
-              <td>DShot600 建議</td>
+              <td>依 AUW 與推力台架資料選擇；本配置優先評估 600–700 mm、12–15 吋槳、6S 動力平台</td>
+              <td>約 2.8 kg AUW 不宜直接以 F450／10 吋槳作為既定方案；DShot 須確認飛控、ESC 與配線相容</td>
             </tr>
             <tr>
               <td>電源</td>
-              <td>PM02/PM06 電源模組 + 4S 鋰電</td>
-              <td>同時幫伴飛電腦供電（注意 5V/5A 以上）</td>
+              <td>依峰值電流與電壓選擇電源模組；優先評估 6S 電池與獨立穩壓器</td>
+              <td>Jetson 供電應使用符合載板輸入規格的獨立 DC-DC，並量測壓降、突波與熱餘裕</td>
             </tr>
             <tr>
               <td>遙控</td>
@@ -1366,8 +1373,8 @@ flowchart TB
               <td>接受 ROS 2 下發的 <code>trajectory_setpoint</code></td>
             </tr>
             <tr>
-              <td>Collision Prevention（CP_DIST）</td>
-              <td>低階保險：用距離感測資料直接剎停</td>
+              <td>Collision Prevention（<code>CP_DIST</code>）</td>
+              <td>主要用於支援的 Position mode 控制鏈。不可假設它會自動保護所有 Offboard <code>TrajectorySetpoint</code>；Offboard 的避障與緊急停止仍需在 ROS 2 控制鏈中實作並驗證</td>
             </tr>
             <tr>
               <td>Failsafe / RTL / Land</td>
@@ -1399,7 +1406,7 @@ flowchart TB
             </tr>
             <tr>
               <td>VIO</td>
-              <td>OpenVINS（ROS2 版，推薦）或 ORB-SLAM3 ROS2 wrapper</td>
+              <td>OpenVINS（候選方案）或經驗證的其他 VIO 實作</td>
               <td>發布里程計 → <code>/fmu/in/vehicle_visual_odometry</code></td>
             </tr>
             <tr>
@@ -1419,7 +1426,7 @@ flowchart TB
             </tr>
             <tr>
               <td>局部規劃/避障</td>
-              <td>EGO-Planner（ROS2 port）或 GPU MPPI、Nav2（2D 簡化版）</td>
+              <td>EGO-Swarm <code>ros2_version</code> 分支（需驗證 Jazzy 相容性）、GPU MPPI，或 Nav2（僅適合經明確 2D 簡化的情境）</td>
               <td>動態閃避障礙、平滑軌跡</td>
             </tr>
             <tr>
@@ -1448,11 +1455,11 @@ flowchart TB
           <tbody>
             <tr>
               <td>PX4 SITL</td>
-              <td><code>make px4_sitl gz_x500</code>，與實機跑同一份韌體</td>
+              <td><code>make px4_sitl gz_x500</code> 啟動基本 X500；深度相機使用 <code>gz_x500_depth</code>。SITL 與實機共用 PX4 核心程式碼，但編譯目標、驅動與執行環境不同</td>
             </tr>
             <tr>
               <td>Gazebo Harmonic (gz-sim)</td>
-              <td>x500 模型內建：雙目相機、rangefinder、LiDAR、IMU、GPS 的 gz sensor plugins</td>
+              <td>PX4 提供多個獨立 X500 配置：<code>gz_x500_depth</code> 有前視 Depth Camera（參考 OAK-D，屬 RGB-D 類型）；<code>gz_x500_vision</code> 用於視覺里程計；另有單目相機、下視／前視 1D LiDAR 與 2D LiDAR 型號。基本 <code>gz_x500</code> 不包含全部感測器；若要 RGB-D、rangefinder 與 3D LiDAR 同機，需建立自訂 SDF</td>
             </tr>
             <tr>
               <td>ros_gz_bridge</td>
@@ -1460,7 +1467,7 @@ flowchart TB
             </tr>
             <tr>
               <td>micro-XRCE-DDS Agent</td>
-              <td>在本機跑，與實機完全相同</td>
+              <td>在本機執行；通訊概念與實機相同，但 transport、網路、延遲與啟動設定通常不同</td>
             </tr>
             <tr>
               <td>QGroundControl</td>
@@ -1523,11 +1530,11 @@ flowchart TB
       </div>
 
       <h3>混合範例——AprilTag 精準降落</h3>
-      <p>AprilTag 精準降落展示兩端的分工方式：伴飛電腦負責視覺偵測與位姿解算，PX4 負責最後階段的即時下降與落地控制。</p>
+      <p>AprilTag 精準降落有兩種獨立架構，必須擇一設計與驗證。方案 A 將目標資料轉成 MAVLink <code>LANDING_TARGET</code>，由 PX4 Precision Landing 控制器執行；目前此路徑需要有效 global position。方案 B 由 ROS 2 計算對準與下降 setpoint，透過 Offboard <code>TrajectorySetpoint</code> 控制；這不是 PX4 Precision Landing 控制器。純室內 VIO 系統通常較適合先評估方案 B。</p>
       <ul>
         <li><strong>伴飛端：</strong><code>apriltag_ros2</code> 偵測 tag 並算出相對位姿；此視覺運算超出 PX4 的能力範圍。</li>
-        <li><strong>傳遞：</strong>tag 位姿換算為 <code>LANDING_TARGET</code> 訊息，或直接以 offboard 下發 setpoint。</li>
-        <li><strong>PX4 端：</strong>內建 Precision Land 控制器接收降落目標，執行最後的下降與落地控制；此階段需要即時閉環，交由 ROS 處理並不可靠。</li>
+        <li><strong>方案 A：</strong>tag 資料轉成 MAVLink <code>LANDING_TARGET</code>，由 PX4 Precision Landing 控制器處理；需確認 global position 與該版本的參數要求。</li>
+        <li><strong>方案 B：</strong>ROS 2 自行閉環計算水平對準、下降速度與中止條件，再發布 Offboard setpoint；PX4 負責追蹤 setpoint 與飛行穩定。</li>
       </ul>
 
       <h3>資料流總結</h3>
@@ -1639,12 +1646,12 @@ flowchart TB
 flowchart TB
     subgraph GZ["Gazebo Harmonic (gz-sim)"]
         WORLD["障礙物世界 + AprilTag 海報"]
-        X500["x500 模型／gz sensors：雙目相機、rangefinder、LiDAR、IMU、GPS"]
+        X500["X500 感測器配置：gz_x500_depth 為前視 Depth Camera；其他相機與 LiDAR 為獨立模型；多感測器同機需自訂 SDF"]
     end
     SITL["PX4 SITL（與實機同一份韌體）／EKF2、Offboard、uXRCE-DDS client"]
     AGENT["micro-XRCE-DDS Agent"]
     BRIDGE["ros_gz_bridge 影像/點雲/時鐘"]
-    subgraph STACK2["ROS 2 自主堆疊（與實機 100% 相同）"]
+    subgraph STACK2["ROS 2 自主核心演算法（模擬與實機共用；driver、校正、TF、QoS 與 launch 不同）"]
         VIO2["OpenVINS（吃模擬雙目）"]
         APR2["apriltag_ros2（看虛擬海報）"]
         PLAN2["D-star Lite 3D + EGO-Planner"]
@@ -1665,7 +1672,7 @@ flowchart TB
 <pre>
 ┌──────────────── Gazebo Harmonic (gz-sim) ────────────────┐
 │   [障礙物世界 + AprilTag 海報]                            │
-│   [x500：雙目相機 / rangefinder / LiDAR / IMU / GPS]      │
+│   [X500：依啟動型號配置感測器；多感測器同機需自訂 SDF]      │
 └──────────────────────────┬──────────────────────────────┘
                            │ gz IPC（感測 / 馬達）
                            ▼
@@ -1687,7 +1694,7 @@ flowchart TB
 
       <div class="note info">
         <p class="note-title">重點</p>
-        <p>「自主堆疊」那個框在模擬與實機是同一套程式碼——只是感測器來源從 gz sensor plugins 換成實體 USB/UART，PX4 從 SITL 換成實體 Pixhawk。這就是為什麼要先用模擬開發。</p>
+        <p>模擬與實機應共用 VIO、規劃、任務狀態機與控制核心，但不應宣稱 100% 相同。實機通常需要不同的感測器 driver、校正檔、TF、時間同步、QoS、launch、網路與 PX4 transport 設定。</p>
       </div>
     </section>
 
@@ -1773,7 +1780,7 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
             <tr>
               <td>ROS 2 自主堆疊</td>
               <td><strong>真實</strong></td>
-              <td>OpenVINS、AprilTag、規劃器皆為日後上實機的同一套 node，僅輸入來源為模擬感測資料</td>
+              <td>核心演算法 node 可共用；感測器 driver、標定、TF、時間同步、QoS、雜訊／covariance 與 launch 設定通常需要分開管理</td>
             </tr>
           </tbody>
         </table>
@@ -1781,101 +1788,20 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
 
       <h3>此設計的工程意義</h3>
       <ol>
-        <li>程式碼可攜：由於 PX4 與 ROS 2 在模擬中皆為真實軟體，於模擬驗證通過的自主堆疊幾乎不需修改即可移轉至實機，僅需置換感測器來源；這是整個 SITL 開發流程的價值所在。</li>
+        <li>程式碼可攜：由於 PX4 與 ROS 2 在模擬中皆為真實軟體，模擬驗證通過的核心演算法可移轉至實機，但仍需處理 driver、標定、座標系、時間同步、QoS、延遲、運算資源與故障復原；這是整個 SITL 開發流程的價值所在。</li>
         <li>Gazebo 不做任何決策：Gazebo 不執行飛行控制、不規劃路徑、不處理 MAVLink、不運行 EKF，僅忠實再現無人機所處的物理世界與感測輸入。</li>
         <li>擬真度的限制：模擬物理與感測資料屬於近似值（簡化旋翼模型、渲染影像不含鏡頭畸變與曝光變化），因此最終仍需 HITL（真實 Pixhawk 連接模擬世界）與實機測試補齊差距。</li>
       </ol>
 
-      <h3>SITL 車型的感測器同構原則</h3>
-      <p>PX4 提供 gz_x500、gz_x500_lidar_2d、gz_x500_depth 等多種 SITL 車型變體；這些變體是官方預先打包的感測器組合，並非互斥的功能選項。本藍圖採自訂車型將全部感測器搭載於單一模型，以單一模擬實例同時供養 VIO、避障、測距與 AprilTag。</p>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">模型變體</th>
-              <th scope="col">預裝感測器</th>
-              <th scope="col">官方用途</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>gz_x500</td>
-              <td>IMU、GPS（基礎版）</td>
-              <td>一般 offboard 與任務測試</td>
-            </tr>
-            <tr>
-              <td>gz_x500_lidar_2d</td>
-              <td>基礎版 + 2D LiDAR</td>
-              <td>平面避障與導航演示</td>
-            </tr>
-            <tr>
-              <td>gz_x500_depth</td>
-              <td>基礎版 + 深度相機</td>
-              <td>視覺避障與點雲演示</td>
-            </tr>
-            <tr>
-              <td>其他變體</td>
-              <td>依 PX4 版本而異，以 Tools/simulation/gz/models 目錄為準</td>
-              <td>—</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p>SDF 模型為純文字描述，單一模型同時搭載 2D LiDAR、深度相機、測距儀、雙目與 3D LiDAR 沒有任何架構限制；官方拆分多個變體的目的在於讓各項演示保持輕量，而非表達感測器互斥。</p>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">實機感測器</th>
-              <th scope="col">模擬端對應</th>
-              <th scope="col">餵入的模組</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>RealSense D455（雙目+IMU）</td>
-              <td>gz 相機 ×2 + IMU 組成雙目</td>
-              <td>OpenVINS</td>
-            </tr>
-            <tr>
-              <td>TFmini Plus 測距儀</td>
-              <td>gz range sensor</td>
-              <td>EKF2 高度融合</td>
-            </tr>
-            <tr>
-              <td>Livox Mid-360 3D LiDAR</td>
-              <td>gz gpu_lidar（3D）</td>
-              <td>voxel 建圖與避障</td>
-            </tr>
-            <tr>
-              <td>GPS / IMU</td>
-              <td>標配</td>
-              <td>EKF2</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p>模擬機為實機的鏡像，感測器清單以供應商規格文件第 2 節硬體規格表為對照來源。</p>
-
-      <h3>自訂車型做法</h3>
+      <h3>自訂 SITL 車型的建立流程</h3>
+      <p>當任務需要多種感測器同機（例如雙目、下視測距儀與 3D LiDAR）時，以自訂 SDF 模型實現，並自行驗證感測器行為與發布頻率。</p>
       <ol>
-        <li>複製既有模型目錄建立自訂車型（如 <code>cp -r Tools/simulation/gz/models/x500_depth Tools/simulation/gz/models/x500_autonomy</code>）。</li>
-        <li>編輯自訂模型的 model.sdf，將 x500_lidar_2d 等變體的 sensor 區塊剪貼進來，並補上 range sensor 與第二顆相機以組成雙目。</li>
+        <li>複製既有模型目錄建立自訂車型，例如 <code>cp -r Tools/simulation/gz/models/x500_depth Tools/simulation/gz/models/x500_autonomy</code>。</li>
+        <li>編輯自訂模型的 model.sdf，加入所需的 sensor 區塊（相機、range sensor、gpu_lidar 等），雙目需兩顆相機加 IMU 的 stereo 組態。</li>
         <li>依 PX4 文件的新模型流程註冊 airframe 與參數集，之後以 <code>make px4_sitl gz_x500_autonomy</code> 啟動。</li>
-        <li>各感測器經 ros_gz_bridge 獨立成為 ROS 2 topic，各模組各取所需。</li>
+        <li>各感測器經 ros_gz_bridge 獨立成為 ROS 2 topic；於自訂模型上量測各感測器實際發布頻率與 real-time factor，據此調整開發時啟用的感測器組合。</li>
       </ol>
-
-      <h3>留意事項</h3>
-      <ol>
-        <li>代價是算力而非可能性：每個渲染型感測器（相機、深度相機）各佔用一個 GPU render pass，gpu_lidar 另佔深度圖產出；全開時 real-time factor 下降，開發單一模組時可暫時註解未用感測器，整合日再全開。</li>
-        <li>深度相機不等於雙目：gz_x500_depth 的感測器屬 RGBD 概念，OpenVINS 需要 two-camera 加 IMU 的 stereo 組態；VIO 驗證使用自訂雙目，而非直接沿用 depth 變體。</li>
-        <li>多車可行：Gazebo 單一世界可同時運行多架不同變體（multi-vehicle SITL），供 swarm 開發使用；與本藍圖單機配置互不衝突。</li>
-      </ol>
-
-      <p>本項工作對應團隊執行規劃中 Phase 0 平台組「建立共用 Gazebo 課題世界」的任務範圍：世界（障礙物與 AprilTag 海報）與自訂車型一併完成，之後全部成員於同一場景驗收。</p>
+      <p>本項工作對應團隊執行規劃 Phase 0 平台組「建立共用 Gazebo 課題世界」的任務範圍。</p>
 
       <div class="note">
         <p class="note-title">更高擬真度的選項</p>
@@ -1918,7 +1844,7 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
             <tr>
               <td>ROS 2 → 飛控</td>
               <td><code>/fmu/in/offboard_control_mode</code> + <code>trajectory_setpoint</code></td>
-              <td>Offboard 控制（需 ≥2Hz 心跳）</td>
+              <td><code>OffboardControlMode</code> 必須持續高於 2 Hz，且進入 Offboard 前通常需先穩定傳送超過 1 秒；setpoint 更新率依控制方式與安全需求另定</td>
             </tr>
             <tr>
               <td>AprilTag</td>
@@ -1927,8 +1853,8 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
             </tr>
             <tr>
               <td>避障保險</td>
-              <td>PX4 <code>CP_DIST</code></td>
-              <td>低階剎停</td>
+              <td>PX4 <code>CP_DIST</code> + ROS 2 Offboard 安全邏輯</td>
+              <td><code>CP_DIST</code> 主要適用於支援的 Position mode；Offboard 不可把它當成通用安全層</td>
             </tr>
             <tr>
               <td>啟動 DDS</td>
@@ -1950,7 +1876,7 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
       <ol class="steps">
         <li>
           <h3>SITL offboard</h3>
-          <p><code>make px4_sitl gz_x500</code> → ROS 2 起飛/降落/航點（官方 ROS 2 User Guide）</p>
+          <p>先以 <code>make px4_sitl gz_x500</code> 驗證基本 Offboard 起飛／降落／航點；需要深度影像時改用 <code>make px4_sitl gz_x500_depth</code></p>
         </li>
         <li>
           <h3>模擬接 VIO + AprilTag</h3>
@@ -1970,7 +1896,15 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
         </li>
       </ol>
 
-      <h3>參考資源</h3>
+      <h3>實機前必要驗收</h3>
+        <ul>
+          <li><strong>座標系：</strong>明確定義 ROS ENU/FLU、PX4 NED/FRD、camera optical frame 與 body-to-sensor 外參轉換。</li>
+          <li><strong>時間同步：</strong>量測 camera／IMU timestamp、PX4 與伴飛電腦時鐘偏差、VIO end-to-end latency，並依結果設定 EKF2 delay。</li>
+          <li><strong>VIO：</strong>建議以約 30–50 Hz 穩定輸出，填入合理 covariance，驗證無 timestamp 倒退、長時間漂移與重啟後恢復行為。</li>
+          <li><strong>失效測試：</strong>逐項驗證 VIO timeout、LiDAR timeout、ROS 2 process crash、DDS link loss、伴飛電腦重啟、RC 接管，以及 <code>COM_OF_LOSS_T</code>／<code>COM_OBL_RC_ACT</code> 的行為。</li>
+          <li><strong>模擬限制：</strong>Gazebo 影像無法完整重現曝光、動態模糊、USB 丟包、振動與硬體同步，不可用 SITL 成功取代實飛驗證。</li>
+        </ul>
+        <h3>參考資源</h3>
       <ul class="refs">
         <li>
           <a href="https://docs.px4.io/main/en/ros2/user_guide" target="_blank" rel="noopener noreferrer">
@@ -2030,7 +1964,7 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
 <footer class="site-footer">
   <div class="footer-inner">
     <span>ROS 2 無人機自主飛行系統 — PX4 + Gazebo 完整藍圖</span>
-    <span>單一 HTML 文件 · 架構圖：Mermaid + ASCII 離線備援</span>
+    <span>事實查核修訂版 · 架構圖：Mermaid + ASCII 離線備援</span>
   </div>
 </footer>
 
