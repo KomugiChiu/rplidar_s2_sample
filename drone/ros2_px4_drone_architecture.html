@@ -767,13 +767,14 @@
       <a href="#sec1"><span class="n">01</span><span>核心概念 — 雙腦架構</span></a>
       <a href="#sec2"><span class="n">02</span><span>PX4 的內部架構與對外通訊</span></a>
       <a href="#sec3"><span class="n">03</span><span>硬體元件清單（實機）</span></a>
-      <a href="#sec4"><span class="n">04</span><span>軟體模組清單</span></a>
-      <a href="#sec5"><span class="n">05</span><span>導航的分層架構：PX4 與伴飛電腦的職責劃分</span></a>
-      <a href="#sec6"><span class="n">06</span><span>實機架構圖</span></a>
-      <a href="#sec7"><span class="n">07</span><span>模擬架構圖（Gazebo SITL）</span></a>
-      <a href="#sec8"><span class="n">08</span><span>Gazebo Harmonic 的角色：模擬與真實的分界</span></a>
-      <a href="#sec9"><span class="n">09</span><span>關鍵資料流速查</span></a>
-      <a href="#sec10"><span class="n">10</span><span>建議開發路徑</span></a>
+      <a href="#sec4"><span class="n">04</span><span>動力系統的評估方法</span></a>
+      <a href="#sec5"><span class="n">05</span><span>軟體模組清單</span></a>
+      <a href="#sec6"><span class="n">06</span><span>導航的分層架構：PX4 與伴飛電腦的職責劃分</span></a>
+      <a href="#sec7"><span class="n">07</span><span>實機架構圖</span></a>
+      <a href="#sec8"><span class="n">08</span><span>模擬架構圖（Gazebo SITL）</span></a>
+      <a href="#sec9"><span class="n">09</span><span>Gazebo Harmonic 的角色：模擬與真實的分界</span></a>
+      <a href="#sec10"><span class="n">10</span><span>關鍵資料流速查</span></a>
+      <a href="#sec11"><span class="n">11</span><span>建議開發路徑</span></a>
     </nav>
     <p class="toc-note">架構圖由 Mermaid CDN 渲染；離線開啟時可展開各圖下方的 ASCII 版本備援。</p>
   </aside>
@@ -1114,6 +1115,235 @@ flowchart TB
     <section class="section" id="sec4">
       <div class="section-heading">
         <span class="section-num">04</span>
+        <h2>動力系統的評估方法</h2>
+      </div>
+
+      <p>動力系統（馬達、ESC、螺旋槳、電池與電源迴路）是整機評估中偏差代價最高的部分：推力不足導致無法起飛或抗風能力不足，電氣餘裕不足導致熱當機與空中斷電。本節定義動力系統的量化合格準則、紙上評估流程與台架驗證方法；所有數字必須有數據源（原廠推力表或自建台架量測），口頭承諾不作為評估依據。</p>
+
+      <h3>五項量化合格準則</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">準則</th>
+              <th scope="col">建議值</th>
+              <th scope="col">意義</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>推重比 T/W</td>
+              <td>任務型 ≥ 2.0；需抗風或機動 ≥ 2.5</td>
+              <td>總最大推力除以全重量；懸停僅使用一半推力，其餘為餘裕</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>懸停油門</td>
+              <td>≤ 50–55%</td>
+              <td>油門越低餘裕越大、溫升越低；高於 65% 即不合格</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>懸停效率</td>
+              <td>≥ 7–10 g/W</td>
+              <td>每瓦特產生的推力克數，直接決定續航</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>續航時間</td>
+              <td>≥ 任務需求，開發機建議 ≥ 15 分鐘</td>
+              <td>以懸停狀態與 80% 可用容量計</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>電氣安全餘裕</td>
+              <td>見本節第五步</td>
+              <td>峰值電流、電池 C 數、ESC 耐流、線徑與連接器皆須保留係數</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>紙上評估流程（五步）</h3>
+      <p><strong>第一步：估算全裝重量（AUW）</strong>。將所有零組件逐項加總後追加 10–15% 容差。以本藍圖配置為例的估算表如下。</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">項目</th>
+              <th scope="col">估重</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>機架 F450（含腳架）</td>
+              <td>約 300 g</td>
+            </tr>
+            <tr>
+              <td>馬達×4 與槳</td>
+              <td>約 450 g</td>
+            </tr>
+            <tr>
+              <td>飛控 Pixhawk 6C、GPS、TFmini、接收機</td>
+              <td>約 250 g</td>
+            </tr>
+            <tr>
+              <td>伴飛電腦 Jetson Orin NX 與載板</td>
+              <td>約 400 g</td>
+            </tr>
+            <tr>
+              <td>RealSense D455 與 Livox Mid-360</td>
+              <td>約 390 g</td>
+            </tr>
+            <tr>
+              <td>ESC、電源模組與配線</td>
+              <td>約 200 g</td>
+            </tr>
+            <tr>
+              <td>4S 5000 mAh 鋰電</td>
+              <td>約 570 g</td>
+            </tr>
+            <tr>
+              <td>小計</td>
+              <td>約 2560 g</td>
+            </tr>
+            <tr>
+              <td>加 12% 容差後之 AUW</td>
+              <td>約 2.8 kg</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p><strong>第二步：由推重比反推單軸推力需求</strong>。以 AUW 2.8 kg 與 T/W 2.0 計算總推力需求，再除以四軸得到單軸下限；同一算式同時給出懸停所需推力，作為後續查表的目標點。</p>
+      <div class="diagram">
+        <div class="diagram-head">
+          <p class="diagram-title">推力需求推算</p>
+          <span class="diagram-badge">紙上計算</span>
+        </div>
+<pre>
+單軸最大推力 ≥ AUW × T/W ÷ 4 = 2800 × 2.0 ÷ 4 = 1400 g ≈ 1.4 kg/軸
+懸停推力     = AUW ÷ 4         = 700 g/軸（即最大推力的 50%，合格）
+</pre>
+      </div>
+
+      <p><strong>第三步：選配馬達 × 螺旋槳 × 電壓並查原廠推力表</strong>。馬達規格表提供「電壓 × 槳徑 → 油門%、推力、電流」對照；以 2216/900KV 級馬達配 1045 槳、4S 為例，對照結果如下。</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">油門</th>
+              <th scope="col">推力/軸</th>
+              <th scope="col">電流/軸</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>50%（懸停點）</td>
+              <td>約 700–750 g</td>
+              <td>約 7–8 A</td>
+            </tr>
+            <tr>
+              <td>100%</td>
+              <td>約 1.4–1.5 kg</td>
+              <td>約 18–20 A</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>原廠推力表未涵蓋的組合不納入候選；沒有數據即沒有評估。</p>
+
+      <p><strong>第四步：續航計算</strong>。以第三步的懸停電流、4S 標稱電壓與 80% 可用容量計算懸停時間，並將伴飛電腦的功耗一併計入。</p>
+      <div class="diagram">
+        <div class="diagram-head">
+          <p class="diagram-title">懸停時間推算</p>
+          <span class="diagram-badge">紙上計算</span>
+        </div>
+<pre>
+懸停總電流 ≈ 4 軸 × 7.5 A + 伴飛電腦約 2 A = 32 A
+懸停總功率 ≈ 32 A × 14.8 V ≈ 470 W（懸停效率約 6 g/W）
+可用容量   = 5000 mAh × 80% = 4000 mAh
+懸停時間   ≈ 4 Ah ÷ 32 A × 60 ≈ 7.5 分鐘
+</pre>
+      </div>
+      <p>此一基準配置的估算結果為 7.5 分鐘，低於本節準則表的 15 分鐘建議值，且加大電池會提高 AUW 並推高懸停推力需求，兩者互為因果。評估以三種方式處理：其一，改用更高效率的動力組合（低 KV 馬達搭配更大槳，目標懸停效率 10 g/W 級）；其二，加大電池容量（如 4S 8000–10000 mAh），並以新 AUW 重跑第二步與第三步；其三，調整任務設計，以分段任務與更換電池運行。實務上，開發機常以前兩項並行處理，並將續航列為供應商規格文件的量測項，於採購前即要求對方以推力台架數據證明達標。</p>
+
+      <p><strong>第五步：電氣安全餘裕</strong>。以 100% 油門電流推算峰值總電流，逐一檢查 ESC、電池、連接器、線徑與電源模組的額定值。</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">項目</th>
+              <th scope="col">計算</th>
+              <th scope="col">合格標準</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>峰值總電流</td>
+              <td>4 × 20 A × 1.2 = 96 A</td>
+              <td>以 100 A 設計</td>
+            </tr>
+            <tr>
+              <td>ESC</td>
+              <td>單軸持續 ≥ 懸停電流 × 1.5；峰值耐流 ≥ 單軸滿油門</td>
+              <td>35–40 A 級</td>
+            </tr>
+            <tr>
+              <td>電池 C 數</td>
+              <td>100 A ≤ 5 Ah × C × 0.8 → C ≥ 25</td>
+              <td>25C 以上，放電壓降小於 0.4 V</td>
+            </tr>
+            <tr>
+              <td>連接器與線徑</td>
+              <td>XT60 額定 60 A 低於峰值 96 A</td>
+              <td>使用 XT90 與 12 號矽膠線</td>
+            </tr>
+            <tr>
+              <td>電源模組</td>
+              <td>PM02/PM06 額定 ≥ 持續總電流</td>
+              <td>保留 30% 餘裕</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>台架與實機驗證（風險遞增）</h3>
+      <ol class="steps">
+        <li>
+          <h3>推力台架</h3>
+          <p>單軸鎖台，油門 20–100% 階梯掃描，記錄推力、電流、電壓與馬達/ESC 溫度；驗證原廠推力表，10 分鐘懸停等效負載後馬達低於 80°C、ESC 低於 100°C。</p>
+        </li>
+        <li>
+          <h3>台架無槳測試</h3>
+          <p>以 PX4 <code>actuator_outputs</code> 逐軸點動，確認馬達序、轉向與 DShot 方向（對應供應商規格文件驗收項 F1）。</p>
+        </li>
+        <li>
+          <h3>繫留測試</h3>
+          <p>半油門錄 IMU 振動頻譜，共振時更換槳或加隔振（對應驗收項 G1）；振動直接影響 EKF2 收斂。</p>
+        </li>
+        <li>
+          <h3>ESC 電流遙測</h3>
+          <p>開啟 PX4 電池與 ESC telemetry，懸停實測對比第四步計算，偏差超過 20% 需回查。</p>
+        </li>
+        <li>
+          <h3>失效演練</h3>
+          <p>低電壓 failsafe 與單軸失效（motor failure detection）行為驗證；四軸單軸失效不可恢復，failsafe 設計與演練為唯一緩解。</p>
+        </li>
+      </ol>
+
+      <div class="note">
+        <p class="note-title">評估順序</p>
+        <p>動力評估的順序為：先算重量、再算推力、查表選配、計算電氣與續航、最後以台架量測驗證。核心是懸停油門落在 50% 左右且每個電氣環節皆有餘裕；供應商交付驗收時，本節準則即為動力部分的檢查標準（對應供應商規格文件第 2 節動力性能規格）。</p>
+      </div>
+    </section>
+
+    <!-- ================= Section 5 ================= -->
+    <section class="section" id="sec5">
+      <div class="section-heading">
+        <span class="section-num">05</span>
         <h2>軟體模組清單</h2>
       </div>
 
@@ -1241,10 +1471,10 @@ flowchart TB
       </div>
     </section>
 
-    <!-- ================= Section 5 ================= -->
-    <section class="section" id="sec5">
+    <!-- ================= Section 6 ================= -->
+    <section class="section" id="sec6">
       <div class="section-heading">
-        <span class="section-num">05</span>
+        <span class="section-num">06</span>
         <h2>導航的分層架構：PX4 與伴飛電腦的職責劃分</h2>
       </div>
 
@@ -1322,10 +1552,10 @@ PX4（追蹤 setpoint，控制迴路 250Hz+）
       </div>
     </section>
 
-    <!-- ================= Section 6 ================= -->
-    <section class="section" id="sec6">
+    <!-- ================= Section 7 ================= -->
+    <section class="section" id="sec7">
       <div class="section-heading">
-        <span class="section-num">06</span>
+        <span class="section-num">07</span>
         <h2>實機架構圖</h2>
       </div>
 
@@ -1393,10 +1623,10 @@ flowchart TB
       </div>
     </section>
 
-    <!-- ================= Section 7 ================= -->
-    <section class="section" id="sec7">
+    <!-- ================= Section 8 ================= -->
+    <section class="section" id="sec8">
       <div class="section-heading">
-        <span class="section-num">07</span>
+        <span class="section-num">08</span>
         <h2>模擬架構圖（Gazebo SITL）</h2>
       </div>
 
@@ -1461,10 +1691,10 @@ flowchart TB
       </div>
     </section>
 
-    <!-- ================= Section 8 ================= -->
-    <section class="section" id="sec8">
+    <!-- ================= Section 9 ================= -->
+    <section class="section" id="sec9">
       <div class="section-heading">
-        <span class="section-num">08</span>
+        <span class="section-num">09</span>
         <h2>Gazebo Harmonic 的角色：模擬與真實的分界</h2>
       </div>
 
@@ -1562,10 +1792,10 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
       </div>
     </section>
 
-    <!-- ================= Section 9 ================= -->
-    <section class="section" id="sec9">
+    <!-- ================= Section 10 ================= -->
+    <section class="section" id="sec10">
       <div class="section-heading">
-        <span class="section-num">09</span>
+        <span class="section-num">10</span>
         <h2>關鍵資料流（topics / 參數速查）</h2>
       </div>
 
@@ -1619,10 +1849,10 @@ Gazebo Classic (gazebo11，已於 2025/1 終止支援)
       </div>
     </section>
 
-    <!-- ================= Section 10 ================= -->
-    <section class="section" id="sec10">
+    <!-- ================= Section 11 ================= -->
+    <section class="section" id="sec11">
       <div class="section-heading">
-        <span class="section-num">10</span>
+        <span class="section-num">11</span>
         <h2>建議開發路徑</h2>
       </div>
 
