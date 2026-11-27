@@ -165,9 +165,17 @@ Useful variants:
 
 ```bash
 START_AI=0 ./start_demo.sh          # SLAM + EKF + Nav2 only
+DRIVER_IMPL=raspbot ./start_demo.sh        # use the new raspbot_driver
+DRIVER_IMPL=raspbot ./start_demo_static.sh # same, localization mode
 SLAM_PARAMS=/path/to/other.yaml ./start_demo_static.sh
 NAV2_PARAMS_FILE=$NAV2_DIR/nav2_params_plugin.yaml ./start_demo.sh
 ```
+
+`DRIVER_IMPL` is forwarded to `$NAV2_DIR/start_nav2.sh`; the default is
+`yahboom` (vendor `Mcnamu_driver`) so the old driver remains the rollback
+path. `raspbot` starts `raspbot_driver` from
+`/root/raspybot/raspbot_driver_ws` and keeps the legacy `/ultrasonic` topic
+alive for the existing DeadbandController.
 
 ## 4. Environment variables
 
@@ -186,9 +194,17 @@ NAV2_PARAMS_FILE=$NAV2_DIR/nav2_params_plugin.yaml ./start_demo.sh
 | `LOG_DIR` | temp directory | Logs and PID files |
 | `RUN_DIR` | temp directory | PID file directory |
 | `TOPIC_WAIT` | `20` | Seconds to wait for each topic |
+| `DEMO_READY_WAIT` | `40` | Longer (non-fatal) wait for `/demo/person_markers`, mainly for localization mode |
 
 `START_REALSENSE=1` is not useful here: the demo starts the camera through EKF.
 If no camera is running, the script exits with an error.
+
+In localization mode (`start_demo_static.sh`) slam_toolbox loads a posegraph, so
+the `map` frame can briefly disappear while TF buffers fill. The script now
+waits for `map -> base_link` to be stable (3 consecutive lookups) before
+starting Nav2/AI, and gives demo_manager up to `DEMO_READY_WAIT` seconds to
+publish `/demo/person_markers`. A timeout there is only a warning — the demo
+still starts; the marker topic normally appears a few seconds later.
 
 ## 5. What each layer starts
 

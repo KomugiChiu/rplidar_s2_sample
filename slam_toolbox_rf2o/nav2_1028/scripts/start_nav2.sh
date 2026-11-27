@@ -19,6 +19,11 @@ export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-99}"
 ROS_DISTRO="${ROS_DISTRO:-jazzy}"
 ROBOT_WS="${ROBOT_WS:-/root/raspybot/yahboomcar_ws}"
 LIBRARY_WS="${LIBRARY_WS:-/root/raspybot/library_ws/py_install}"
+# Chassis driver implementation:
+#   yahboom = vendor yahboomcar_bringup/Mcnamu_driver (default, rollback)
+#   raspbot = MIT/Apache raspbot_driver (see /root/raspybot/raspbot_driver_ws)
+DRIVER_IMPL="${DRIVER_IMPL:-yahboom}"
+RASPBOT_WS="${RASPBOT_WS:-/root/raspybot/raspbot_driver_ws}"
 
 SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]:-$0}" 2>/dev/null || echo "${BASH_SOURCE[0]:-$0}")"
 SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)"
@@ -140,6 +145,9 @@ start_process() {
         if [ -f "'"$ROBOT_WS"'/install/local_setup.bash" ]; then
             source "'"$ROBOT_WS"'/install/local_setup.bash"
         fi
+        if [ -f "'"$RASPBOT_WS"'/install/local_setup.bash" ]; then
+            source "'"$RASPBOT_WS"'/install/local_setup.bash"
+        fi
         export PYTHONPATH="'"$LIBRARY_WS"':${PYTHONPATH:-}"
         export ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET
         unset ROS_LOCALHOST_ONLY
@@ -161,11 +169,20 @@ if [ "$START_DRIVER" = "true" ]; then
     # The controller plugin (DeadbandController) raises sub-deadband commands
     # and collision_monitor does the forward hard-stop, so the driver simply
     # takes /cmd_vel.
-    if pgrep -f "[M]cnamu_driver" >/dev/null 2>&1; then
-        echo "yahboomcar driver already running - skipping"
+    if [ "$DRIVER_IMPL" = "raspbot" ]; then
+        if pgrep -f "[l]ib/raspbot_driver/raspbot_driver" >/dev/null 2>&1; then
+            echo "raspbot driver already running - skipping"
+        else
+            start_process raspbot_driver \
+                ros2 run raspbot_driver raspbot_driver
+        fi
     else
-        start_process yahboomcar \
-            ros2 run yahboomcar_bringup Mcnamu_driver
+        if pgrep -f "[M]cnamu_driver" >/dev/null 2>&1; then
+            echo "yahboomcar driver already running - skipping"
+        else
+            start_process yahboomcar \
+                ros2 run yahboomcar_bringup Mcnamu_driver
+        fi
     fi
 fi
 
@@ -200,6 +217,7 @@ start_process nav2 \
 
 echo
 echo "Nav2 stack started."
+echo "  driver : $DRIVER_IMPL"
 echo "  params : $PARAMS_FILE"
 echo "  odom   : $ODOM_TOPIC"
 if [ "$KEEPOUT" = "1" ]; then

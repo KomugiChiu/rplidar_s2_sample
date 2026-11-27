@@ -25,6 +25,9 @@ LOG_DIR="${LOG_DIR:-/tmp/demo_script}"
 RUN_DIR="${RUN_DIR:-/tmp/demo_script}"
 AI_PID_FILE="${AI_PID_FILE:-$RUN_DIR/ai_pids}"
 TOPIC_WAIT="${TOPIC_WAIT:-20}"
+# localization mode loads a posegraph, so demo_manager needs longer to publish
+# /demo/person_markers.  A timeout is only a warning, never fatal.
+DEMO_READY_WAIT="${DEMO_READY_WAIT:-40}"
 
 REALSENSE_WS="${REALSENSE_WS:-/nvt_ros2_example/realsense-ros}"
 AI_WS="${AI_WS:-/nvt_ros2_example/ai_human_detection}"
@@ -54,7 +57,28 @@ demo_source_if_exists() {
 }
 
 demo_topic_seen() {
-  timeout 5 ros2 topic list 2>/dev/null | grep -qx "$1"
+  # Do not use `ros2 topic list | grep -q`: grep -q exits on the first match,
+  # which can SIGPIPE ros2 and, under `set -o pipefail`, turn a successful
+  # match into a non-zero status (false "topic not seen").
+  local wanted="$1" line list
+  list="$(timeout 5 ros2 topic list 2>/dev/null || true)"
+  while IFS= read -r line; do
+    [ "$line" = "$wanted" ] && return 0
+  done <<< "$list"
+  return 1
+}
+
+# Retry the ROS 2 CLI: under load it can transiently return empty output.
+demo_has_executable() {
+  local pkg="$1" needle="$2" out i
+  for i in 1 2 3 4 5; do
+    out="$(timeout 10 ros2 pkg executables "$pkg" 2>/dev/null || true)"
+    case "$out" in
+      *"$needle"*) return 0 ;;
+    esac
+    sleep 1
+  done
+  return 1
 }
 
 demo_wait_topic() {
@@ -66,7 +90,7 @@ demo_wait_topic() {
     fi
     sleep 1
   done
-  demo_log "WARN: $name topic not seen after ${timeout_s}s: $topic"
+  demo_log "WARN (non-fatal): $name topic not seen after ${timeout_s}s: $topic"
   return 1
 }
 
@@ -178,11 +202,40 @@ demo_wait_for_slam() {
   done
   [ "$ready" = "1" ] || demo_die "SLAM/EKF not ready after 60 s"
   demo_log "      SLAM/EKF ready"
+  # Localization mode loads a posegraph; the 'map' frame can briefly disappear
+  # while slam_toolbox finishes.  Give TF listeners (demo_manager) time to fill
+  # their buffers before starting Nav2 / AI.
+  demo_wait_tf_stable
+}
+
+demo_wait_tf_stable() {
+  # Require 3 consecutive good map->base_link lookups, 1 s apart.  Non-fatal.
+  local need=3 tf_out i
+  # shellcheck disable=SC1090
+  source /opt/ros/jazzy/setup.bash >/dev/null 2>&1 || return 0
+  for i in $(seq 1 30); do
+    tf_out="$(timeout 5 ros2 run tf2_ros tf2_echo map base_link 2>&1 || true)"
+    if [[ "$tf_out" == *Translation* ]]; then
+      need=$((need - 1))
+      if [ "$need" -eq 0 ]; then
+        demo_log "      TF map->base_link stable"
+        return 0
+      fi
+    else
+      need=3
+    fi
+    sleep 1
+  done
+  demo_log "WARN (non-fatal): TF map->base_link not stable after 30 s; continuing"
+  return 0
 }
 
 demo_start_nav2() {
   demo_log "[3/4] Nav2 + chassis driver"
-  PARAMS_FILE="$NAV2_PARAMS_FILE" "$NAV2_DIR/start_nav2.sh"
+  # demo_wait_for_slam (plus the TF-settle check) already verified /map,
+  # /odometry/filtered and map->base_link.  Skip start_nav2.sh's duplicate
+  # preflight: under load its repeated ROS 2 CLI probes can fail spuriously.
+  SKIP_CHECK=1 PARAMS_FILE="$NAV2_PARAMS_FILE" "$NAV2_DIR/start_nav2.sh"
 }
 
 demo_source_ai_env() {
@@ -203,10 +256,31 @@ demo_start_ai() {
 
   ros2 pkg prefix ai_human_detection >/dev/null 2>&1 \
     || demo_die "ai_human_detection not found"
-  ros2 pkg executables ai_human_detection 2>/dev/null | grep -q 'ai_human_detection_node' \
-    || demo_die "ai_human_detection_node not found"
-  ros2 pkg executables demo_manager 2>/dev/null | grep -q 'person_target_recovery_node' \
-    || demo_die "person_target_recovery_node not found in demo_manager"
+  # Retry the CLI, and fall back to checking the installed executable file:
+  # a transient empty `ros2 pkg executables` under load must not abort step 4.
+  if ! demo_has_executable ai_human_detection ai_human_detection_node; then
+    if [ -x "$AI_WS/ai_human_detection/lib/ai_human_detection/ai_human_detection_node" ] || \
+       [ -x "/nvt_ros2_example/ai_human_detection/ai_human_detection/lib/ai_human_detection/ai_human_detection_node" ] || \
+       [ -x "/root/ros2_ws/install/ai_human_detection/ai_human_detection/lib/ai_human_detection/ai_human_detection_node" ]; then
+      demo_log "WARN (non-fatal): ai_human_detection_node not reported by ros2 CLI; file exists, continuing"
+    else
+      demo_die "ai_human_detection_node not found (check AMENT_PREFIX_PATH; workspace ai_human_detection may shadow the vendor package)"
+    fi
+  fi
+  if ! demo_has_executable demo_manager person_target_recovery_node; then
+    # Include the absolute default paths as well, in case DEMO_INSTALL /
+    # DEMO_WS were overridden by the caller.
+    if [ -x "$DEMO_INSTALL/demo_manager/lib/demo_manager/person_target_recovery_node" ] || \
+       [ -x "/nvt_ros2_example/demo_manager/install/demo_manager/lib/demo_manager/person_target_recovery_node" ] || \
+       [ -x "$DEMO_WS/install/demo_manager/demo_manager/lib/demo_manager/person_target_recovery_node" ] || \
+       [ -x "/root/ros2_ws/install/demo_manager/demo_manager/lib/demo_manager/person_target_recovery_node" ]; then
+      demo_log "WARN (non-fatal): person_target_recovery_node not reported by ros2 CLI; file exists, continuing"
+    else
+      demo_log "DEBUG demo_manager: DEMO_INSTALL=$DEMO_INSTALL DEMO_WS=$DEMO_WS"
+      demo_log "DEBUG prefix=$(ros2 pkg prefix demo_manager 2>&1 || true)"
+      demo_die "person_target_recovery_node not found in demo_manager"
+    fi
+  fi
   demo_prefix="$(ros2 pkg prefix demo_manager 2>/dev/null || true)"
   case "$demo_prefix" in
     "$DEMO_INSTALL"/*) ;;
@@ -232,7 +306,8 @@ demo_start_ai() {
   # demo_manager_node; it exits when either of them dies.
   demo_start_bg demo_runtime "$DEMO_INSTALL/start_demo_only.sh"
   demo_wait_topic /person_infos_stable "$TOPIC_WAIT" "person target recovery" || true
-  demo_wait_topic /demo/person_markers "$TOPIC_WAIT" "demo manager" || true
+  demo_wait_topic /demo/person_markers "$DEMO_READY_WAIT" "demo manager" || \
+    demo_log "WARN (non-fatal): /demo/person_markers not seen after ${DEMO_READY_WAIT}s; startup continues"
 }
 
 demo_print_done() {

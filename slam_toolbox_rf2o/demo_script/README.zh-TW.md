@@ -164,9 +164,16 @@ mapping 時儲存 map：
 
 ```bash
 START_AI=0 ./start_demo.sh          # 只跑 SLAM + EKF + Nav2
+DRIVER_IMPL=raspbot ./start_demo.sh        # 改用新的 raspbot_driver
+DRIVER_IMPL=raspbot ./start_demo_static.sh # 同上，localization 模式
 SLAM_PARAMS=/path/to/other.yaml ./start_demo_static.sh
 NAV2_PARAMS_FILE=$NAV2_DIR/nav2_params_plugin.yaml ./start_demo.sh
 ```
+
+`DRIVER_IMPL` 會傳給 `$NAV2_DIR/start_nav2.sh`；預設是 `yahboom`（原廠
+`Mcnamu_driver`），保留作為回滾路徑。`raspbot` 會從
+`/root/raspybot/raspbot_driver_ws` 啟動 `raspbot_driver`，並維持 legacy
+`/ultrasonic` topic 給既有的 DeadbandController。
 
 ## 4. 環境變數
 
@@ -185,9 +192,16 @@ NAV2_PARAMS_FILE=$NAV2_DIR/nav2_params_plugin.yaml ./start_demo.sh
 | `LOG_DIR` | 系統暫存目錄 | log 與 PID |
 | `RUN_DIR` | 系統暫存目錄 | PID 檔目錄 |
 | `TOPIC_WAIT` | `20` | 每個 topic 等待秒數 |
+| `DEMO_READY_WAIT` | `40` | `/demo/person_markers` 的較長（非致命）等待時間，主要給 localization 模式用 |
 
 `START_REALSENSE=1` 在 demo 中沒有用途，因為相機由 EKF 啟動。
 若目前沒有相機在跑，script 會直接報錯。
+
+在 localization 模式（`start_demo_static.sh`）下，slam_toolbox 會載入
+posegraph，`map` frame 可能短暫不存在、TF buffer 需要時間補資料。現在 script
+會先等 `map -> base_link` 連續 3 次查詢成功才啟動 Nav2/AI，並給 demo_manager
+最多 `DEMO_READY_WAIT` 秒發布 `/demo/person_markers`。逾時只是警告，demo 仍會
+啟動；該 topic 通常幾秒後就會出現。
 
 ## 5. 各層啟動內容
 

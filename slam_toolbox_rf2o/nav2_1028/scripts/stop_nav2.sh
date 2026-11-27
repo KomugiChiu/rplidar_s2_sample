@@ -8,7 +8,7 @@ KEEP_DRIVER="${KEEP_DRIVER:-0}"
 if [ -s "$PID_FILE" ]; then
     tac "$PID_FILE" | while read -r pid name; do
         [ -n "${pid:-}" ] || continue
-        if [ "$KEEP_DRIVER" = "1" ] && [ "${name:-}" = "yahboomcar" ]; then
+        if [ "$KEEP_DRIVER" = "1" ] && { [ "${name:-}" = "yahboomcar" ] || [ "${name:-}" = "raspbot_driver" ]; }; then
             continue
         fi
         if kill -0 "$pid" 2>/dev/null; then
@@ -21,7 +21,7 @@ if [ -s "$PID_FILE" ]; then
 
     tac "$PID_FILE" | while read -r pid name; do
         [ -n "${pid:-}" ] || continue
-        if [ "$KEEP_DRIVER" = "1" ] && [ "${name:-}" = "yahboomcar" ]; then
+        if [ "$KEEP_DRIVER" = "1" ] && { [ "${name:-}" = "yahboomcar" ] || [ "${name:-}" = "raspbot_driver" ]; }; then
             continue
         fi
         if kill -0 "$pid" 2>/dev/null; then
@@ -59,6 +59,9 @@ if [ "$KEEP_DRIVER" != "1" ]; then
     PATTERNS+=(
         "ros2 launch yahboomcar_bringup bringup.launch.py"
         "Mcnamu_driver"
+        "ros2 run raspbot_driver raspbot_driver"
+        "lib/raspbot_driver/raspbot_driver"
+        "raspbot_driver.driver_node"
     )
 fi
 
